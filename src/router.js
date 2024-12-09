@@ -4,7 +4,7 @@ import ForgotPassword from "./views/ForgotPassword.vue";
 import VerificationCode from "./views/VerificationCode.vue";
 import NewPassword from "./views/NewPassword.vue";
 import Collections from "./views/Collections.vue";
-import DetailsProduct from "./views/DetailsProduct2.vue";
+import DetailsProduct from "./views/DetailsProduct.vue";
 import Home from "./views/admin/HomePage.vue";
 import AddNewProduct from "./views/admin/AddNewProductPage.vue";
 import EditProduct from "./views/admin/EditProduct.vue";
