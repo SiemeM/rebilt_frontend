@@ -118,9 +118,7 @@ const profileImage = computed(() => {
 
 <template>
   <nav>
-    <div class="logo">
-      <h3>REBILT</h3>
-    </div>
+    <div class="logo"></div>
     <div class="profile">
       <!-- Add dynamic profile picture from user data -->
       <div
@@ -189,11 +187,13 @@ nav {
   position: fixed;
 }
 
-nav .logo h3 {
-  font-size: 1.5rem;
-  color: #ffffff;
-  text-transform: uppercase;
-  font-weight: bold;
+nav .logo {
+  background-image: url("../assets/images/REBILT-logo-white.svg");
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  width: 80px;
+  height: 32px;
 }
 
 nav,
