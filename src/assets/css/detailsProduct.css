@@ -1,0 +1,430 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 896px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.logo {
+  background-image: url("../images/REBILT-logo-white.svg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  width: 80px;
+  height: 32px;
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  z-index: 10;
+}
+
+.model {
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.model div {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  width: 100%;
+  height: 280px;
+}
+
+.rotate-informer {
+  position: absolute;
+  top: 55%;
+  left: calc(75% / 2 - 12px);
+  z-index: 999;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 4px;
+  background-color: #1a1a1a;
+  box-shadow: 0 0 8px #0006;
+  transition: transform 0.5s;
+}
+
+.icons {
+  position: absolute;
+  top: 48%;
+  left: calc(75% / 2 - 12px);
+  z-index: 999;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+.icons .icon {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+}
+
+.icons .icon div {
+  border-radius: 100%;
+  background-color: #1a1a1a;
+  box-shadow: 0 0 8px #0006;
+  transition: transform 0.5s;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+.icons .icon p {
+  background-color: #1a1a1a;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 14px;
+  margin: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+  letter-spacing: 1px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.icons .icon:hover p {
+  opacity: 1;
+}
+
+.icons div svg {
+  width: 24px;
+  height: 24px;
+  fill: #fff;
+}
+
+.rotate-informer p {
+  color: var(--white);
+}
+
+.QR_code {
+  position: absolute;
+  left: 6%;
+  top: 75%;
+  transform: translate(-50%, -50%);
+  background-color: #1a1a1a;
+  border-radius: 1rem;
+  padding: 1rem;
+  height: 120px;
+  width: 120px;
+  display: none;
+  justify-content: center;
+  align-items: center;
+}
+
+.QR_code .image {
+  height: 80px;
+  width: 80px;
+}
+
+.config-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 24px;
+  background: linear-gradient(to bottom, #000000, #473c5d);
+  top: 55%;
+  right: 0;
+  width: 100%;
+  height: 45%;
+  padding: 16px 52px 24px;
+}
+
+.config-wrapper .configurations,
+.config-wrapper form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.config-wrapper a {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+.config-wrapper a p {
+  font-size: 0.8em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+
+.config-wrapper a svg,
+li svg {
+  text-transform: uppercase;
+  color: var(--black);
+  width: 10px;
+  height: 10px;
+  fill: #9b9b9b;
+  transform: translateY(-2px);
+}
+
+.config-wrapper .links {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.config-wrapper .elements {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  height: 100%;
+  width: 100%;
+}
+
+.config-wrapper .elements .overviewConfig {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  justify-content: space-between;
+  height: 100%;
+  width: 100%;
+}
+
+.config-wrapper .elements .bullets {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.config-wrapper .bullets .bullet {
+  opacity: 0.4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 29.54px;
+  border: 1px solid var(--white);
+  color: var(--white);
+  border-radius: 100%;
+  font-size: 11px;
+}
+
+.config-wrapper .bullets .bullet.active {
+  opacity: 1;
+  border: 1px solid var(--white);
+}
+
+.config-wrapper .bullets .bullet.done {
+  opacity: 1;
+  background-color: var(--white);
+}
+
+.config-wrapper .bullets .border {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  width: 16px;
+}
+
+.config-wrapper .overview,
+.config-wrapper .summary {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.config-wrapper .summary {
+  display: none;
+}
+
+.config-wrapper .summary .fontweight {
+  color: var(--white);
+}
+
+.config-wrapper h2 {
+  text-align: center;
+}
+
+.config-wrapper .overview ul li,
+.config-wrapper .summary .configurations div {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.config-wrapper .summary .configurations div {
+  gap: 48px;
+}
+
+.config-wrapper .summary .configurations div .row {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  border: none;
+  width: auto;
+}
+
+.config-wrapper .summary .configurations div .row p {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--white);
+  border-radius: 50%;
+}
+
+.config-wrapper form .row {
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.config-wrapper form .row .column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.config-wrapper form .row .column input {
+  color: var(--white);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding-left: 8px;
+  width: 100%;
+}
+
+.config-ui__page .top {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.config-ui__page .top a {
+  opacity: 0.6;
+  text-decoration: underline;
+  text-transform: uppercase;
+  color: var(--white);
+  font-size: 12px;
+}
+
+.colorsItem {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.colorsItem .row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.colorsItem .row .texture {
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.colorsItem .row div {
+  width: 64px;
+  height: 64px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.colorsItem .row div.active,
+.colorsItem .row div.selected {
+  border: 3px solid var(--purple);
+}
+
+.colorsItem .row div p {
+  display: none;
+}
+
+.config-wrapper .display {
+  display: none;
+}
+
+.config-wrapper .visibility {
+  visibility: hidden;
+}
+
+.btn {
+  color: var(--white);
+  margin-top: 1rem;
+}
+
+.errorMessage {
+  color: red;
+}
+
+.successMessage {
+  color: green;
+}
+
+.backButton {
+  padding-bottom: 16px;
+}
+
+@media (min-width: 1200px) {
+  .container {
+    flex-direction: row;
+    height: 100vh;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .model {
+    width: 75%;
+    height: 100%;
+  }
+
+  .icons {
+    top: 50%;
+    left: 24px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .rotate-informer {
+    top: 90%;
+  }
+
+  .config-wrapper {
+    padding: 32px;
+    gap: 48px;
+    top: 0;
+    width: 25%;
+    height: 100%;
+    right: 0;
+    position: absolute;
+    overflow-y: auto;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .config-wrapper h2 {
+    text-align: left;
+  }
+}
