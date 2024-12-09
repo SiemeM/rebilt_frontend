@@ -5,6 +5,9 @@ import { useRoute } from "vue-router";
 const colors = ref([]);
 const selectedColor = ref(null);
 
+const productImages = ref([]);
+const selectedImage = ref(null);
+
 const route = useRoute();
 const productId = ref(null);
 const productData = ref({ productName: "", productCode: "", productPrice: 0 });
@@ -51,16 +54,20 @@ async function fetchProductData(code) {
       productName: data.data.product.productName,
       productCode: data.data.product.productCode,
       productPrice: data.data.product.productPrice,
+      productImages: data.data.product.images,
+      selectedImage: data.data.product.images[0],
     };
 
     productCode = data.data.product.productCode;
     productName = data.data.product.productName;
+    productImages.value = data.data.product.images;
+    selectedImage.value = data.data.product.images[0];
     colors.value = data.data.product.colors || [];
-
+    setDefaultActiveColor();
     const partnerId = data.data.product.partnerId;
 
-    // Haal de package van de partner op
-    await fetchPartnerPackage(partnerId); // Wacht totdat de package is opgehaald
+    // Fetch partner package
+    await fetchPartnerPackage(partnerId);
   } catch (err) {
     console.error("Error occurred:", err);
     error.value = "Unable to fetch product information.";
@@ -81,9 +88,20 @@ watch(
   { immediate: true }
 );
 
+function setDefaultActiveColor() {
+  if (colors.value.length > 0) {
+    selectedColor.value = colors.value[0];
+    highlightSelectedItem(colors.value[0], "row-class-name"); // Pas de naam van de rijklasse aan
+  }
+}
+
 function selectColor(color) {
   selectedColor.value = color;
-  highlightSelectedItem(color, "part-class-name"); // Replace 'part-class-name' with the correct part class.
+  const index = colors.value.indexOf(color);
+  if (index !== -1 && productImages.value[index]) {
+    selectedImage.value = productImages.value[index];
+  }
+  highlightSelectedItem(color, "part-class-name");
 }
 
 function highlightSelectedItem(color, part) {
@@ -109,8 +127,13 @@ function highlightSelectedItem(color, part) {
 
 <template>
   <div class="container">
-    <h3 class="logo">REBILT</h3>
-    <div class="model"></div>
+    <div class="logo"></div>
+    <div class="model">
+      <div
+        class="image"
+        :style="{ backgroundImage: `url(${selectedImage})` }"
+      ></div>
+    </div>
     <div class="icons">
       <router-link :to="`/`">
         <div class="icon">
@@ -171,8 +194,8 @@ function highlightSelectedItem(color, part) {
             <h2>Choose the color of the frame</h2>
             <div class="row">
               <div
-                v-for="color in colors"
-                :key="color"
+                v-for="(color, index) in colors"
+                :key="index"
                 :class="{ active: selectedColor === color }"
                 :data-color="color"
                 :style="{ backgroundColor: color }"
@@ -197,17 +220,16 @@ function highlightSelectedItem(color, part) {
 }
 
 .logo {
+  background-image: url("../assets/images/REBILT-logo-white.svg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  width: 80px;
+  height: 32px;
   position: fixed;
   top: 24px;
   left: 24px;
   z-index: 10;
-  font-size: 1.5rem;
-  color: #ffffff;
-  text-transform: uppercase;
-  font-weight: bold;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 8px 16px;
-  border-radius: 8px;
 }
 
 .model {
@@ -215,6 +237,17 @@ function highlightSelectedItem(color, part) {
   height: 100%;
   z-index: 0;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.model div {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  width: 100%;
+  height: 280px;
 }
 
 .rotate-informer {
