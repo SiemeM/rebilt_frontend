@@ -29,17 +29,18 @@ async function fetchPartnerPackage(partnerId) {
 
     const data = await response.json();
     const partnerPackage = data.data.partner.package;
-
-    // Controleer of het pakket "Pro" is en pas de canCheckout waarde aan
+    console.log(partnerPackage);
+    // Controleer of het pakket "Pro" is
     canCheckout.value = partnerPackage === "Pro";
   } catch (err) {
     console.error("Error fetching partner data:", err);
-    canCheckout.value = false; // Zet het op false bij een fout
+    canCheckout.value = false; // Foutafhandeling
   }
 }
 
 let productCode = "";
 let productName = "";
+
 // Functie om productgegevens op te halen
 async function fetchProductData(code) {
   isLoading.value = true;
@@ -64,10 +65,16 @@ async function fetchProductData(code) {
     selectedImage.value = data.data.product.images[0];
     colors.value = data.data.product.colors || [];
     setDefaultActiveColor();
-    const partnerId = data.data.product.partnerId;
 
-    // Fetch partner package
-    await fetchPartnerPackage(partnerId);
+    const partnerId = data.data.product.partnerId;
+    if (partnerId) {
+      // Fetch partner package
+      await fetchPartnerPackage(partnerId);
+    } else {
+      console.error(
+        "Partner ID is undefined or missing from the product data."
+      );
+    }
   } catch (err) {
     console.error("Error occurred:", err);
     error.value = "Unable to fetch product information.";
