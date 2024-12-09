@@ -35,7 +35,7 @@ if (!userId) {
 // API basis URL configuratie
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
-  ? "https://glint-backend-admin.onrender.com/api/v1"
+  ? "https://https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
 // Reactieve data voor het gebruikersprofiel en huisstijl

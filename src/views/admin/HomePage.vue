@@ -61,7 +61,7 @@ if (!userId) {
 // Base URL for API calls
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
-  ? "https://glint-backend-admin.onrender.com/api/v1"
+  ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
 // Partner related data

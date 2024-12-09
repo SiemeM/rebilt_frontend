@@ -57,7 +57,7 @@ const canCheckout = ref(false); // Controleer of de partner een "Pro" pakket hee
 
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
-  ? "https://glint-backend-admin.onrender.com/api/v1"
+  ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
 // Functie om de package van de partner op te halen

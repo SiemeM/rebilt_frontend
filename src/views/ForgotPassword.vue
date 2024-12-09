@@ -31,7 +31,7 @@ onMounted(() => {
 // Controle of we in de productieomgeving draaien
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
-  ? "https://glint-backend-admin.onrender.com/api/v1" // Zorg dat dit HTTPS is voor productie
+  ? "https://rebilt-backend.onrender.com/api/v1" // Zorg dat dit HTTPS is voor productie
   : "http://localhost:3000/api/v1"; // Gebruik HTTP voor lokaal
 
 // Functie om de e-mail te versturen naar de backend

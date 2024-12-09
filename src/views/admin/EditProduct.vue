@@ -8,7 +8,7 @@ import sha1 from "js-sha1";
 // Basis-URL bepalen op basis van de omgeving
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
-  ? "https://glint-backend-admin.onrender.com/api/v1"
+  ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
 const router = useRouter();
