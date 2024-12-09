@@ -411,7 +411,7 @@ const filteredProducts = computed(() => {
             <p>{{ product.typeOfProduct }}</p>
             <p>{{ product.brand }}</p>
             <p>{{ product.productName }}</p>
-            <p>{{ product.colors.join(", ") }}</p>
+            <p>{{ product.colors }}</p>
             <!-- Voeg join toe om de kleuren weer te geven -->
             <p>{{ product.description }}</p>
             <p>{{ product.activeUnactive }}</p>
