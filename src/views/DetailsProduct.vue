@@ -2,206 +2,86 @@
 import { ref, watch, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
-const colors = ref([]);
-const selectedColor = ref(null);
-const productImages = ref([]);
-const selectedImage = ref(null);
-const route = useRoute();
-const productId = ref(null);
-const productData = ref({ productName: "", productCode: "", productPrice: 0 });
-const isLoading = ref(true);
-const error = ref(null);
-const isProduction = window.location.hostname !== "localhost";
-const baseURL = isProduction
-  ? "https://rebilt-backend.onrender.com/api/v1"
-  : "http://localhost:3000/api/v1";
+// Initialize global variables for scene, camera, and renderer
+let scene, camera, renderer;
+const objLoader = new OBJLoader();
 
-const partnerPackage = ref("");
+// Function to initialize the 3D scene
+function initializeScene() {
+  scene = new THREE.Scene();
 
-// Functie om de package van de partner op te halen
-async function fetchPartnerPackage(partnerId) {
-  try {
-    const response = await fetch(`${baseURL}/partners/${partnerId}`);
-    if (!response.ok) throw new Error("Network response was not ok");
-
-    const data = await response.json();
-    partnerPackage.value = data.data.partner.package; // Gebruik .value om de ref te updaten
-    console.log(partnerPackage.value); // Verplaats de log naar hier, zodat je de juiste waarde krijgt
-  } catch (err) {
-    console.error("Error fetching partner data:", err);
-  }
-}
-
-let productCode = "";
-let productName = "";
-
-function highlightSelectedItem(color, part) {
-  // Zoek de container voor de geselecteerde laag
-  const elements = document.querySelectorAll(`.${part}`);
-
-  // Verwijder de 'selected' klasse van alle elementen
-  elements.forEach((element) => {
-    element.classList.remove("selected");
-  });
-
-  // Zoek het element dat overeenkomt met de geselecteerde kleur
-  const selectedElement = Array.from(elements).find(
-    (element) => element.dataset.color === color
+  // Zet de camera op een geschikte afstand van het object
+  camera = new THREE.PerspectiveCamera(
+    75, // Gezichtshoek
+    window.innerWidth / window.innerHeight, // Aspect ratio
+    0.1, // Near clipping plane
+    1000 // Far clipping plane
   );
 
-  // Voeg de 'selected' klasse toe aan het geselecteerde item
-  if (selectedElement) {
-    selectedElement.classList.add("selected");
-  }
+  // Zet de camera verder van het object
+  camera.position.set(0, -20, 40); // Stel de camera verder weg in
+  camera.lookAt(0, 0, 0); // Kijk naar het midden van de scène
+
+  renderer = new THREE.WebGLRenderer();
+  const container = document.querySelector(".model");
+  renderer.setSize(container.offsetWidth, container.offsetHeight);
+  container.appendChild(renderer.domElement);
+
+  // Voeg verlichting toe aan de scène
+  const light = new THREE.PointLight(0xffffff, 1, 100);
+  light.position.set(10, 10, 10);
+  scene.add(light);
+
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+  directionalLight.position.set(10, 20, 10);
+  scene.add(directionalLight);
+
+  const ambientLight = new THREE.AmbientLight(0x404040);
+  scene.add(ambientLight);
 }
 
-function setDefaultActiveColor() {
-  if (colors.value.length > 0) {
-    selectedColor.value = colors.value[0];
-    highlightSelectedItem(colors.value[0], "row-class-name"); // Pas de naam van de rijklasse aan
-  }
-}
+// Laad het 3D model
+objLoader.load(
+  "/models/ring.obj", // Zorg ervoor dat dit een geldig OBJ-bestand is
+  (object) => {
+    console.log("OBJ model loaded successfully");
 
-// Functie om productgegevens op te halen
-async function fetchProductData(code) {
-  isLoading.value = true;
-  error.value = null;
+    // Zet het object in het midden van de scène
+    object.position.set(0, 0, 0); // Zorg ervoor dat het model in het midden staat
 
-  try {
-    const response = await fetch(`${baseURL}/products/${code}`);
-    if (!response.ok) throw new Error("Network response was not ok");
+    // Pas de schaal aan als dat nodig is
+    object.scale.set(10, 10, 10); // Verklaar de schaal van het object indien nodig
 
-    const data = await response.json();
-    productData.value = {
-      productName: data.data.product.productName,
-      productCode: data.data.product.productCode,
-      productPrice: data.data.product.productPrice,
-      productImages: data.data.product.images,
-      selectedImage: data.data.product.images[0],
-    };
+    scene.add(object);
 
-    productCode = data.data.product.productCode;
-    productName = data.data.product.productName;
-    productImages.value = data.data.product.images;
-    selectedImage.value = data.data.product.images[0];
-    colors.value = data.data.product.colors || [];
-    setDefaultActiveColor();
-
-    const partnerId = data.data.product.partnerId;
-    if (partnerId) {
-      // Fetch partner package
-      await fetchPartnerPackage(partnerId);
-    } else {
-      console.error(
-        "Partner ID is undefined or missing from the product data."
-      );
-    }
-  } catch (err) {
-    console.error("Error occurred:", err);
-    error.value = "Unable to fetch product information.";
-  } finally {
-    isLoading.value = false;
-  }
-}
-
-// Kijkt naar de route en haalt productgegevens op bij wijziging
-watch(
-  () => route.params.productId,
-  (newCode) => {
-    if (newCode && newCode !== productId.value) {
-      productId.value = newCode;
-      fetchProductData(newCode);
-    }
-  },
-  { immediate: true }
-);
-
-// Watch voor partnerPackage en handel alleen als het pro-pakket is
-watch(partnerPackage, (newPackage) => {
-  console.log("Partner package value is now:", newPackage); // Kijk of deze waarde correct wordt opgehaald.
-  if (newPackage === "pro") {
-    console.log("3D scene is being initialized");
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(
-      75,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
-    );
-    camera.position.set(0, 5, 15);
-    camera.lookAt(0, 0, 0);
-
-    const renderer = new THREE.WebGLRenderer();
-    const container = document.querySelector(".model");
-    console.log("Container:", container); // Log om te controleren of de container goed is gevonden
-    renderer.setSize(container.offsetWidth, container.offsetHeight);
-    container.appendChild(renderer.domElement);
-
-    const light = new THREE.PointLight(0xffffff, 1, 100);
-    light.position.set(10, 10, 10);
-    scene.add(light);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
-    directionalLight.position.set(10, 20, 10);
-    scene.add(directionalLight);
-
-    const ambientLight = new THREE.AmbientLight(0x404040);
-    scene.add(ambientLight);
-
-    const gltfLoader = new GLTFLoader();
-    const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath("/assets/draco/");
-    gltfLoader.setDRACOLoader(dracoLoader);
-
-    gltfLoader.load(
-      "/models/Shoe_compressed.glb",
-      (gltf) => {
-        console.log("3D model loaded successfully"); // Log om te controleren of het model geladen is
-        gltf.scene.scale.set(50, 50, 50);
-        scene.add(gltf.scene);
-        gltf.scene.traverse((child) => {
-          if (child.name === "laces") window.laces = child;
-          if (child.name === "sole_bottom") window.sole_bottom = child;
-          if (child.name === "sole_top") window.sole_top = child;
-          if (child.name === "inside") window.inside = child;
-          if (child.name === "outside_1") window.outside1 = child;
-          if (child.name === "outside_2") window.outside2 = child;
-          if (child.name === "outside_3") window.outside3 = child;
-        });
-
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.25;
-        controls.enableZoom = true;
-        controls.target.set(0, 0, 0);
-        controls.update();
-
-        function animate() {
-          requestAnimationFrame(animate);
-          controls.update();
-          renderer.render(scene, camera);
-        }
-
-        animate();
-      },
-      undefined,
-      (error) => {
-        console.error("Error loading model:", error); // Log als er een fout is met het laden van het model
-      }
-    );
+    // Zet orbit controls om te kunnen draaien
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.25;
+    controls.enableZoom = true;
+    controls.target.set(0, 0, 0); // Zodat het model in het midden van de scène is
+    controls.update();
 
     function animate() {
       requestAnimationFrame(animate);
+      controls.update();
       renderer.render(scene, camera);
     }
-  } else {
-    console.log("Partner package is not 'pro', skipping 3D model.");
+
+    animate();
+  },
+  undefined,
+  (error) => {
+    console.error("Error loading OBJ model:", error);
   }
+);
+
+onMounted(() => {
+  // Initialize the scene after the component has been mounted
+  initializeScene();
 });
 </script>
 
