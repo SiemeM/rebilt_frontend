@@ -4,7 +4,6 @@ import { useRoute, useRouter } from "vue-router";
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 
-const index = ref(0); // Define index as a reactive ref
 const sizes = ref([]);
 const materials = ref([]);
 const layers = ref([]);
@@ -79,13 +78,17 @@ function extractMaterials(object) {
   object.traverse((child) => {
     if (child.isMesh) {
       child.material.forEach((material) => {
+        console.log("Material found:", material.name);
         materials.value.push(material);
         if (!layers.value.includes(material.name)) {
-          layers.value.push(material.name);
+          layers.value.push(material.name); // Laagnaam wordt hier toegevoegd
         }
       });
     }
   });
+
+  // Verwijder dubbele items in layers
+  layers.value = [...new Set(layers.value)];
 }
 
 function applyColorToMaterial(material, color) {
@@ -200,33 +203,79 @@ function highlightSelectedItem(color, part) {
 }
 
 function nextPage() {
-  // Hide the overview section
   const overview = document.querySelector(".overview");
   const backButton = document.querySelector(".backButton");
-  if (overview) {
-    overview.style.display = "none";
-  }
-
-  if (backButton) {
-    backButton.style.visibility = "visible";
-  }
-
-  // Check if there are more pages to show
-  if (currentPageIndex.value < materials.value.length - 1) {
-    currentPageIndex.value++;
-  }
-
-  // Select all pages
   const pages = document.querySelectorAll(".config-ui__page");
 
-  // Ensure that the currentPageIndex is within bounds
-  if (pages.length > currentPageIndex.value) {
-    const currentPage = pages[currentPageIndex.value];
+  if (!pages || pages.length === 0) {
+    console.warn("No config-ui__page elements found.");
+    return;
+  }
 
-    // Show the page corresponding to the currentPageIndex
-    currentPage.style.display = "flex";
+  console.log("Pages found:", pages);
+
+  // Als je op de overview bent, verberg deze en toon de eerste pagina
+  if (overview && overview.style.display !== "none") {
+    console.log("Hiding overview, showing the first page");
+    overview.style.display = "none";
+    currentPageIndex.value = 0;
+
+    // Reset alle pagina's
+    pages.forEach((page) => page.classList.remove("active"));
+    pages[currentPageIndex.value].classList.add("active");
+
+    if (backButton) {
+      backButton.style.visibility = "visible";
+    }
+    console.log("Current page index:", currentPageIndex.value);
+    return;
+  }
+
+  console.log("Hiding current page:", pages[currentPageIndex.value]);
+  pages[currentPageIndex.value].classList.remove("active");
+
+  // Verhoog de index en activeer de volgende pagina
+  if (currentPageIndex.value < pages.length - 1) {
+    currentPageIndex.value++;
+    console.log("Showing next page:", pages[currentPageIndex.value]);
+    pages[currentPageIndex.value].classList.add("active");
   } else {
-    console.warn("No page found for the given index:", currentPageIndex.value);
+    console.warn("No more pages to navigate to.");
+  }
+
+  console.log("Final current page index:", currentPageIndex.value);
+}
+
+function previousPage() {
+  console.log("cd");
+  const pages = document.querySelectorAll(".config-ui__page");
+  const overview = document.querySelector(".overview");
+  const backButton = document.querySelector(".backButton");
+
+  if (!pages || pages.length === 0) {
+    console.warn("No config-ui__page elements found.");
+    return;
+  }
+
+  // Als we op de eerste pagina zitten, ga terug naar de overview
+  if (currentPageIndex.value === 0) {
+    if (overview) {
+      overview.style.display = "flex"; // Toon de overview
+    }
+    if (backButton) {
+      backButton.style.visibility = "hidden"; // Verberg de back-button
+    }
+    pages[currentPageIndex.value].classList.remove("active"); // Verwijder 'active' van de huidige pagina
+    return;
+  }
+
+  // Verberg de huidige pagina
+  pages[currentPageIndex.value].classList.remove("active");
+
+  // Verlaag de index en toon de vorige pagina
+  if (currentPageIndex.value > 0) {
+    currentPageIndex.value--;
+    pages[currentPageIndex.value].classList.add("active"); // Maak de vorige pagina actief
   }
 }
 
@@ -399,15 +448,16 @@ function onMouseUp() {
       </div>
 
       <div
-        class="config-ui__page"
-        v-for="(material, index) in materials"
+        v-for="(layer, index) in layers"
         :key="index"
+        class="config-ui__page"
+        v-show="currentPageIndex === index"
       >
-        <h2>Choose the color for {{ material.name }}</h2>
+        <h2>Choose the color for {{ layer }}</h2>
         <div class="row">
           <div
-            v-for="(color, index) in colors"
-            :key="index"
+            v-for="(color, colorIndex) in colors"
+            :key="colorIndex"
             :class="{ active: selectedColor === color }"
             :data-color="color"
             :style="{ backgroundColor: color }"
@@ -434,7 +484,12 @@ function onMouseUp() {
         <h3>Personal info</h3>
       </div>
       <div class="links">
-        <a href="#" class="backButton" style="visibility: hidden">
+        <a
+          href="#"
+          class="backButton"
+          @click="previousPage"
+          style="visibility: hidden"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 320 512"

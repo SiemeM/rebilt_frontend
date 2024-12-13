@@ -336,6 +336,10 @@ li svg {
   display: none;
 }
 
+.config-ui__page.active {
+  display: flex;
+}
+
 .config-ui__page .row {
   display: flex;
   flex-direction: row;
