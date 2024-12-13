@@ -1,9 +1,10 @@
 <script setup>
-import { ref, watch, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 
+const index = ref(0); // Define index as a reactive ref
 const sizes = ref([]);
 const materials = ref([]);
 const layers = ref([]);
@@ -12,6 +13,7 @@ const selectedSize = ref(null);
 const selectedMaterial = ref(null);
 const selectedColor = ref(null);
 const selectedWidth = ref(null);
+const currentPageIndex = ref(0); // Reactive reference for page index
 
 const productImages = ref([]);
 const selectedImage = ref(null);
@@ -64,9 +66,7 @@ function load3DModel() {
       isModelLoaded = true;
       extractMaterials(object);
     },
-    (xhr) => {
-      console.log(`Model loading progress: ${(xhr.loaded / xhr.total) * 100}%`);
-    },
+    (xhr) => {},
     (error) => {
       console.error("Error loading 3D model:", error);
     }
@@ -124,25 +124,23 @@ function changeLayerColor(color) {
 }
 
 function selectColor(color) {
-  console.log(`Selected color: ${color}`);
-  changeLayerColor(color);
+  selectedColor.value = color; // Update selected color
+  highlightSelectedItem(color, "row-class-name"); // Add highlight to the clicked item
+  changeLayerColor(color); // Apply color to the 3D model layer
 }
 
 async function fetchPartnerPackage(partnerId) {
-  console.log(`Fetching partner package for ID: ${partnerId}`);
   try {
     const response = await fetch(`${baseURL}/partners/${partnerId}`);
     if (!response.ok) throw new Error("Network response was not ok");
     const data = await response.json();
     partnerPackage.value = data.data.partner.package || "";
-    console.log("Fetched partner package:", partnerPackage.value);
   } catch (err) {
     console.error("Error fetching partner package:", err);
   }
 }
 
 async function fetchProductData(code) {
-  console.log(`Fetching product data for code: ${code}`);
   isLoading.value = true;
   error.value = null;
 
@@ -188,15 +186,47 @@ function setDefaultActiveColor() {
 function highlightSelectedItem(color, part) {
   const elements = document.querySelectorAll(`.${part}`);
   elements.forEach((element) => {
-    element.classList.remove("selected");
+    element.classList.remove("selected", "active"); // Remove 'selected' and 'active' from all elements
   });
 
+  // Find the element with the corresponding color
   const selectedElement = Array.from(elements).find(
     (element) => element.dataset.color === color
   );
 
   if (selectedElement) {
-    selectedElement.classList.add("selected");
+    selectedElement.classList.add("selected", "active"); // Add 'selected' and 'active' classes to the selected element
+  }
+}
+
+function nextPage() {
+  // Hide the overview section
+  const overview = document.querySelector(".overview");
+  const backButton = document.querySelector(".backButton");
+  if (overview) {
+    overview.style.display = "none";
+  }
+
+  if (backButton) {
+    backButton.style.visibility = "visible";
+  }
+
+  // Check if there are more pages to show
+  if (currentPageIndex.value < materials.value.length - 1) {
+    currentPageIndex.value++;
+  }
+
+  // Select all pages
+  const pages = document.querySelectorAll(".config-ui__page");
+
+  // Ensure that the currentPageIndex is within bounds
+  if (pages.length > currentPageIndex.value) {
+    const currentPage = pages[currentPageIndex.value];
+
+    // Show the page corresponding to the currentPageIndex
+    currentPage.style.display = "flex";
+  } else {
+    console.warn("No page found for the given index:", currentPageIndex.value);
   }
 }
 
@@ -204,7 +234,6 @@ watch(
   () => route.params.productId,
   async (newCode) => {
     if (newCode && newCode !== productId.value) {
-      console.log("Route changed. Fetching new product data...");
       productId.value = newCode;
       await fetchProductData(newCode);
     }
@@ -213,9 +242,7 @@ watch(
 );
 
 watch(partnerPackage, (newPackage) => {
-  console.log("Partner package updated:", newPackage);
   if (newPackage === "pro" && !isModelLoaded) {
-    console.log("Detected 'pro' package. Loading 3D model...");
     load3DModel();
   }
 });
@@ -365,23 +392,18 @@ function onMouseUp() {
         <h2>Overview</h2>
         <ul>
           <li v-for="(layer, index) in layers" :key="index">
-            <router-link :to="`/layer/${layer}`">
-              {{ layer }}
-              <i class="fa fa-angle-right"></i>
-            </router-link>
+            {{ layer }}
+            <i class="fa fa-angle-right"></i>
           </li>
         </ul>
       </div>
 
       <div
-        v-if="materials.length > 0"
         class="config-ui__page"
         v-for="(material, index) in materials"
         :key="index"
       >
-        <div class="top">
-          <h2>Choose the color for {{ material.name }}</h2>
-        </div>
+        <h2>Choose the color for {{ material.name }}</h2>
         <div class="row">
           <div
             v-for="(color, index) in colors"
@@ -400,131 +422,16 @@ function onMouseUp() {
           <div class="config-item">
             <!-- <p>Color of {{ material.name }}</p> -->
             <div class="row">
-              <p
+              <!-- <p
                 :style="{
                   backgroundColor: selectedLacesColor || 'transparent',
                 }"
-              ></p>
-              <p
-                :style="{
-                  backgroundImage: selectedLacesTexture
-                    ? 'url(' + selectedLacesTexture + ')'
-                    : 'none',
-                }"
-              ></p>
+              ></p> -->
             </div>
           </div>
         </div>
         <!-- Personal info form -->
         <h3>Personal info</h3>
-        <form @submit.prevent="submitOrder">
-          <p style="display: none">{{ productCode }}</p>
-          <div class="row">
-            <div class="column">
-              <label for="firstname">First Name</label>
-              <input
-                type="text"
-                id="firstname"
-                name="firstname"
-                v-model="firstName"
-                placeholder="John"
-                required
-              />
-            </div>
-            <div class="column">
-              <label for="lastname">Last Name</label>
-              <input
-                type="text"
-                id="lastname"
-                name="lastname"
-                v-model="lastName"
-                placeholder="Doe"
-                required
-              />
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="column">
-              <label for="email">Email</label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                v-model="email"
-                placeholder="johndoe@gmail.com"
-                required
-              />
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="column">
-              <label for="street">Street</label>
-              <input
-                type="text"
-                id="street"
-                name="street"
-                v-model="street"
-                placeholder="Grote markt"
-                required
-              />
-            </div>
-            <div class="column">
-              <label for="house-number">House Number</label>
-              <input
-                type="text"
-                id="house-number"
-                name="house-number"
-                v-model="houseNumber"
-                placeholder="1"
-                required
-              />
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="column">
-              <label for="postalcode">Postal Code</label>
-              <input
-                type="text"
-                id="postalcode"
-                name="postalcode"
-                v-model="postalCode"
-                placeholder="2800"
-                required
-              />
-            </div>
-            <div class="column">
-              <label for="city">City</label>
-              <input
-                type="text"
-                id="city"
-                name="city"
-                v-model="city"
-                placeholder="Mechelen"
-                required
-              />
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="column">
-              <label for="message">Message</label>
-              <input
-                type="text"
-                id="message"
-                name="message"
-                v-model="message"
-                placeholder="Your message"
-              />
-            </div>
-          </div>
-
-          <button type="submit" class="btn active">Checkout</button>
-          <p class="errorMessage"></p>
-          <p class="successMessage"></p>
-        </form>
       </div>
       <div class="links">
         <a href="#" class="backButton" style="visibility: hidden">
@@ -540,7 +447,7 @@ function onMouseUp() {
           <p>Back</p>
         </a>
 
-        <a href="#" class="nextButton" style="visibility: visible">
+        <a class="nextButton" @click="nextPage" style="visibility: visible">
           <p>Next</p>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512">
             <path

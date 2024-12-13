@@ -253,6 +253,13 @@ li svg {
 .config-wrapper .summary {
   display: flex;
   flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+.config-wrapper .overview ul {
+  display: flex;
+  flex-direction: column;
   gap: 16px;
   width: 100%;
 }
@@ -279,18 +286,8 @@ li svg {
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.config-wrapper .overview ul li a {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  color: rgba(255, 255, 255, 0.6);
+.config-wrapper .overview ul li {
   padding-bottom: 12px;
-}
-
-.config-wrapper .overview ul li a i {
-  font-size: 24px;
 }
 
 .config-wrapper .summary .configurations div {
@@ -339,54 +336,31 @@ li svg {
   display: none;
 }
 
-.config-ui__page .top {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-end;
-  justify-content: space-between;
-  width: 100%;
-}
-
-.config-ui__page .top a {
-  opacity: 0.6;
-  text-decoration: underline;
-  text-transform: uppercase;
-  color: var(--white);
-  font-size: 12px;
-}
-
-.colorsItem,
-.config-wrapper .overview ul {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.colorsItem .row {
+.config-ui__page .row {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
   gap: 16px;
 }
 
-.colorsItem .row .texture {
+.config-ui__page .row .texture {
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
 }
 
-.colorsItem .row div {
+.config-ui__page .row div {
   width: 64px;
   height: 64px;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.colorsItem .row div.active,
-.colorsItem .row div.selected {
+.config-ui__page .row div.active,
+.config-ui__page .row div.selected {
   border: 3px solid var(--purple);
 }
 
-.colorsItem .row div p {
+.config-ui__page .row div p {
   display: none;
 }
 
@@ -396,6 +370,24 @@ li svg {
 
 .config-wrapper .visibility {
   visibility: hidden;
+}
+
+.nextButton {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: 8px;
+  color: var(--white);
+  text-transform: uppercase;
+  letter-spacing: -2%;
+  background-color: transparent;
+}
+
+.nextButton p {
+  color: var(--white);
+  font-size: 12px;
 }
 
 .btn {
@@ -640,6 +632,12 @@ li svg {
   width: 100%;
 }
 
+.config-wrapper .config-ui__page {
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
 .config-wrapper .summary {
   display: none;
 }
@@ -702,40 +700,6 @@ li svg {
   border-radius: 4px;
   padding-left: 8px;
   width: 100%;
-}
-
-.colorsItem {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.colorsItem .row {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.colorsItem .row .texture {
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
-}
-
-.colorsItem .row div {
-  width: 64px;
-  height: 64px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.colorsItem .row div.active,
-.colorsItem .row div.selected {
-  border: 3px solid var(--purple);
-}
-
-.colorsItem .row div p {
-  display: none;
 }
 
 .config-wrapper .display {
