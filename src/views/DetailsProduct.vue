@@ -3,85 +3,355 @@ import { ref, watch, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
-// Initialize global variables for scene, camera, and renderer
+const sizes = ref([]);
+const materials = ref([]);
+const colors = ref([]);
+const widths = ref([]);
+const selectedSize = ref(null);
+const selectedMaterial = ref(null);
+const selectedColor = ref(null);
+const selectedWidth = ref(null);
+
+const productImages = ref([]);
+const selectedImage = ref(null);
+const route = useRoute();
+const productId = ref(null);
+const productData = ref({ productName: "", productCode: "", productPrice: 0 });
+const isLoading = ref(true);
+const error = ref(null);
+const isProduction = window.location.hostname !== "localhost";
+const baseURL = isProduction
+  ? "https://rebilt-backend.onrender.com/api/v1"
+  : "http://localhost:3000/api/v1";
+
+const partnerPackage = ref("");
+
+// Variabelen voor de 3D-scène
 let scene, camera, renderer;
 const objLoader = new OBJLoader();
+let isModelLoaded = false;
 
-// Function to initialize the 3D scene
+// Variabelen voor de drag-to-rotate functionaliteit
+let isMouseDown = false;
+let prevMouseX = 0;
+let prevMouseY = 0;
+let rotationSpeed = 0.01;
+let model = null;
+
+// Functie om de scène te initialiseren
 function initializeScene() {
-  scene = new THREE.Scene();
+  console.log("Initializing 3D scene...");
+  try {
+    scene = new THREE.Scene();
 
-  // Zet de camera op een geschikte afstand van het object
-  camera = new THREE.PerspectiveCamera(
-    75, // Gezichtshoek
-    window.innerWidth / window.innerHeight, // Aspect ratio
-    0.1, // Near clipping plane
-    1000 // Far clipping plane
-  );
+    camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
+    camera.position.set(0, 0, 40);
+    camera.lookAt(0, 0, 0);
+    console.log("Camera initialized at position:", camera.position);
 
-  // Zet de camera verder van het object
-  camera.position.set(0, -20, 40); // Stel de camera verder weg in
-  camera.lookAt(0, 0, 0); // Kijk naar het midden van de scène
-
-  renderer = new THREE.WebGLRenderer();
-  const container = document.querySelector(".model");
-  renderer.setSize(container.offsetWidth, container.offsetHeight);
-  container.appendChild(renderer.domElement);
-
-  // Voeg verlichting toe aan de scène
-  const light = new THREE.PointLight(0xffffff, 1, 100);
-  light.position.set(10, 10, 10);
-  scene.add(light);
-
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
-  directionalLight.position.set(10, 20, 10);
-  scene.add(directionalLight);
-
-  const ambientLight = new THREE.AmbientLight(0x404040);
-  scene.add(ambientLight);
-}
-
-// Laad het 3D model
-objLoader.load(
-  "/models/ring.obj", // Zorg ervoor dat dit een geldig OBJ-bestand is
-  (object) => {
-    console.log("OBJ model loaded successfully");
-
-    // Zet het object in het midden van de scène
-    object.position.set(0, 0, 0); // Zorg ervoor dat het model in het midden staat
-
-    // Pas de schaal aan als dat nodig is
-    object.scale.set(10, 10, 10); // Verklaar de schaal van het object indien nodig
-
-    scene.add(object);
-
-    // Zet orbit controls om te kunnen draaien
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.25;
-    controls.enableZoom = true;
-    controls.target.set(0, 0, 0); // Zodat het model in het midden van de scène is
-    controls.update();
-
-    function animate() {
-      requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
+    const container = document.querySelector(".model");
+    if (!container) {
+      console.error("3D container element not found!");
+      return;
     }
 
+    // Initialiseren van de WebGLRenderer
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(container.offsetWidth, container.offsetHeight);
+    container.appendChild(renderer.domElement);
+    console.log("Renderer initialized.");
+
+    // Verlichting toevoegen
+    const light = new THREE.PointLight(0xffffff, 1, 100);
+    light.position.set(10, 10, 10);
+    scene.add(light);
+    console.log("Point light added:", light);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    directionalLight.position.set(10, 20, 10);
+    scene.add(directionalLight);
+
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+    console.log("Ambient light added.");
+
+    // Event listeners voor drag-rotatie
+    container.addEventListener("mousedown", onMouseDown, false);
+    window.addEventListener("mousemove", onMouseMove, false);
+    window.addEventListener("mouseup", onMouseUp, false);
+
+    // Aanroepen van de animate-functie voor animaties
     animate();
-  },
-  undefined,
-  (error) => {
-    console.error("Error loading OBJ model:", error);
+
+    // Zorg ervoor dat de canvas zich opnieuw schaalt als de browsergrootte verandert
+    window.addEventListener("resize", onWindowResize, false);
+  } catch (err) {
+    console.error("Error during scene initialization:", err);
   }
+}
+
+function onWindowResize() {
+  const container = document.querySelector(".model");
+  if (container && renderer) {
+    // Herstel de grootte van de renderer bij venstergrootte verandering
+    renderer.setSize(container.offsetWidth, container.offsetHeight);
+    camera.aspect = container.offsetWidth / container.offsetHeight;
+    camera.updateProjectionMatrix();
+  }
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  // Eventuele animatie logica hier
+  renderer.render(scene, camera);
+}
+
+// Functie om een 3D-model te laden
+function load3DModel() {
+  console.log("Attempting to load 3D model...");
+  if (!renderer) {
+    console.error("Renderer not initialized. Cannot load model.");
+    return;
+  }
+
+  objLoader.load(
+    "/models/ring.obj",
+    (object) => {
+      console.log("3D model loaded successfully:", object);
+      const box = new THREE.Box3().setFromObject(object);
+      console.log("Bounding box of model:", box);
+
+      // Verplaats het object verder naar beneden (verhoog de Y-waarde)
+      object.position.set(0, -12, 0); // Pas de Y-waarde aan om het model lager te plaatsen
+      object.scale.set(10, 10, 10);
+      scene.add(object);
+      model = object;
+      isModelLoaded = true;
+
+      // Laag/Materialen uitlezen en opslaan
+      extractMaterials(object);
+    },
+    (xhr) => {
+      console.log(`Model loading progress: ${(xhr.loaded / xhr.total) * 100}%`);
+    },
+    (error) => {
+      console.error("Error loading 3D model:", error);
+    }
+  );
+}
+
+// Functie om materialen uit het geladen model te extraheren
+function extractMaterials(object) {
+  materials.value = [];
+  object.traverse((child) => {
+    if (child.isMesh) {
+      child.material.forEach((material) => {
+        materials.value.push(material);
+        console.log("Material name:", material.name); // Log de naam van het materiaal
+      });
+    }
+  });
+
+  console.log("Materials extracted:", materials.value);
+}
+
+// Functie om een kleur toe te passen op een materiaal
+function applyColorToMaterial(material, color) {
+  if (
+    material instanceof THREE.MeshStandardMaterial ||
+    material instanceof THREE.MeshBasicMaterial
+  ) {
+    material.color.set(color);
+  } else if (material instanceof THREE.ShaderMaterial) {
+    // Pas de kleur toe via de shaderuniform
+    if (material.uniforms && material.uniforms.color) {
+      material.uniforms.color.value.set(color);
+    }
+  } else {
+    // Voor onondersteunde materialen kun je de emissieve kleur proberen
+    material.emissive.set(color); // Dit werkt voor materialen die emissieve kleuren gebruiken.
+  }
+}
+
+// Functies voor drag-to-rotate
+function onMouseDown(event) {
+  isMouseDown = true;
+  prevMouseX = event.clientX;
+  prevMouseY = event.clientY;
+}
+
+function onMouseMove(event) {
+  if (!isMouseDown) return; // Alleen reageren als de muis ingedrukt is
+
+  const deltaX = event.clientX - prevMouseX;
+  const deltaY = event.clientY - prevMouseY;
+
+  if (model) {
+    model.rotation.y += deltaX * rotationSpeed; // Rotatie rond de Y-as
+    model.rotation.x += deltaY * rotationSpeed; // Rotatie rond de X-as
+  }
+
+  prevMouseX = event.clientX;
+  prevMouseY = event.clientY;
+}
+
+function onMouseUp() {
+  isMouseDown = false; // Muis losgelaten, stoppen met slepen
+}
+
+// Functie om partnergegevens op te halen
+async function fetchPartnerPackage(partnerId) {
+  console.log(`Fetching partner package for ID: ${partnerId}`);
+  try {
+    const response = await fetch(`${baseURL}/partners/${partnerId}`);
+    if (!response.ok) throw new Error("Network response was not ok");
+
+    const data = await response.json();
+    partnerPackage.value = data.data.partner.package || "";
+    console.log("Fetched partner package:", partnerPackage.value);
+  } catch (err) {
+    console.error("Error fetching partner package:", err);
+  }
+}
+
+let productCode = "";
+let productName = "";
+
+function highlightSelectedItem(color, part) {
+  // Zoek de container voor de geselecteerde laag
+  const elements = document.querySelectorAll(`.${part}`);
+
+  // Verwijder de 'selected' klasse van alle elementen
+  elements.forEach((element) => {
+    element.classList.remove("selected");
+  });
+
+  // Zoek het element dat overeenkomt met de geselecteerde kleur
+  const selectedElement = Array.from(elements).find(
+    (element) => element.dataset.color === color
+  );
+
+  // Voeg de 'selected' klasse toe aan het geselecteerde item
+  if (selectedElement) {
+    selectedElement.classList.add("selected");
+  }
+}
+
+function setDefaultActiveColor() {
+  if (colors.value.length > 0) {
+    selectedColor.value = colors.value[0];
+    highlightSelectedItem(colors.value[0], "row-class-name"); // Pas de naam van de rijklasse aan
+  }
+}
+
+// Functie om een kleur toe te passen op een specifiek materiaal (laag) op basis van index of naam
+function applyColorToSpecificLayer(color, layerName) {
+  const material = materials.value.find((mat) => mat.name === layerName);
+  if (material) {
+    // Pas de kleur toe op het materiaal
+    applyColorToMaterial(material, color);
+    console.log(`Applied color ${color} to material ${layerName}`);
+  } else {
+    console.warn(`Material with name ${layerName} not found.`);
+  }
+
+  // Loop door alle meshes en pas de kleur toe als ze dat materiaal gebruiken
+  scene.traverse((child) => {
+    if (child.isMesh && child.material.name === layerName) {
+      applyColorToMaterial(child.material, color);
+    }
+  });
+}
+
+// Functie om geselecteerde kleur toe te passen op een materiaal
+function changeLayerColor(color) {
+  applyColorToSpecificLayer(color, "Diamond.001");
+  renderer.render(scene, camera); // Forceer opnieuw renderen van de scene
+}
+
+function selectColor(color) {
+  console.log(`Selected color: ${color}`);
+  changeLayerColor(color);
+}
+
+// Functie om productgegevens op te halen
+async function fetchProductData(code) {
+  console.log(`Fetching product data for code: ${code}`);
+  isLoading.value = true;
+  error.value = null;
+
+  try {
+    const response = await fetch(`${baseURL}/products/${code}`);
+    if (!response.ok) throw new Error("Network response was not ok");
+
+    const data = await response.json();
+    productData.value = {
+      productName: data.data.product.productName,
+      productCode: data.data.product.productCode,
+      productPrice: data.data.product.productPrice,
+      productImages: data.data.product.images,
+      selectedImage: data.data.product.images[0],
+    };
+
+    console.log("Product data fetched:", productData.value);
+    productCode = data.data.product.productCode;
+    productName = data.data.product.productName;
+    productImages.value = data.data.product.images;
+    selectedImage.value = data.data.product.images[0];
+    colors.value = data.data.product.colors || [];
+    setDefaultActiveColor();
+
+    const partnerId = data.data.product.partnerId;
+    if (partnerId) {
+      await fetchPartnerPackage(partnerId);
+    } else {
+      console.warn("No partner ID found in product data.");
+    }
+  } catch (err) {
+    console.error("Error fetching product data:", err);
+    error.value = "Unable to fetch product information.";
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+// Reacties op routewijzigingen
+watch(
+  () => route.params.productId,
+  async (newCode) => {
+    if (newCode && newCode !== productId.value) {
+      console.log("Route changed. Fetching new product data...");
+      productId.value = newCode;
+      await fetchProductData(newCode);
+    }
+  },
+  { immediate: true }
 );
 
-onMounted(() => {
-  // Initialize the scene after the component has been mounted
+// Reacties op wijzigingen in partnerPackage
+watch(partnerPackage, (newPackage) => {
+  console.log("Partner package updated:", newPackage);
+  if (newPackage === "pro" && !isModelLoaded) {
+    console.log("Detected 'pro' package. Loading 3D model...");
+    load3DModel();
+  }
+});
+
+// Initialisatie bij component mount
+onMounted(async () => {
+  console.log("Component mounted. Initializing...");
   initializeScene();
+
+  if (route.params.productId) {
+    productId.value = route.params.productId;
+    await fetchProductData(productId.value);
+  }
 });
 </script>
 
@@ -90,6 +360,7 @@ onMounted(() => {
     <div class="logo"></div>
     <div class="model">
       <div
+        v-if="partnerPackage === 'standard'"
         class="image"
         :style="{ backgroundImage: `url(${selectedImage})` }"
       ></div>
