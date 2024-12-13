@@ -41,7 +41,6 @@ let model = null;
 
 // Functie om de scène te initialiseren
 function initializeScene() {
-  console.log("Initializing 3D scene...");
   try {
     scene = new THREE.Scene();
 
@@ -53,7 +52,6 @@ function initializeScene() {
     );
     camera.position.set(0, 0, 40);
     camera.lookAt(0, 0, 0);
-    console.log("Camera initialized at position:", camera.position);
 
     const container = document.querySelector(".model");
     if (!container) {
@@ -65,13 +63,11 @@ function initializeScene() {
     renderer = new THREE.WebGLRenderer();
     renderer.setSize(container.offsetWidth, container.offsetHeight);
     container.appendChild(renderer.domElement);
-    console.log("Renderer initialized.");
 
     // Verlichting toevoegen
     const light = new THREE.PointLight(0xffffff, 1, 100);
     light.position.set(10, 10, 10);
     scene.add(light);
-    console.log("Point light added:", light);
 
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
     directionalLight.position.set(10, 20, 10);
@@ -79,7 +75,6 @@ function initializeScene() {
 
     const ambientLight = new THREE.AmbientLight(0x404040);
     scene.add(ambientLight);
-    console.log("Ambient light added.");
 
     // Event listeners voor drag-rotatie
     container.addEventListener("mousedown", onMouseDown, false);
@@ -114,7 +109,6 @@ function animate() {
 
 // Functie om een 3D-model te laden
 function load3DModel() {
-  console.log("Attempting to load 3D model...");
   if (!renderer) {
     console.error("Renderer not initialized. Cannot load model.");
     return;
@@ -123,9 +117,7 @@ function load3DModel() {
   objLoader.load(
     "/models/ring.obj",
     (object) => {
-      console.log("3D model loaded successfully:", object);
       const box = new THREE.Box3().setFromObject(object);
-      console.log("Bounding box of model:", box);
 
       // Verplaats het object verder naar beneden (verhoog de Y-waarde)
       object.position.set(0, -12, 0); // Pas de Y-waarde aan om het model lager te plaatsen
@@ -419,7 +411,9 @@ onMounted(async () => {
               <h3>{{ productName }}</h3>
               <router-link :to="`/`">change model</router-link>
             </div>
-            <h2>Choose the color of the frame</h2>
+            <h2 v-if="materials.length > 0">
+              <h2>Choose the color of {{ materials[0].name }}</h2>
+            </h2>
             <div class="row">
               <div
                 v-for="(color, index) in colors"
