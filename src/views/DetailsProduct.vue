@@ -1,13 +1,13 @@
 <script setup>
 import { ref, watch, onMounted } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 
 const sizes = ref([]);
 const materials = ref([]);
+const layers = ref([]);
 const colors = ref([]);
-const widths = ref([]);
 const selectedSize = ref(null);
 const selectedMaterial = ref(null);
 const selectedColor = ref(null);
@@ -16,6 +16,7 @@ const selectedWidth = ref(null);
 const productImages = ref([]);
 const selectedImage = ref(null);
 const route = useRoute();
+const router = useRouter();
 const productId = ref(null);
 const productData = ref({ productName: "", productCode: "", productPrice: 0 });
 const isLoading = ref(true);
@@ -26,20 +27,207 @@ const baseURL = isProduction
   : "http://localhost:3000/api/v1";
 
 const partnerPackage = ref("");
-
-// Variabelen voor de 3D-scène
 let scene, camera, renderer;
 const objLoader = new OBJLoader();
 let isModelLoaded = false;
-
-// Variabelen voor de drag-to-rotate functionaliteit
-let isMouseDown = false;
-let prevMouseX = 0;
-let prevMouseY = 0;
-let rotationSpeed = 0.01;
 let model = null;
 
-// Functie om de scène te initialiseren
+// Laag-gerelateerde functies
+function onWindowResize() {
+  const container = document.querySelector(".model");
+  if (container && renderer) {
+    renderer.setSize(container.offsetWidth, container.offsetHeight);
+    camera.aspect = container.offsetWidth / container.offsetHeight;
+    camera.updateProjectionMatrix();
+  }
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+
+function load3DModel() {
+  if (!renderer) {
+    console.error("Renderer not initialized. Cannot load model.");
+    return;
+  }
+
+  objLoader.load(
+    "/models/ring.obj",
+    (object) => {
+      const box = new THREE.Box3().setFromObject(object);
+      object.position.set(0, -12, 0);
+      object.scale.set(10, 10, 10);
+      scene.add(object);
+      model = object;
+      isModelLoaded = true;
+      extractMaterials(object);
+    },
+    (xhr) => {
+      console.log(`Model loading progress: ${(xhr.loaded / xhr.total) * 100}%`);
+    },
+    (error) => {
+      console.error("Error loading 3D model:", error);
+    }
+  );
+}
+
+function extractMaterials(object) {
+  materials.value = [];
+  layers.value = [];
+  object.traverse((child) => {
+    if (child.isMesh) {
+      child.material.forEach((material) => {
+        materials.value.push(material);
+        if (!layers.value.includes(material.name)) {
+          layers.value.push(material.name);
+        }
+      });
+    }
+  });
+}
+
+function applyColorToMaterial(material, color) {
+  if (
+    material instanceof THREE.MeshStandardMaterial ||
+    material instanceof THREE.MeshBasicMaterial
+  ) {
+    material.color.set(color);
+  } else if (material instanceof THREE.ShaderMaterial) {
+    if (material.uniforms && material.uniforms.color) {
+      material.uniforms.color.value.set(color);
+    }
+  } else {
+    material.emissive.set(color);
+  }
+}
+
+function applyColorToSpecificLayer(color, layerName) {
+  const material = materials.value.find((mat) => mat.name === layerName);
+  if (material) {
+    applyColorToMaterial(material, color);
+  } else {
+    console.warn(`Material with name ${layerName} not found.`);
+  }
+
+  scene.traverse((child) => {
+    if (child.isMesh && child.material.name === layerName) {
+      applyColorToMaterial(child.material, color);
+    }
+  });
+}
+
+function changeLayerColor(color) {
+  applyColorToSpecificLayer(color, "Diamond.001");
+  renderer.render(scene, camera);
+}
+
+function selectColor(color) {
+  console.log(`Selected color: ${color}`);
+  changeLayerColor(color);
+}
+
+async function fetchPartnerPackage(partnerId) {
+  console.log(`Fetching partner package for ID: ${partnerId}`);
+  try {
+    const response = await fetch(`${baseURL}/partners/${partnerId}`);
+    if (!response.ok) throw new Error("Network response was not ok");
+    const data = await response.json();
+    partnerPackage.value = data.data.partner.package || "";
+    console.log("Fetched partner package:", partnerPackage.value);
+  } catch (err) {
+    console.error("Error fetching partner package:", err);
+  }
+}
+
+async function fetchProductData(code) {
+  console.log(`Fetching product data for code: ${code}`);
+  isLoading.value = true;
+  error.value = null;
+
+  try {
+    const response = await fetch(`${baseURL}/products/${code}`);
+    if (!response.ok) throw new Error("Network response was not ok");
+
+    const data = await response.json();
+    productData.value = {
+      productName: data.data.product.productName,
+      productCode: data.data.product.productCode,
+      productPrice: data.data.product.productPrice,
+      productImages: data.data.product.images,
+      selectedImage: data.data.product.images[0],
+    };
+
+    colors.value = data.data.product.colors || [];
+    productImages.value = data.data.product.images;
+    selectedImage.value = data.data.product.images[0];
+    setDefaultActiveColor();
+
+    const partnerId = data.data.product.partnerId;
+    if (partnerId) {
+      await fetchPartnerPackage(partnerId);
+    } else {
+      console.warn("No partner ID found in product data.");
+    }
+  } catch (err) {
+    console.error("Error fetching product data:", err);
+    error.value = "Unable to fetch product information.";
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+function setDefaultActiveColor() {
+  if (colors.value.length > 0) {
+    selectedColor.value = colors.value[0];
+    highlightSelectedItem(colors.value[0], "row-class-name");
+  }
+}
+
+function highlightSelectedItem(color, part) {
+  const elements = document.querySelectorAll(`.${part}`);
+  elements.forEach((element) => {
+    element.classList.remove("selected");
+  });
+
+  const selectedElement = Array.from(elements).find(
+    (element) => element.dataset.color === color
+  );
+
+  if (selectedElement) {
+    selectedElement.classList.add("selected");
+  }
+}
+
+watch(
+  () => route.params.productId,
+  async (newCode) => {
+    if (newCode && newCode !== productId.value) {
+      console.log("Route changed. Fetching new product data...");
+      productId.value = newCode;
+      await fetchProductData(newCode);
+    }
+  },
+  { immediate: true }
+);
+
+watch(partnerPackage, (newPackage) => {
+  console.log("Partner package updated:", newPackage);
+  if (newPackage === "pro" && !isModelLoaded) {
+    console.log("Detected 'pro' package. Loading 3D model...");
+    load3DModel();
+  }
+});
+
+onMounted(async () => {
+  initializeScene();
+  if (route.params.productId) {
+    productId.value = route.params.productId;
+    await fetchProductData(productId.value);
+  }
+});
+
 function initializeScene() {
   try {
     scene = new THREE.Scene();
@@ -59,12 +247,10 @@ function initializeScene() {
       return;
     }
 
-    // Initialiseren van de WebGLRenderer
     renderer = new THREE.WebGLRenderer();
     renderer.setSize(container.offsetWidth, container.offsetHeight);
     container.appendChild(renderer.domElement);
 
-    // Verlichting toevoegen
     const light = new THREE.PointLight(0xffffff, 1, 100);
     light.position.set(10, 10, 10);
     scene.add(light);
@@ -76,102 +262,22 @@ function initializeScene() {
     const ambientLight = new THREE.AmbientLight(0x404040);
     scene.add(ambientLight);
 
-    // Event listeners voor drag-rotatie
     container.addEventListener("mousedown", onMouseDown, false);
     window.addEventListener("mousemove", onMouseMove, false);
     window.addEventListener("mouseup", onMouseUp, false);
 
-    // Aanroepen van de animate-functie voor animaties
     animate();
-
-    // Zorg ervoor dat de canvas zich opnieuw schaalt als de browsergrootte verandert
     window.addEventListener("resize", onWindowResize, false);
   } catch (err) {
     console.error("Error during scene initialization:", err);
   }
 }
 
-function onWindowResize() {
-  const container = document.querySelector(".model");
-  if (container && renderer) {
-    // Herstel de grootte van de renderer bij venstergrootte verandering
-    renderer.setSize(container.offsetWidth, container.offsetHeight);
-    camera.aspect = container.offsetWidth / container.offsetHeight;
-    camera.updateProjectionMatrix();
-  }
-}
+let isMouseDown = false;
+let prevMouseX = 0;
+let prevMouseY = 0;
+const rotationSpeed = 0.005;
 
-function animate() {
-  requestAnimationFrame(animate);
-  // Eventuele animatie logica hier
-  renderer.render(scene, camera);
-}
-
-// Functie om een 3D-model te laden
-function load3DModel() {
-  if (!renderer) {
-    console.error("Renderer not initialized. Cannot load model.");
-    return;
-  }
-
-  objLoader.load(
-    "/models/ring.obj",
-    (object) => {
-      const box = new THREE.Box3().setFromObject(object);
-
-      // Verplaats het object verder naar beneden (verhoog de Y-waarde)
-      object.position.set(0, -12, 0); // Pas de Y-waarde aan om het model lager te plaatsen
-      object.scale.set(10, 10, 10);
-      scene.add(object);
-      model = object;
-      isModelLoaded = true;
-
-      // Laag/Materialen uitlezen en opslaan
-      extractMaterials(object);
-    },
-    (xhr) => {
-      console.log(`Model loading progress: ${(xhr.loaded / xhr.total) * 100}%`);
-    },
-    (error) => {
-      console.error("Error loading 3D model:", error);
-    }
-  );
-}
-
-// Functie om materialen uit het geladen model te extraheren
-function extractMaterials(object) {
-  materials.value = [];
-  object.traverse((child) => {
-    if (child.isMesh) {
-      child.material.forEach((material) => {
-        materials.value.push(material);
-        console.log("Material name:", material.name); // Log de naam van het materiaal
-      });
-    }
-  });
-
-  console.log("Materials extracted:", materials.value);
-}
-
-// Functie om een kleur toe te passen op een materiaal
-function applyColorToMaterial(material, color) {
-  if (
-    material instanceof THREE.MeshStandardMaterial ||
-    material instanceof THREE.MeshBasicMaterial
-  ) {
-    material.color.set(color);
-  } else if (material instanceof THREE.ShaderMaterial) {
-    // Pas de kleur toe via de shaderuniform
-    if (material.uniforms && material.uniforms.color) {
-      material.uniforms.color.value.set(color);
-    }
-  } else {
-    // Voor onondersteunde materialen kun je de emissieve kleur proberen
-    material.emissive.set(color); // Dit werkt voor materialen die emissieve kleuren gebruiken.
-  }
-}
-
-// Functies voor drag-to-rotate
 function onMouseDown(event) {
   isMouseDown = true;
   prevMouseX = event.clientX;
@@ -179,14 +285,14 @@ function onMouseDown(event) {
 }
 
 function onMouseMove(event) {
-  if (!isMouseDown) return; // Alleen reageren als de muis ingedrukt is
+  if (!isMouseDown) return;
 
   const deltaX = event.clientX - prevMouseX;
   const deltaY = event.clientY - prevMouseY;
 
   if (model) {
-    model.rotation.y += deltaX * rotationSpeed; // Rotatie rond de Y-as
-    model.rotation.x += deltaY * rotationSpeed; // Rotatie rond de X-as
+    model.rotation.y += deltaX * rotationSpeed;
+    model.rotation.x += deltaY * rotationSpeed;
   }
 
   prevMouseX = event.clientX;
@@ -194,157 +300,8 @@ function onMouseMove(event) {
 }
 
 function onMouseUp() {
-  isMouseDown = false; // Muis losgelaten, stoppen met slepen
+  isMouseDown = false;
 }
-
-// Functie om partnergegevens op te halen
-async function fetchPartnerPackage(partnerId) {
-  console.log(`Fetching partner package for ID: ${partnerId}`);
-  try {
-    const response = await fetch(`${baseURL}/partners/${partnerId}`);
-    if (!response.ok) throw new Error("Network response was not ok");
-
-    const data = await response.json();
-    partnerPackage.value = data.data.partner.package || "";
-    console.log("Fetched partner package:", partnerPackage.value);
-  } catch (err) {
-    console.error("Error fetching partner package:", err);
-  }
-}
-
-let productCode = "";
-let productName = "";
-
-function highlightSelectedItem(color, part) {
-  // Zoek de container voor de geselecteerde laag
-  const elements = document.querySelectorAll(`.${part}`);
-
-  // Verwijder de 'selected' klasse van alle elementen
-  elements.forEach((element) => {
-    element.classList.remove("selected");
-  });
-
-  // Zoek het element dat overeenkomt met de geselecteerde kleur
-  const selectedElement = Array.from(elements).find(
-    (element) => element.dataset.color === color
-  );
-
-  // Voeg de 'selected' klasse toe aan het geselecteerde item
-  if (selectedElement) {
-    selectedElement.classList.add("selected");
-  }
-}
-
-function setDefaultActiveColor() {
-  if (colors.value.length > 0) {
-    selectedColor.value = colors.value[0];
-    highlightSelectedItem(colors.value[0], "row-class-name"); // Pas de naam van de rijklasse aan
-  }
-}
-
-// Functie om een kleur toe te passen op een specifiek materiaal (laag) op basis van index of naam
-function applyColorToSpecificLayer(color, layerName) {
-  const material = materials.value.find((mat) => mat.name === layerName);
-  if (material) {
-    // Pas de kleur toe op het materiaal
-    applyColorToMaterial(material, color);
-    console.log(`Applied color ${color} to material ${layerName}`);
-  } else {
-    console.warn(`Material with name ${layerName} not found.`);
-  }
-
-  // Loop door alle meshes en pas de kleur toe als ze dat materiaal gebruiken
-  scene.traverse((child) => {
-    if (child.isMesh && child.material.name === layerName) {
-      applyColorToMaterial(child.material, color);
-    }
-  });
-}
-
-// Functie om geselecteerde kleur toe te passen op een materiaal
-function changeLayerColor(color) {
-  applyColorToSpecificLayer(color, "Diamond.001");
-  renderer.render(scene, camera); // Forceer opnieuw renderen van de scene
-}
-
-function selectColor(color) {
-  console.log(`Selected color: ${color}`);
-  changeLayerColor(color);
-}
-
-// Functie om productgegevens op te halen
-async function fetchProductData(code) {
-  console.log(`Fetching product data for code: ${code}`);
-  isLoading.value = true;
-  error.value = null;
-
-  try {
-    const response = await fetch(`${baseURL}/products/${code}`);
-    if (!response.ok) throw new Error("Network response was not ok");
-
-    const data = await response.json();
-    productData.value = {
-      productName: data.data.product.productName,
-      productCode: data.data.product.productCode,
-      productPrice: data.data.product.productPrice,
-      productImages: data.data.product.images,
-      selectedImage: data.data.product.images[0],
-    };
-
-    console.log("Product data fetched:", productData.value);
-    productCode = data.data.product.productCode;
-    productName = data.data.product.productName;
-    productImages.value = data.data.product.images;
-    selectedImage.value = data.data.product.images[0];
-    colors.value = data.data.product.colors || [];
-    setDefaultActiveColor();
-
-    const partnerId = data.data.product.partnerId;
-    if (partnerId) {
-      await fetchPartnerPackage(partnerId);
-    } else {
-      console.warn("No partner ID found in product data.");
-    }
-  } catch (err) {
-    console.error("Error fetching product data:", err);
-    error.value = "Unable to fetch product information.";
-  } finally {
-    isLoading.value = false;
-  }
-}
-
-// Reacties op routewijzigingen
-watch(
-  () => route.params.productId,
-  async (newCode) => {
-    if (newCode && newCode !== productId.value) {
-      console.log("Route changed. Fetching new product data...");
-      productId.value = newCode;
-      await fetchProductData(newCode);
-    }
-  },
-  { immediate: true }
-);
-
-// Reacties op wijzigingen in partnerPackage
-watch(partnerPackage, (newPackage) => {
-  console.log("Partner package updated:", newPackage);
-  if (newPackage === "pro" && !isModelLoaded) {
-    console.log("Detected 'pro' package. Loading 3D model...");
-    load3DModel();
-  }
-});
-
-// Initialisatie bij component mount
-onMounted(async () => {
-  console.log("Component mounted. Initializing...");
-  initializeScene();
-
-  if (route.params.productId) {
-    productId.value = route.params.productId;
-    await fetchProductData(productId.value);
-  }
-});
 </script>
 
 <template>
@@ -404,28 +361,202 @@ onMounted(async () => {
       <p>Drag to rotate</p>
     </div>
     <div class="config-wrapper">
-      <div class="elements">
-        <div class="overviewConfig">
-          <div class="config-ui__page page1 colorsItem">
-            <div class="top">
-              <h3>{{ productName }}</h3>
-              <router-link :to="`/`">change model</router-link>
-            </div>
-            <h2 v-if="materials.length > 0">
-              <h2>Choose the color of {{ materials[0].name }}</h2>
-            </h2>
+      <div class="overview" v-if="layers.length > 0">
+        <h2>Overview</h2>
+        <ul>
+          <li v-for="(layer, index) in layers" :key="index">
+            <router-link :to="`/layer/${layer}`">
+              {{ layer }}
+              <i class="fa fa-angle-right"></i>
+            </router-link>
+          </li>
+        </ul>
+      </div>
+
+      <div
+        v-if="materials.length > 0"
+        class="config-ui__page"
+        v-for="(material, index) in materials"
+        :key="index"
+      >
+        <div class="top">
+          <h2>Choose the color for {{ material.name }}</h2>
+        </div>
+        <div class="row">
+          <div
+            v-for="(color, index) in colors"
+            :key="index"
+            :class="{ active: selectedColor === color }"
+            :data-color="color"
+            :style="{ backgroundColor: color }"
+            @click="selectColor(color)"
+          ></div>
+        </div>
+      </div>
+
+      <div class="summary display">
+        <h2>Summary</h2>
+        <div class="configurations">
+          <div class="config-item">
+            <!-- <p>Color of {{ material.name }}</p> -->
             <div class="row">
-              <div
-                v-for="(color, index) in colors"
-                :key="index"
-                :class="{ active: selectedColor === color }"
-                :data-color="color"
-                :style="{ backgroundColor: color }"
-                @click="selectColor(color)"
-              ></div>
+              <p
+                :style="{
+                  backgroundColor: selectedLacesColor || 'transparent',
+                }"
+              ></p>
+              <p
+                :style="{
+                  backgroundImage: selectedLacesTexture
+                    ? 'url(' + selectedLacesTexture + ')'
+                    : 'none',
+                }"
+              ></p>
             </div>
           </div>
         </div>
+        <!-- Personal info form -->
+        <h3>Personal info</h3>
+        <form @submit.prevent="submitOrder">
+          <p style="display: none">{{ productCode }}</p>
+          <div class="row">
+            <div class="column">
+              <label for="firstname">First Name</label>
+              <input
+                type="text"
+                id="firstname"
+                name="firstname"
+                v-model="firstName"
+                placeholder="John"
+                required
+              />
+            </div>
+            <div class="column">
+              <label for="lastname">Last Name</label>
+              <input
+                type="text"
+                id="lastname"
+                name="lastname"
+                v-model="lastName"
+                placeholder="Doe"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="column">
+              <label for="email">Email</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                v-model="email"
+                placeholder="johndoe@gmail.com"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="column">
+              <label for="street">Street</label>
+              <input
+                type="text"
+                id="street"
+                name="street"
+                v-model="street"
+                placeholder="Grote markt"
+                required
+              />
+            </div>
+            <div class="column">
+              <label for="house-number">House Number</label>
+              <input
+                type="text"
+                id="house-number"
+                name="house-number"
+                v-model="houseNumber"
+                placeholder="1"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="column">
+              <label for="postalcode">Postal Code</label>
+              <input
+                type="text"
+                id="postalcode"
+                name="postalcode"
+                v-model="postalCode"
+                placeholder="2800"
+                required
+              />
+            </div>
+            <div class="column">
+              <label for="city">City</label>
+              <input
+                type="text"
+                id="city"
+                name="city"
+                v-model="city"
+                placeholder="Mechelen"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="column">
+              <label for="message">Message</label>
+              <input
+                type="text"
+                id="message"
+                name="message"
+                v-model="message"
+                placeholder="Your message"
+              />
+            </div>
+          </div>
+
+          <button type="submit" class="btn active">Checkout</button>
+          <p class="errorMessage"></p>
+          <p class="successMessage"></p>
+        </form>
+      </div>
+      <div class="links">
+        <a href="#" class="backButton" style="visibility: hidden">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 320 512"
+            style="transform: rotate(180deg)"
+          >
+            <path
+              d="M310.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L242.7 256 73.4 86.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l192 192z"
+            ></path>
+          </svg>
+          <p>Back</p>
+        </a>
+
+        <a href="#" class="nextButton" style="visibility: visible">
+          <p>Next</p>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512">
+            <path
+              d="M310.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L242.7 256 73.4 86.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l192 192z"
+            ></path>
+          </svg>
+        </a>
+
+        <a href="#" class="summaryButton" style="display: none">
+          <p>Summary</p>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512">
+            <path
+              d="M310.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L242.7 256 73.4 86.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l192 192z"
+            ></path>
+          </svg>
+        </a>
       </div>
     </div>
   </div>
