@@ -82,6 +82,7 @@ function extractMaterials(object) {
         materials.value.push(material);
         if (!layers.value.includes(material.name)) {
           layers.value.push(material.name); // Laagnaam wordt hier toegevoegd
+          console.log(layers.value);
         }
       });
     }
@@ -121,15 +122,15 @@ function applyColorToSpecificLayer(color, layerName) {
   });
 }
 
-function changeLayerColor(color) {
-  applyColorToSpecificLayer(color, "Diamond.001");
+function changeLayerColor(color, layerName) {
+  applyColorToSpecificLayer(color, layerName);
   renderer.render(scene, camera);
 }
 
-function selectColor(color) {
+function selectColor(color, layerName) {
   selectedColor.value = color; // Update selected color
   highlightSelectedItem(color, "row-class-name"); // Add highlight to the clicked item
-  changeLayerColor(color); // Apply color to the 3D model layer
+  changeLayerColor(color, layerName); // Apply color to the 3D model layer
 }
 
 async function fetchPartnerPackage(partnerId) {
@@ -240,7 +241,8 @@ function nextPage() {
     console.log("Showing next page:", pages[currentPageIndex.value]);
     pages[currentPageIndex.value].classList.add("active");
   } else {
-    console.warn("No more pages to navigate to.");
+    document.querySelector(".summary").style.display = "flex";
+    document.querySelector(".nextButton").style.visibility = "hidden";
   }
 
   console.log("Final current page index:", currentPageIndex.value);
@@ -251,6 +253,7 @@ function previousPage() {
   const pages = document.querySelectorAll(".config-ui__page");
   const overview = document.querySelector(".overview");
   const backButton = document.querySelector(".backButton");
+  const nextButton = document.querySelector(".nextButton");
 
   if (!pages || pages.length === 0) {
     console.warn("No config-ui__page elements found.");
@@ -265,6 +268,9 @@ function previousPage() {
     if (backButton) {
       backButton.style.visibility = "hidden"; // Verberg de back-button
     }
+    if (nextButton) {
+      nextButton.style.visibility = "visible"; // Verberg de back-button
+    }
     pages[currentPageIndex.value].classList.remove("active"); // Verwijder 'active' van de huidige pagina
     return;
   }
@@ -276,7 +282,9 @@ function previousPage() {
   if (currentPageIndex.value > 0) {
     currentPageIndex.value--;
     pages[currentPageIndex.value].classList.add("active"); // Maak de vorige pagina actief
+    nextButton.style.visibility = "visible"; // Verberg de back-button
   }
+  document.querySelector(".summary").style.display = "none";
 }
 
 watch(
@@ -461,7 +469,7 @@ function onMouseUp() {
             :class="{ active: selectedColor === color }"
             :data-color="color"
             :style="{ backgroundColor: color }"
-            @click="selectColor(color)"
+            @click="selectColor(color, layer)"
           ></div>
         </div>
       </div>
