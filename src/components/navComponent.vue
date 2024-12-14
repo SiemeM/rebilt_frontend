@@ -244,6 +244,6 @@ nav .menu a img {
 }
 
 nav .menu a p {
-  color: var(--white);
+  color: var(--text-color);
 }
 </style>

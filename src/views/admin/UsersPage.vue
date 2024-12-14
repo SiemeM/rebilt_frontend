@@ -363,7 +363,7 @@ onMounted(fetchData);
   align-items: center;
   justify-content: center;
   gap: 24px;
-  background-color: #1a1a1a;
+  background-color: var(--secondary-color);
   padding: 24px 32px;
   border-radius: 8px;
   position: fixed;
@@ -402,7 +402,7 @@ onMounted(fetchData);
 
 .popup .text .btns .active {
   background-color: #d34848;
-  color: var(--white);
+  color: var(--text-color);
 }
 
 .menu {
@@ -437,9 +437,9 @@ select {
   padding: 4px 12px;
   border-radius: 8px;
   border: none;
-  border: 1px solid #1d1d1d;
-  background-color: #1d1d1d;
-  color: var(--white);
+  border: 1px solid var(--secondary-color);
+  background-color: var(--secondary-color);
+  color: var(--text-color);
   width: 320px;
 }
 
@@ -451,11 +451,11 @@ select {
 }
 
 .search input {
-  color: var(--white);
+  color: var(--text-color);
 }
 
 .users {
-  background-color: #1a1a1a;
+  background-color: var(--secondary-color);
   width: 100%;
   border-radius: 8px;
   overflow-x: auto;
@@ -472,7 +472,7 @@ select {
   align-items: center;
   border-radius: 8px 8px 0 0;
   padding: 4px 16px;
-  background-color: #1d1d1d;
+  background-color: var(--secondary-color);
 }
 
 .users .list {
@@ -496,7 +496,7 @@ select {
 }
 
 .users .list li p {
-  color: var(--white);
+  color: var(--text-color);
 }
 
 .users .list li p:hover {
@@ -540,6 +540,6 @@ select {
   text-align: center;
   padding: 20px;
   font-size: 18px;
-  color: var(--white);
+  color: var(--text-color);
 }
 </style>

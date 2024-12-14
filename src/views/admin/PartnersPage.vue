@@ -380,7 +380,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 24px;
-  background-color: #1a1a1a;
+  background-color: var(--secondary-color);
   padding: 24px 32px;
   border-radius: 8px;
   position: fixed;
@@ -414,7 +414,7 @@ onMounted(() => {
 
 .popup .text .btns .active {
   background-color: #d34848;
-  color: var(--white);
+  color: var(--text-color);
 }
 
 .popup img {
@@ -450,9 +450,9 @@ select {
   padding: 4px 12px;
   border-radius: 8px;
   border: none;
-  border: 1px solid #1d1d1d;
-  background-color: #1d1d1d;
-  color: var(--white);
+  border: 1px solid var(--secondary-color);
+  background-color: var(--secondary-color);
+  color: var(--text-color);
   width: 320px;
   display: flex;
   flex-direction: row;
@@ -461,11 +461,11 @@ select {
 }
 
 .search input {
-  color: var(--white);
+  color: var(--text-color);
 }
 
 .partners {
-  background-color: #1a1a1a;
+  background-color: var(--secondary-color);
   width: 100%;
   border-radius: 8px;
   overflow-x: auto;
@@ -480,7 +480,7 @@ select {
   grid-template-columns: repeat(8, 1fr);
   gap: 40px;
   padding: 4px 16px;
-  background-color: #1d1d1d;
+  background-color: var(--secondary-color);
   align-items: center;
 }
 
@@ -505,7 +505,7 @@ select {
 
 .partners .top p,
 .partners .list li p {
-  color: var(--white);
+  color: var(--text-color);
   white-space: nowrap; /* Zorg ervoor dat tekst niet over meerdere regels gaat */
   overflow: hidden; /* Verberg tekst die te lang is */
   text-overflow: ellipsis; /* Voeg een ellipsis toe als de tekst te lang is */
@@ -548,6 +548,6 @@ select {
 .no-partners {
   padding: 16px;
   text-align: center;
-  color: var(--white);
+  color: var(--text-color);
 }
 </style>

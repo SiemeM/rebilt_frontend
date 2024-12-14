@@ -152,7 +152,7 @@ form {
 
 .submitBtn {
   background-color: #403754;
-  color: var(--white);
+  color: var(--text-color);
   border: none;
   border-radius: 4px;
   padding: 8px;
@@ -162,6 +162,6 @@ input {
   border: 1px solid rgba(255, 255, 255, 0.4);
   padding: 4px 8px;
   border-radius: 8px;
-  color: var(--white);
+  color: var(--text-color);
 }
 </style>

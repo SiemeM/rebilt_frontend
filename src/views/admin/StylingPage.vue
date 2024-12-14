@@ -46,6 +46,7 @@ const huisstijlData = reactive({
   secondaryColor: "#000000",
   textColor: "#ffffff",
   titlesColor: "#0071e3",
+  backgroundColor: "#000000",
   fonts: [],
   logo: "",
   backgroundImage: "",
@@ -65,7 +66,8 @@ const getHouseStyleFromDatabase = async () => {
     huisstijlData.primaryColor = response.data.primary_color;
     huisstijlData.secondaryColor = response.data.secondary_color;
     huisstijlData.textColor = response.data.text_color;
-    huisstijlData.titlesColor = response.data.titles_color; // Let op: Zorg ervoor dat de veldnamen overeenkomen met de API response
+    huisstijlData.backgroundColor = response.data.background_color;
+    huisstijlData.backgroundColor = response.data.background_color;
     huisstijlData.backgroundImage = response.data.logo_url;
   } catch (error) {
     console.error("Fout bij het ophalen van huisstijl:", error);
@@ -80,6 +82,7 @@ const updateHouseStyleInDatabase = async () => {
       secondary_color: huisstijlData.secondaryColor,
       text_color: huisstijlData.textColor,
       titles_color: huisstijlData.titlesColor,
+      background_color: huisstijlData.backgroundColor,
     };
 
     const response = await axios.put(
@@ -178,6 +181,17 @@ onMounted(() => {
             ></div>
           </div>
         </div>
+        <div class="column">
+          <h3>Background color</h3>
+          <div class="row">
+            <p>{{ huisstijlData.backgroundColor }}</p>
+            <div
+              class="color"
+              :style="{ backgroundColor: huisstijlData.backgroundColor }"
+              @click="openColorPicker('backgroundColor')"
+            ></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -185,7 +199,7 @@ onMounted(() => {
 
 <style scoped>
 .elements {
-  background-color: #1d1d1d;
+  background-color: var(--secondary-color);
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -235,7 +249,7 @@ onMounted(() => {
 .column .row .color {
   width: 24px;
   height: 24px;
-  border: 3px solid var(--gray);
+  border: 3px solid var(--text-color);
   border-radius: 50%;
   cursor: pointer;
 }

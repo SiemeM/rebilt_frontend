@@ -43,6 +43,10 @@ const getHouseStyleFromDatabase = async (userId) => {
       huisstijlData.titles_color
     );
     document.documentElement.style.setProperty(
+      "--background-color",
+      huisstijlData.background_color
+    );
+    document.documentElement.style.setProperty(
       "--background-image",
       `url(${huisstijlData.logo_url})`
     );

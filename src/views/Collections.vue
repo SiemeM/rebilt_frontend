@@ -157,7 +157,7 @@ onMounted(() => {
 }
 
 .collection-nav .active {
-  color: var(--white);
+  color: var(--text-color);
   padding-bottom: 8px;
   border-bottom: 1px solid var(--white);
 }
