@@ -7,13 +7,11 @@ import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 const sizes = ref([]);
 const materials = ref([]);
 const layers = ref([]);
+const layersColors = ref([]);
+const selectedThingsInLayers = ref([]);
 const colors = ref([]);
-const selectedSize = ref(null);
-const selectedMaterial = ref(null);
 const selectedColor = ref(null);
-const selectedWidth = ref(null);
-const currentPageIndex = ref(0); // Reactive reference for page index
-
+const currentPageIndex = ref(0);
 const productImages = ref([]);
 const selectedImage = ref(null);
 const route = useRoute();
@@ -33,7 +31,6 @@ const objLoader = new OBJLoader();
 let isModelLoaded = false;
 let model = null;
 
-// Laag-gerelateerde functies
 function onWindowResize() {
   const container = document.querySelector(".model");
   if (container && renderer) {
@@ -75,29 +72,39 @@ function load3DModel() {
 function extractMaterials(object) {
   materials.value = [];
   layers.value = [];
+  layersColors.value = [];
+
   object.traverse((child) => {
     if (child.isMesh) {
-      child.material.forEach((material) => {
-        console.log("Material found:", material.name);
-        materials.value.push(material);
-        if (!layers.value.includes(material.name)) {
-          layers.value.push(material.name); // Laagnaam wordt hier toegevoegd
-          console.log(layers.value);
+      if (Array.isArray(child.material)) {
+        child.material.forEach((material) => {
+          materials.value.push(material);
+          if (!layers.value.includes(material.name)) {
+            layers.value.push(material.name);
+            layersColors.value.push("#ffffff");
+          }
+        });
+      } else {
+        materials.value.push(child.material);
+        if (!layers.value.includes(child.material.name)) {
+          layers.value.push(child.material.name);
+          layersColors.value.push("#ffffff");
         }
-      });
+      }
     }
   });
 
-  // Verwijder dubbele items in layers
   layers.value = [...new Set(layers.value)];
 }
 
-function applyColorToMaterial(material, color) {
+function applyColorToMaterial(material, color, opacity = 1) {
   if (
     material instanceof THREE.MeshStandardMaterial ||
     material instanceof THREE.MeshBasicMaterial
   ) {
     material.color.set(color);
+    material.opacity = opacity;
+    material.transparent = opacity < 1;
   } else if (material instanceof THREE.ShaderMaterial) {
     if (material.uniforms && material.uniforms.color) {
       material.uniforms.color.value.set(color);
@@ -108,11 +115,19 @@ function applyColorToMaterial(material, color) {
 }
 
 function applyColorToSpecificLayer(color, layerName) {
+  console.log(`Applying color ${color} to layer ${layerName}`);
+
   const material = materials.value.find((mat) => mat.name === layerName);
+
   if (material) {
     applyColorToMaterial(material, color);
   } else {
     console.warn(`Material with name ${layerName} not found.`);
+  }
+
+  const layerIndex = layers.value.indexOf(layerName);
+  if (layerIndex !== -1) {
+    layersColors.value[layerIndex] = color;
   }
 
   scene.traverse((child) => {
@@ -122,15 +137,12 @@ function applyColorToSpecificLayer(color, layerName) {
   });
 }
 
-function changeLayerColor(color, layerName) {
-  applyColorToSpecificLayer(color, layerName);
-  renderer.render(scene, camera);
-}
-
 function selectColor(color, layerName) {
-  selectedColor.value = color; // Update selected color
-  highlightSelectedItem(color, "row-class-name"); // Add highlight to the clicked item
-  changeLayerColor(color, layerName); // Apply color to the 3D model layer
+  selectedColor.value = color;
+  console.log(selectedColor.value);
+  highlightSelectedItem(color, "row-class-name");
+
+  applyColorToSpecificLayer(color, layerName);
 }
 
 async function fetchPartnerPackage(partnerId) {
@@ -181,7 +193,7 @@ async function fetchProductData(code) {
 }
 
 function setDefaultActiveColor() {
-  if (colors.value.length > 0) {
+  if (colors.value.length > 0 && !selectedColor.value) {
     selectedColor.value = colors.value[0];
     highlightSelectedItem(colors.value[0], "row-class-name");
   }
@@ -190,16 +202,15 @@ function setDefaultActiveColor() {
 function highlightSelectedItem(color, part) {
   const elements = document.querySelectorAll(`.${part}`);
   elements.forEach((element) => {
-    element.classList.remove("selected", "active"); // Remove 'selected' and 'active' from all elements
+    element.classList.remove("selected", "active");
   });
 
-  // Find the element with the corresponding color
   const selectedElement = Array.from(elements).find(
     (element) => element.dataset.color === color
   );
 
   if (selectedElement) {
-    selectedElement.classList.add("selected", "active"); // Add 'selected' and 'active' classes to the selected element
+    selectedElement.classList.add("selected", "active");
   }
 }
 
@@ -213,39 +224,28 @@ function nextPage() {
     return;
   }
 
-  console.log("Pages found:", pages);
-
-  // Als je op de overview bent, verberg deze en toon de eerste pagina
   if (overview && overview.style.display !== "none") {
-    console.log("Hiding overview, showing the first page");
     overview.style.display = "none";
     currentPageIndex.value = 0;
 
-    // Reset alle pagina's
     pages.forEach((page) => page.classList.remove("active"));
     pages[currentPageIndex.value].classList.add("active");
 
     if (backButton) {
       backButton.style.visibility = "visible";
     }
-    console.log("Current page index:", currentPageIndex.value);
     return;
   }
 
-  console.log("Hiding current page:", pages[currentPageIndex.value]);
   pages[currentPageIndex.value].classList.remove("active");
 
-  // Verhoog de index en activeer de volgende pagina
   if (currentPageIndex.value < pages.length - 1) {
     currentPageIndex.value++;
-    console.log("Showing next page:", pages[currentPageIndex.value]);
     pages[currentPageIndex.value].classList.add("active");
   } else {
     document.querySelector(".summary").style.display = "flex";
     document.querySelector(".nextButton").style.visibility = "hidden";
   }
-
-  console.log("Final current page index:", currentPageIndex.value);
 }
 
 function previousPage() {
@@ -260,29 +260,26 @@ function previousPage() {
     return;
   }
 
-  // Als we op de eerste pagina zitten, ga terug naar de overview
   if (currentPageIndex.value === 0) {
     if (overview) {
-      overview.style.display = "flex"; // Toon de overview
+      overview.style.display = "flex";
     }
     if (backButton) {
-      backButton.style.visibility = "hidden"; // Verberg de back-button
+      backButton.style.visibility = "hidden";
     }
     if (nextButton) {
-      nextButton.style.visibility = "visible"; // Verberg de back-button
+      nextButton.style.visibility = "visible";
     }
-    pages[currentPageIndex.value].classList.remove("active"); // Verwijder 'active' van de huidige pagina
+    pages[currentPageIndex.value].classList.remove("active");
     return;
   }
 
-  // Verberg de huidige pagina
   pages[currentPageIndex.value].classList.remove("active");
 
-  // Verlaag de index en toon de vorige pagina
   if (currentPageIndex.value > 0) {
     currentPageIndex.value--;
-    pages[currentPageIndex.value].classList.add("active"); // Maak de vorige pagina actief
-    nextButton.style.visibility = "visible"; // Verberg de back-button
+    pages[currentPageIndex.value].classList.add("active");
+    nextButton.style.visibility = "visible";
   }
   document.querySelector(".summary").style.display = "none";
 }
@@ -477,18 +474,21 @@ function onMouseUp() {
       <div class="summary display">
         <h2>Summary</h2>
         <div class="configurations">
-          <div class="config-item">
-            <!-- <p>Color of {{ material.name }}</p> -->
-            <div class="row">
-              <!-- <p
+          <div
+            v-for="(color, index) in layersColors"
+            :key="index"
+            class="config-item"
+          >
+            <p>Color of {{ layers[index] }}</p>
+            <div v-if="selectedColor" class="row">
+              <p
                 :style="{
-                  backgroundColor: selectedLacesColor || 'transparent',
+                  backgroundColor: color || 'transparent',
                 }"
-              ></p> -->
+              ></p>
             </div>
           </div>
         </div>
-        <!-- Personal info form -->
         <h3>Personal info</h3>
       </div>
       <div class="links">
