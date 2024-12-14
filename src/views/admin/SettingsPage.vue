@@ -49,6 +49,12 @@ const tokenPayload = parseJwt(token); // Gebruik hier het token dat je hebt
 console.log(tokenPayload); // Bekijk de payload van het token
 const userId = tokenPayload?.userId;
 const partnerId = tokenPayload?.companyId || "defaultPartnerId";
+sessionStorage.setItem("partnerId", partnerId);
+const showSaveButton = ref(false);
+
+const onConfigurationChange = () => {
+  showSaveButton.value = true; // Maak de "Save"-knop zichtbaar
+};
 
 console.log("User ID:", userId); // Checken of userId correct is
 console.log("Partner ID:", partnerId); // Checken of partnerId correct is
@@ -87,63 +93,61 @@ const fetchConfigurations = async () => {
 };
 
 // Ophalen van partner-specifieke configuraties
+// Ophalen van partner-specifieke configuraties
 const fetchPartnerConfigurations = async () => {
-  if (!partnerId) return; // Controleer of partnerId bestaat
+  if (!partnerId) return;
 
   try {
     const response = await axios.get(`${baseURL}/configurations`, {
       headers: { Authorization: `Bearer ${token}` },
-      params: { partnerId }, // Haal configuraties op voor deze partnerId
+      params: { partnerId },
     });
 
-    // Filter de configuraties op basis van partnerId
     const configs = response.data?.data || [];
     partnerConfigurations.value = configs.filter(
       (config) => config.partnerId === partnerId
     );
 
-    console.log(
-      "Partner configurations voor partnerId:",
-      partnerId,
-      partnerConfigurations.value
-    );
-
-    // Creëer een Set voor snelle ID-checks
     const partnerConfigIds = new Set(
       partnerConfigurations.value.map((config) => config._id)
     );
 
-    // Controleer welke configuraties geselecteerd zijn en voeg "checked" toe
+    // Restore checked state from localStorage if it exists
+    const savedSelectedState = JSON.parse(
+      localStorage.getItem("selectedConfigurations")
+    );
     selectedConfigurations.value = allConfigurations.value.map((config) => ({
       ...config,
-      checked: partnerConfigIds.has(config._id),
+      checked:
+        savedSelectedState?.[config._id] ?? partnerConfigIds.has(config._id),
     }));
 
-    console.log("Selected configurations:", selectedConfigurations.value); // Log de geselecteerde configuraties
+    console.log("Selected configurations:", selectedConfigurations.value);
   } catch (error) {
     console.error("Error fetching partner configurations:", error);
   }
 };
 
 // Verzend de geselecteerde configuraties (checked items)
-const saveConfigurations = async () => {
-  // Haal de IDs van alle geselecteerde configuraties op
-  const selectedConfigIds = selectedConfigurations.value
-    .filter((config) => config.checked)
-    .map((config) => config._id);
-
-  console.log("Selected configurations to save:", selectedConfigIds);
-
+const saveUpdatedConfigurations = async () => {
   try {
-    // Verstuur de geselecteerde configuraties naar de API
-    await axios.post(
-      `${baseURL}/update-partner-configurations`, // Endpoint voor bijwerken
-      { partnerId, configurations: selectedConfigIds },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    // Itereer door alle configuraties om alleen de aangepaste te updaten
+    for (const config of selectedConfigurations.value) {
+      // Stuur alleen een verzoek voor aangepaste configuraties
+      if (config.checked !== config.originalChecked) {
+        await axios.put(
+          `${baseURL}/configurations/${config._id}`,
+          { checked: config.checked, partnerId }, // Stuur relevante data
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+    }
+
     alert("Configuraties zijn succesvol opgeslagen!");
+    showSaveButton.value = false; // Verberg de "Save"-knop na opslaan
   } catch (error) {
-    console.error("Error saving configurations:", error);
+    console.error("Error saving updated configurations:", error);
+    alert("Er is een fout opgetreden bij het opslaan van de configuraties.");
   }
 };
 
@@ -364,6 +368,31 @@ watch(
   },
   { deep: true }
 );
+
+watch(
+  selectedConfigurations,
+  (newConfigurations) => {
+    // Save the checked state of each configuration to localStorage
+    const checkedState = newConfigurations.reduce((acc, config) => {
+      acc[config._id] = config.checked;
+      return acc;
+    }, {});
+
+    localStorage.setItem(
+      "selectedConfigurations",
+      JSON.stringify(checkedState)
+    );
+
+    // Show or hide the save button based on changes
+    const hasChanges = newConfigurations.some(
+      (newConfig, index) =>
+        newConfig.checked !== selectedConfigurations.value[index]?.checked
+    );
+
+    showSaveButton.value = hasChanges;
+  },
+  { deep: true }
+);
 </script>
 
 <template>
@@ -506,11 +535,21 @@ watch(
               type="checkbox"
               v-model="config.checked"
               :id="'config-' + config._id"
+              @change="onConfigurationChange"
             />
             <label :for="'config-' + config._id">{{
               config.fieldName || "Naam niet beschikbaar"
             }}</label>
           </div>
+        </div>
+        <div class="frameBtn">
+          <button
+            v-if="showSaveButton"
+            @click="saveUpdatedConfigurations"
+            class="btn active"
+          >
+            Save
+          </button>
         </div>
       </div>
 
