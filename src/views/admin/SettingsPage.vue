@@ -34,25 +34,24 @@ if (!token) {
 }
 
 const parseJwt = (token) => {
-  try {
-    const base64Url = token.split(".")[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
-    );
-    return JSON.parse(jsonPayload);
-  } catch (error) {
-    console.error("Error parsing JWT:", error);
-    return null;
-  }
+  const base64Url = token.split(".")[1];
+  const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+  const jsonPayload = decodeURIComponent(
+    atob(base64)
+      .split("")
+      .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+      .join("")
+  );
+  return JSON.parse(jsonPayload);
 };
 
-const tokenPayload = parseJwt(token);
+const tokenPayload = parseJwt(token); // Gebruik hier het token dat je hebt
+console.log(tokenPayload); // Bekijk de payload van het token
 const userId = tokenPayload?.userId;
-const partnerId = tokenPayload?.partnerId || null;
+const partnerId = tokenPayload?.companyId || "defaultPartnerId";
+
+console.log("User ID:", userId); // Checken of userId correct is
+console.log("Partner ID:", partnerId); // Checken of partnerId correct is
 
 if (!userId) {
   router.push("/login");
@@ -63,6 +62,97 @@ const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
+
+// Array om de configuraties op te slaan
+const allConfigurations = ref([]); // Correcte initialisatie van ref
+const partnerConfigurations = ref([]);
+const selectedConfigurations = ref([]);
+
+// Ophalen van alle configuraties
+const fetchConfigurations = async () => {
+  try {
+    const response = await axios.get(`${baseURL}/configurations`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    // Alle configuraties ophalen en opslaan
+    allConfigurations.value = response.data?.data || [];
+    console.log("Fetched all configurations:", allConfigurations.value);
+
+    // Na het ophalen van alle configuraties, de partner-specifieke configuraties ophalen
+    await fetchPartnerConfigurations();
+  } catch (error) {
+    console.error("Error fetching all configurations:", error);
+  }
+};
+
+// Ophalen van partner-specifieke configuraties
+const fetchPartnerConfigurations = async () => {
+  if (!partnerId) return; // Controleer of partnerId bestaat
+
+  try {
+    const response = await axios.get(`${baseURL}/configurations`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { partnerId }, // Haal configuraties op voor deze partnerId
+    });
+
+    // Filter de configuraties op basis van partnerId
+    const configs = response.data?.data || [];
+    partnerConfigurations.value = configs.filter(
+      (config) => config.partnerId === partnerId
+    );
+
+    console.log(
+      "Partner configurations voor partnerId:",
+      partnerId,
+      partnerConfigurations.value
+    );
+
+    // Creëer een Set voor snelle ID-checks
+    const partnerConfigIds = new Set(
+      partnerConfigurations.value.map((config) => config._id)
+    );
+
+    // Controleer welke configuraties geselecteerd zijn en voeg "checked" toe
+    selectedConfigurations.value = allConfigurations.value.map((config) => ({
+      ...config,
+      checked: partnerConfigIds.has(config._id),
+    }));
+
+    console.log("Selected configurations:", selectedConfigurations.value); // Log de geselecteerde configuraties
+  } catch (error) {
+    console.error("Error fetching partner configurations:", error);
+  }
+};
+
+// Verzend de geselecteerde configuraties (checked items)
+const saveConfigurations = async () => {
+  // Haal de IDs van alle geselecteerde configuraties op
+  const selectedConfigIds = selectedConfigurations.value
+    .filter((config) => config.checked)
+    .map((config) => config._id);
+
+  console.log("Selected configurations to save:", selectedConfigIds);
+
+  try {
+    // Verstuur de geselecteerde configuraties naar de API
+    await axios.post(
+      `${baseURL}/update-partner-configurations`, // Endpoint voor bijwerken
+      { partnerId, configurations: selectedConfigIds },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    alert("Configuraties zijn succesvol opgeslagen!");
+  } catch (error) {
+    console.error("Error saving configurations:", error);
+  }
+};
+
+// Ophalen van de configuraties wanneer de component wordt geladen
+onMounted(() => {
+  fetchConfigurations();
+});
+
+provide("partnerId", partnerId); // Geeft partnerId door aan andere componenten indien nodig
 
 // State for managing the profile and other popups
 const activeSection = ref("My profile");
@@ -122,29 +212,6 @@ const fetchPartnerData = async () => {
   } catch (error) {
     console.error("Error fetching partner data:", error);
     partnerPackage.value = "Error loading partner data";
-  }
-};
-
-const fetchConfigurations = async () => {
-  try {
-    // Maak de GET-aanroep naar de API om configuraties op te halen
-    const response = await axios.get(`${baseURL}/configurations`, {
-      headers: { Authorization: `Bearer ${token}` }, // Voeg het token toe aan de header
-    });
-
-    // Verkrijg de configuratiegegevens uit de response
-    const configurationsData = response.data?.data || [];
-
-    // Verwerk de configuraties zoals gewenst, bijvoorbeeld:
-    configurationsData.forEach((config) => {
-      console.log(config.fieldName, config.fieldType, config.options);
-      // Je kunt hier andere logica toevoegen om de configuraties in je state op te slaan of verder te verwerken
-    });
-
-    // Bijvoorbeeld: Stel de configuraties in de state van je applicatie in
-    configurations = configurationsData;
-  } catch (error) {
-    console.error("Error fetching configurations:", error);
   }
 };
 
@@ -299,40 +366,6 @@ watch(
 );
 </script>
 
-<script>
-export default {
-  data() {
-    return {
-      configurations: [], // Array om configuraties op te slaan
-      selectedConfigurations: {}, // Object om geselecteerde configuraties op te slaan
-    };
-  },
-  methods: {
-    async fetchConfigurations() {
-      try {
-        const response = await axios.get(
-          "http://localhost:3000/api/v1/configurations",
-          {
-            headers: { Authorization: `Bearer ${this.token}` },
-          }
-        );
-        this.configurations = response.data?.data || [];
-      } catch (error) {
-        console.error("Error fetching configurations:", error);
-      }
-    },
-    saveConfigurations() {
-      // Opslaan van geselecteerde configuraties
-      console.log("Selected configurations:", this.selectedConfigurations);
-      // Hier kun je de geselecteerde configuraties opslaan via een API-call
-    },
-  },
-  mounted() {
-    this.fetchConfigurations(); // Laad configuraties bij het laden van de component
-  },
-};
-</script>
-
 <template>
   <Navigation />
   <div class="content">
@@ -458,28 +491,26 @@ export default {
       <div v-if="activeSection === 'configurations'" class="configurations">
         <h2 class="border">Configurations</h2>
 
-        <div v-if="configurations.length > 0" class="configurationsItems">
+        <!-- Voeg dit toe in je template om de status van de configuraties te controleren -->
+        <div v-if="!selectedConfigurations.length">
+          Geen configuraties beschikbaar.
+        </div>
+
+        <div v-else class="configurationsItems">
           <div
-            v-for="(config, index) in configurations"
-            :key="index"
+            v-for="config in selectedConfigurations"
+            :key="config._id"
             class="row"
           >
             <input
               type="checkbox"
-              v-model="selectedConfigurations[config._id]"
-              :value="config._id"
-              class="custom-checkbox"
+              v-model="config.checked"
+              :id="'config-' + config._id"
             />
-            <p>{{ config.fieldName }}</p>
+            <label :for="'config-' + config._id">{{
+              config.fieldName || "Naam niet beschikbaar"
+            }}</label>
           </div>
-        </div>
-        <p v-else>Er zijn geen configuraties beschikbaar.</p>
-
-        <!-- Opslaan knop -->
-        <div class="frameBtn">
-          <button @click="saveConfigurations" class="btn active">
-            Opslaan
-          </button>
         </div>
       </div>
 
@@ -849,6 +880,7 @@ export default {
 
 .configurations .configurationsItems .row input {
   border-radius: 4px;
+  width: auto;
 }
 
 .configurations .configurationsItems .row p {
