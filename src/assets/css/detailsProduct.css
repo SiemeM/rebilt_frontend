@@ -7,19 +7,6 @@
   overflow: hidden;
 }
 
-.logo {
-  background-image: url("../images/REBILT-logo-white.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
-  width: 80px;
-  height: 32px;
-  position: fixed;
-  top: 24px;
-  left: 24px;
-  z-index: 10;
-}
-
 .model {
   position: relative;
   width: 100%;
@@ -394,7 +381,6 @@ li svg {
 
 .btn {
   color: var(--white);
-  margin-top: 1rem;
 }
 
 .errorMessage {

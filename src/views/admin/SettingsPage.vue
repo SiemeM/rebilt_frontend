@@ -125,6 +125,29 @@ const fetchPartnerData = async () => {
   }
 };
 
+const fetchConfigurations = async () => {
+  try {
+    // Maak de GET-aanroep naar de API om configuraties op te halen
+    const response = await axios.get(`${baseURL}/configurations`, {
+      headers: { Authorization: `Bearer ${token}` }, // Voeg het token toe aan de header
+    });
+
+    // Verkrijg de configuratiegegevens uit de response
+    const configurationsData = response.data?.data || [];
+
+    // Verwerk de configuraties zoals gewenst, bijvoorbeeld:
+    configurationsData.forEach((config) => {
+      console.log(config.fieldName, config.fieldType, config.options);
+      // Je kunt hier andere logica toevoegen om de configuraties in je state op te slaan of verder te verwerken
+    });
+
+    // Bijvoorbeeld: Stel de configuraties in de state van je applicatie in
+    configurations = configurationsData;
+  } catch (error) {
+    console.error("Error fetching configurations:", error);
+  }
+};
+
 // Update user profile
 const updateProfile = async () => {
   try {
@@ -276,6 +299,40 @@ watch(
 );
 </script>
 
+<script>
+export default {
+  data() {
+    return {
+      configurations: [], // Array om configuraties op te slaan
+      selectedConfigurations: {}, // Object om geselecteerde configuraties op te slaan
+    };
+  },
+  methods: {
+    async fetchConfigurations() {
+      try {
+        const response = await axios.get(
+          "http://localhost:3000/api/v1/configurations",
+          {
+            headers: { Authorization: `Bearer ${this.token}` },
+          }
+        );
+        this.configurations = response.data?.data || [];
+      } catch (error) {
+        console.error("Error fetching configurations:", error);
+      }
+    },
+    saveConfigurations() {
+      // Opslaan van geselecteerde configuraties
+      console.log("Selected configurations:", this.selectedConfigurations);
+      // Hier kun je de geselecteerde configuraties opslaan via een API-call
+    },
+  },
+  mounted() {
+    this.fetchConfigurations(); // Laad configuraties bij het laden van de component
+  },
+};
+</script>
+
 <template>
   <Navigation />
   <div class="content">
@@ -295,10 +352,10 @@ watch(
           Login settings
         </p>
         <p
-          :class="{ active: activeSection === 'Field names' }"
-          @click="setActiveSection('Field names')"
+          :class="{ active: activeSection === 'configurations' }"
+          @click="setActiveSection('configurations')"
         >
-          Field names
+          Configurations
         </p>
         <p
           v-if="user.role === 'partner_admin' && partnerPackage"
@@ -398,9 +455,32 @@ watch(
         </div>
       </div>
 
-      <div v-if="activeSection === 'Field names'" class="fieldNames">
-        <h2 class="border">Field names</h2>
-        <p>Dit zijn de velden van de database.</p>
+      <div v-if="activeSection === 'configurations'" class="configurations">
+        <h2 class="border">Configurations</h2>
+
+        <div v-if="configurations.length > 0" class="configurationsItems">
+          <div
+            v-for="(config, index) in configurations"
+            :key="index"
+            class="row"
+          >
+            <input
+              type="checkbox"
+              v-model="selectedConfigurations[config._id]"
+              :value="config._id"
+              class="custom-checkbox"
+            />
+            <p>{{ config.fieldName }}</p>
+          </div>
+        </div>
+        <p v-else>Er zijn geen configuraties beschikbaar.</p>
+
+        <!-- Opslaan knop -->
+        <div class="frameBtn">
+          <button @click="saveConfigurations" class="btn active">
+            Opslaan
+          </button>
+        </div>
       </div>
 
       <div
@@ -741,13 +821,63 @@ watch(
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.fieldNames,
+.configurations,
 .account,
 .subscription {
   display: flex;
   flex-direction: column;
   gap: 16px;
   width: 100%;
+}
+
+.configurations {
+  align-items: flex-start;
+}
+
+.configurations .configurationsItems {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+
+.configurations .configurationsItems .row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.configurations .configurationsItems .row input {
+  border-radius: 4px;
+}
+
+.configurations .configurationsItems .row p {
+  color: var(--white);
+}
+
+.custom-checkbox {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border: 2px solid white;
+  background-color: transparent;
+  cursor: pointer;
+  position: relative;
+}
+
+.custom-checkbox:checked {
+  background-color: var(--white);
+}
+
+.custom-checkbox:checked::before {
+  content: "\2714";
+  font-size: 16px;
+  color: var(--black);
+  position: absolute;
+  top: -2px;
+  left: 5px;
 }
 
 .account .accountElements,
@@ -797,14 +927,14 @@ watch(
 }
 
 .fields,
-.fieldNames .list {
+.configurations .list {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   column-gap: 120px;
   row-gap: 16px;
 }
 
-.fieldNames .list {
+.configurations .list {
   padding: 16px 0;
 }
 
@@ -1025,5 +1155,11 @@ button {
 .btn.display p,
 .errorMessage {
   color: #d34848;
+}
+
+.frameBtn {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>
