@@ -52,7 +52,7 @@ const parseJwt = (token) => {
 
 const tokenPayload = parseJwt(token);
 const userId = tokenPayload?.userId;
-const partnerId = tokenPayload?.partnerId || null;
+const partnerId = tokenPayload?.companyId || null;
 
 if (!userId) {
   router.push("/login");
@@ -94,8 +94,6 @@ const fetchUserProfile = async () => {
 
 // Fetch partner data (if applicable)
 const fetchPartnerData = async () => {
-  if (!partnerId) return;
-
   try {
     const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -151,8 +149,62 @@ const fetchData = async () => {
   }
 };
 
+// Array om de configuraties op te slaan
+const partnerConfigurations = ref([]);
+
+// Declare selectedConfigurations as a ref or reactive object
+const selectedConfigurations = ref([]); // Use ref if you're not using a complex structure
+
+// Or, if you want to make it more complex, you could use reactive
+// const selectedConfigurations = reactive([]);
+
+const fetchPartnerConfigurations = async () => {
+  console.log("Fetching partner configurations...");
+
+  if (!partnerId) {
+    console.warn("No partnerId provided.");
+    return;
+  }
+
+  try {
+    const response = await axios.get(`${baseURL}/configurations`, {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { partnerId }, // Assuming the API supports filtering by partnerId
+    });
+
+    const configs = response.data?.data || [];
+    if (configs.length === 0) {
+      console.warn("No configurations found for the given partnerId.");
+    }
+    console.log("Configurations fetched:", configs);
+
+    // Filter configurations based on the partnerId
+    partnerConfigurations.value = configs.filter(
+      (config) => config.partnerId === partnerId
+    );
+
+    // Load selected configurations state from localStorage
+    const savedSelectedState =
+      JSON.parse(localStorage.getItem("selectedConfigurations")) || {};
+    console.log("Saved selected state from localStorage:", savedSelectedState);
+
+    // Mark configurations as selected based on localStorage or default to true
+    selectedConfigurations.value = partnerConfigurations.value.map(
+      (config) => ({
+        ...config,
+        checked: savedSelectedState[config._id] ?? true, // Default to true if no saved state
+      })
+    );
+
+    console.log("Selected configurations:", selectedConfigurations.value);
+  } catch (error) {
+    console.error("Error fetching partner configurations:", error);
+  }
+};
+
 // Initialiseer component en haal data op
 onMounted(fetchData);
+onMounted(fetchPartnerConfigurations);
 
 // Definities van refs en computed properties
 const selectedTypeFilter = ref("All");
@@ -388,13 +440,19 @@ const filteredProducts = computed(() => {
           "
         />
         <p>Product Code</p>
+        <p>Product name</p>
         <p>Type of product</p>
         <p>Brand</p>
-        <p>Product name</p>
-        <p>Colors</p>
         <p>Description</p>
         <p>Status</p>
-        <p>Glass colour</p>
+
+        <!-- Dynamically added configuration names -->
+        <div v-for="config in partnerConfigurations" :key="config._id">
+          <p>{{ config.fieldName }}</p>
+        </div>
+
+        <!-- Add extra columns -->
+        <p>Glass Color</p>
       </div>
 
       <ul v-if="filteredProducts.length" class="list">
@@ -412,11 +470,17 @@ const filteredProducts = computed(() => {
             <p>{{ product.brand }}</p>
             <p>{{ product.productName }}</p>
             <p>{{ product.colors }}</p>
-            <!-- Voeg join toe om de kleuren weer te geven -->
             <p>{{ product.description }}</p>
             <p>{{ product.activeUnactive }}</p>
+
+            <!-- Render dynamic configuration values -->
+            <div class="configurations">
+              <p v-for="config in partnerConfigurations" :key="config._id">
+                {{ product[config.fieldName] || "N/A" }}
+              </p>
+            </div>
+
             <p>{{ product.glassColor }}</p>
-            <!-- Correcte eigenschap -->
           </router-link>
         </li>
       </ul>
