@@ -3,6 +3,7 @@ import { ref, reactive, onMounted, watch, provide } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
+import DynamicStyle from "../../components/DynamicStyle.vue";
 
 // Router setup
 const router = useRouter();
@@ -396,6 +397,7 @@ watch(
 </script>
 
 <template>
+  <DynamicStyle />
   <Navigation />
   <div class="content">
     <h1>Settings</h1>

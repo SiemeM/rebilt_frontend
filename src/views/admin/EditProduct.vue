@@ -3,6 +3,7 @@ import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
+import DynamicStyle from "../../components/DynamicStyle.vue";
 import sha1 from "js-sha1";
 
 // Basis-URL bepalen op basis van de omgeving
@@ -301,6 +302,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <DynamicStyle />
   <Navigation />
   <div class="content">
     <h1>Product Bewerken</h1>

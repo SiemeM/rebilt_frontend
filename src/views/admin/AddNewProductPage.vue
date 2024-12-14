@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import Navigation from "../../components/navComponent.vue";
+import DynamicStyle from "../../components/DynamicStyle.vue";
 import axios from "axios";
 
 // Router en JWT-token ophalen
@@ -227,6 +228,7 @@ const addProduct = async () => {
 </script>
 
 <template>
+  <DynamicStyle />
   <Navigation />
   <div class="content">
     <h1>Add New Product</h1>

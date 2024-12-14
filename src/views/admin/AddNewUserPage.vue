@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import Navigation from "../../components/navComponent.vue";
+import DynamicStyle from "../../components/DynamicStyle.vue";
 
 // Bepaal de basis-URL op basis van de omgeving
 const isProduction = window.location.hostname !== "localhost";
@@ -139,6 +140,7 @@ const addUser = async () => {
 </script>
 
 <template>
+  <DynamicStyle />
   <Navigation />
   <div class="content">
     <h1>Add New User</h1>

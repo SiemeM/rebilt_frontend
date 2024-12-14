@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Navigation from "../../components/navComponent.vue";
+import DynamicStyle from "../../components/DynamicStyle.vue";
 
 // Base URL afhankelijk van productie/ontwikkelomgeving
 const isProduction = window.location.hostname !== "localhost";
@@ -97,6 +98,7 @@ onMounted(fetchOrderData);
 </script>
 
 <template>
+  <DynamicStyle />
   <Navigation />
   <div class="content">
     <h1>Order Bewerken</h1>

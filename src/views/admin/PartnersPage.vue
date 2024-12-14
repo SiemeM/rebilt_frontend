@@ -3,6 +3,7 @@ import { ref, reactive, onMounted, computed, watch, provide } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
+import DynamicStyle from "../../components/DynamicStyle.vue";
 
 // Router setup
 const router = useRouter();
@@ -269,6 +270,7 @@ onMounted(() => {
 </script>
 
 <template>
+  <DynamicStyle />
   <Navigation />
   <div class="overlay" v-if="isPopupVisible"></div>
   <div class="content">

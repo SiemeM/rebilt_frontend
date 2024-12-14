@@ -6,14 +6,14 @@
   padding: 0;
 }
 
-:root {
+/* :root {
   --gray: #e5e5e5;
   --white: #fff;
   --black: #000;
   --offPurple: #aa91de;
   --purple: #9747ff;
   --blue: #0071e3;
-}
+} */
 
 i {
   font-size: 24px !important;
