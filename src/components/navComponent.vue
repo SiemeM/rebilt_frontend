@@ -67,6 +67,49 @@ const fetchUserData = async (userId) => {
   }
 };
 
+// Definieer de huisstijl data
+const huisstijlData = reactive({
+  primaryColor: "#d4af37",
+  secondaryColor: "#f0edea",
+  backgroundColor: "#ffffff",
+  textColor: "#000000",
+  fontFamilyBodyText: "Work Sans",
+  fontFamilyTitles: "Libre Barcode 128",
+  logo: "", // Logo wordt hier ingesteld vanuit de API
+});
+
+// Haal de huisstijlgegevens op van de API
+const fetchHouseStyle = async () => {
+  try {
+    // Haal de userId uit de `user` gegevens of via een andere manier (bijvoorbeeld via een JWT-token)
+    const userId = user?.userId || getUserDataFromToken()?.userId; // Zorg ervoor dat de userId beschikbaar is
+
+    if (!userId) {
+      console.error("Geen userId gevonden");
+      return;
+    }
+
+    // Bepaal de baseURL op basis van de omgeving (lokaal of productie)
+    const isProduction = window.location.hostname !== "localhost";
+    const baseURL = isProduction
+      ? "https://rebilt-backend.onrender.com/api/v1"
+      : "http://localhost:3000/api/v1";
+
+    // Maak de volledige API-URL voor het ophalen van de huisstijl van de gebruiker
+    const response = await axios.get(`${baseURL}/houseStyles/${userId}`); // De userId wordt hier toegevoegd aan de URL
+
+    const houseStyle = response.data;
+    huisstijlData.logo = houseStyle.logo_url; // Stel de logo_url in uit de API response
+  } catch (error) {
+    console.error("Fout bij het ophalen van huisstijl:", error);
+  }
+};
+
+// Haal huisstijl op zodra de component is gemonteerd
+onMounted(() => {
+  fetchHouseStyle();
+});
+
 // Fetch user data when component is mounted
 onMounted(() => {
   const userData = getUserDataFromToken();
@@ -118,7 +161,10 @@ const profileImage = computed(() => {
 
 <template>
   <nav>
-    <div class="logo"></div>
+    <div
+      class="logo"
+      :style="{ backgroundImage: 'url(' + huisstijlData.logo + ')' }"
+    ></div>
     <div class="profile">
       <!-- Add dynamic profile picture from user data -->
       <div
@@ -193,10 +239,9 @@ nav {
 }
 
 nav .logo {
-  background-image: url("../assets/images/REBILT-logo-white.svg");
   background-repeat: no-repeat;
   background-size: contain;
-  background-position: center;
+  background-position: left;
   width: 80px;
   height: 32px;
 }

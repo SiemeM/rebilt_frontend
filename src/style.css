@@ -77,12 +77,6 @@ input::placeholder {
   font-weight: 800;
 }
 
-p,
-label,
-li {
-  color: rgba(255, 255, 255, 0.6);
-}
-
 li {
   list-style: none;
 }

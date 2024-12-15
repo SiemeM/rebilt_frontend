@@ -10,7 +10,6 @@ const router = useRouter();
 const token = localStorage.getItem("jwtToken");
 
 if (!token) {
-  console.log("Geen token gevonden, doorsturen naar login.");
   router.push("/login");
 }
 
@@ -55,8 +54,8 @@ const selectedFontForTitles = ref("");
 const selectedFontForText = ref("");
 const GoogleFonts = ref([]);
 
+// Zorg ervoor dat setFonts altijd beschikbaar is
 const setFonts = () => {
-  // Stel de fonts in op basis van de geselecteerde waarden
   document.documentElement.style.setProperty(
     "--title-font",
     selectedFontForTitles.value || "default"
@@ -67,6 +66,7 @@ const setFonts = () => {
   );
 };
 
+// Google Fonts ophalen
 const fetchGoogleFonts = async () => {
   const apiKey = "AIzaSyBAS05cq9-WKD92VljeuLee5V7YkIrTTMw";
   const googleFontsApi = `https://www.googleapis.com/webfonts/v1/webfonts?key=${apiKey}`;
@@ -113,21 +113,98 @@ const getHouseStyleFromDatabase = async () => {
       },
     });
 
-    console.log("Huisstijl succesvol opgehaald:", response.data);
     huisstijlData.primaryColor = response.data.primary_color;
     huisstijlData.secondaryColor = response.data.secondary_color;
     huisstijlData.textColor = response.data.text_color;
     huisstijlData.titlesColor = response.data.titles_color;
     huisstijlData.backgroundColor = response.data.background_color;
-    huisstijlData.backgroundImage = response.data.logo_url; // Optional field
+    huisstijlData.logo = response.data.logo_url || ""; // Logo URL instellen
 
-    // Set the font values if they exist
+    // Set de fonts als ze beschikbaar zijn
     selectedFontForTitles.value = response.data.fontFamilyTitles || "";
     selectedFontForText.value = response.data.fontFamilyBodyText || "";
   } catch (error) {
     console.error("Fout bij het ophalen van huisstijl:", error);
   }
 };
+
+// Functie om de kleurkiezer te openen en kleur te updaten
+const openColorPicker = (field) => {
+  const input = document.createElement("input");
+  input.type = "color";
+  input.value = huisstijlData[field];
+
+  input.addEventListener("input", async (event) => {
+    huisstijlData[field] = event.target.value;
+    await updateHouseStyleInDatabase(); // Update de wijziging in de database
+  });
+
+  input.click();
+};
+
+const resetHouseStyle = async () => {
+  const defaultHuisstijl = {
+    primaryColor: "#9747ff",
+    secondaryColor: "#000000",
+    textColor: "#ffffff",
+    titlesColor: "#0071e3",
+    backgroundColor: "#000000",
+    backgroundImage: "",
+    logo: "", // Logo leeg maken
+  };
+
+  huisstijlData.primaryColor = defaultHuisstijl.primaryColor;
+  huisstijlData.secondaryColor = defaultHuisstijl.secondaryColor;
+  huisstijlData.textColor = defaultHuisstijl.textColor;
+  huisstijlData.titlesColor = defaultHuisstijl.titlesColor;
+  huisstijlData.backgroundColor = defaultHuisstijl.backgroundColor;
+  huisstijlData.backgroundImage = defaultHuisstijl.backgroundImage;
+  huisstijlData.logo = ""; // Het logo leeg maken
+
+  await updateHouseStyleInDatabase(); // Update de huisstijl in de database met het lege logo
+};
+
+// Functie voor het uploaden naar Cloudinary
+const uploadToCloudinary = async (file) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", "ycy4zvmj");
+  formData.append("cloud_name", "dzempjvto");
+  formData.append("folder", "Stijn/Huisstijl");
+
+  try {
+    const { data } = await axios.post(
+      "https://api.cloudinary.com/v1_1/dzempjvto/image/upload",
+      formData
+    );
+    return data.secure_url; // Dit is de URL van de geüploade afbeelding op Cloudinary
+  } catch (error) {
+    console.error("Fout bij het uploaden van bestand:", error);
+    throw error;
+  }
+};
+
+// Functie om de logo upload te verwerken
+// Functie om de logo upload te verwerken
+const handleLogoUpload = async (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    try {
+      // Upload het bestand naar Cloudinary en krijg de URL
+      const logoUrl = await uploadToCloudinary(file);
+
+      // Werk de logo URL bij in huisstijlData
+      huisstijlData.logo = logoUrl;
+
+      // Werk de huisstijl bij in de database met de nieuwe logo_url
+      await updateHouseStyleInDatabase();
+    } catch (error) {
+      console.error("Fout bij het uploaden van logo:", error);
+    }
+  }
+};
+
+const fallbackLogo = "../../assets/images/REBILT-logo-white.svg"; // Replace this with your actual fallback logo URL
 
 // Functie om de huisstijl in de database bij te werken
 const updateHouseStyleInDatabase = async () => {
@@ -138,8 +215,9 @@ const updateHouseStyleInDatabase = async () => {
       text_color: huisstijlData.textColor,
       titles_color: huisstijlData.titlesColor,
       background_color: huisstijlData.backgroundColor,
-      fontFamilyBodyText: selectedFontForText.value, // Font voor tekst
-      fontFamilyTitles: selectedFontForTitles.value, // Font voor titels
+      fontFamilyBodyText: selectedFontForText.value,
+      fontFamilyTitles: selectedFontForTitles.value,
+      logo_url: huisstijlData.logo || null, // Zorg ervoor dat de logo URL naar null gaat als leeg
     };
 
     const response = await axios.put(
@@ -152,59 +230,38 @@ const updateHouseStyleInDatabase = async () => {
       }
     );
 
-    console.log("Huisstijl succesvol geüpdatet:", response.data);
-    await getHouseStyleFromDatabase(); // Refresh om de bijgewerkte data op te halen
-    setFonts(); // Werk de fonts bij nadat de stijl is geüpdatet
+    await getHouseStyleFromDatabase(); // Haal de geüpdatete huisstijl op
+    setFonts(); // Werk de fonts bij
   } catch (error) {
     console.error("Fout bij het bijwerken van huisstijl:", error);
   }
 };
 
-// Functie om de kleurkiezer te openen en kleur te updaten
-const openColorPicker = (field) => {
-  const input = document.createElement("input");
-  input.type = "color";
-  input.value = huisstijlData[field];
-
-  input.addEventListener("input", async (event) => {
-    huisstijlData[field] = event.target.value;
-    console.log(`${field} bijgewerkt naar: ${huisstijlData[field]}`); // Log de kleur om te controleren
-    await updateHouseStyleInDatabase(); // Update de wijziging in de database
-  });
-
-  input.click();
+// Functie om de afbeelding te selecteren
+const triggerLogoUpload = () => {
+  if (logoInput.value) {
+    logoInput.value.click();
+  }
 };
 
-const resetHouseStyle = async () => {
-  // Define the default values for the house style
-  const defaultHuisstijl = {
-    primaryColor: "#9747ff",
-    secondaryColor: "#000000",
-    textColor: "#ffffff",
-    titlesColor: "#0071e3",
-    backgroundColor: "#000000",
-    backgroundImage: "",
-  };
+const logoInput = ref(null);
+const backgroundInput = ref(null);
 
-  // Reset the huisstijlData to default values
-  huisstijlData.primaryColor = defaultHuisstijl.primaryColor;
-  huisstijlData.secondaryColor = defaultHuisstijl.secondaryColor;
-  huisstijlData.textColor = defaultHuisstijl.textColor;
-  huisstijlData.titlesColor = defaultHuisstijl.titlesColor;
-  huisstijlData.backgroundColor = defaultHuisstijl.backgroundColor;
-  huisstijlData.backgroundImage = defaultHuisstijl.backgroundImage; // Dit is optioneel
-
-  // Optionally, update the database with the default values
-  await updateHouseStyleInDatabase();
+const triggerFileInput = (field) => {
+  if (field === "logo" && logoInput.value) {
+    logoInput.value.click(); // Verwijst naar het `<input>`-element
+  } else if (field === "backgroundImage" && backgroundInput.value) {
+    backgroundInput.value.click();
+  }
 };
 
 onMounted(() => {
-  console.log("Component gemonteerd, data wordt opgehaald...");
   getHouseStyleFromDatabase();
   fetchGoogleFonts();
   setFonts();
 });
 </script>
+
 <template>
   <DynamicStyle />
   <Navigation />
@@ -261,6 +318,17 @@ onMounted(() => {
             ></div>
           </div>
         </div>
+        <div class="column">
+          <h3>Background color</h3>
+          <div class="row">
+            <p>{{ huisstijlData.backgroundColor }}</p>
+            <div
+              class="color"
+              :style="{ backgroundColor: huisstijlData.backgroundColor }"
+              @click="openColorPicker('backgroundColor')"
+            ></div>
+          </div>
+        </div>
       </div>
       <!-- Fonts Section -->
       <div class="fonts">
@@ -293,6 +361,7 @@ onMounted(() => {
                   ]"
                   :key="font"
                   :value="font"
+                  :style="{ fontFamily: font }"
                 >
                   {{ font }}
                 </option>
@@ -327,6 +396,7 @@ onMounted(() => {
                   ]"
                   :key="font"
                   :value="font"
+                  :style="{ fontFamily: font }"
                 >
                   {{ font }}
                 </option>
@@ -336,48 +406,48 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- <div class="images">
+      <div class="images">
         <h2>Images</h2>
+
         <div class="column">
           <h3>Logo</h3>
           <div class="row">
-            <img :src="huisstijlData.logo" alt="Logo" />
-            <input
-              type="file"
-              ref="logoInput"
-              @change="handleFileChange($event, 'logo')"
-              style="display: none"
+            <img
+              v-if="huisstijlData.logo"
+              :src="huisstijlData.logo"
+              alt="Logo"
+              class="logo"
             />
-            <button @click="triggerFileInput('logo')">Upload</button>
-          </div>
-        </div>
+            <div v-else>
+              <img :src="fallbackLogo" alt="Logo" class="logo" />
+            </div>
 
-        <div class="column">
-          <h3>Background Image</h3>
-          <div class="row">
-            <img :src="huisstijlData.backgroundImage" alt="Background Image" />
+            <!-- Logo uploaden -->
+            <button @click="triggerLogoUpload" class="btn active">
+              Upload Logo
+            </button>
             <input
+              ref="logoInput"
               type="file"
-              ref="backgroundInput"
-              @change="handleFileChange($event, 'backgroundImage')"
+              accept="image/*"
+              @change="handleLogoUpload"
               style="display: none"
             />
-            <button @click="triggerFileInput('backgroundImage')">Upload</button>
           </div>
         </div>
-      </div> -->
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
 .elements {
+  padding: 24px;
   background-color: var(--secondary-color);
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 24px;
-  padding: 24px;
   border-radius: 8px;
 }
 
@@ -419,6 +489,15 @@ onMounted(() => {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
+}
+
+.images .column .row {
+  align-items: flex-end;
+}
+
+.images .column .row img {
+  width: 64px;
+  height: 64px;
 }
 
 .column .row .color {

@@ -406,7 +406,6 @@ onMounted(() => {
 }
 
 .popup .text .btns button {
-  color: rgba(255, 255, 255, 0.6);
   border: none;
   background: transparent;
   cursor: pointer;
