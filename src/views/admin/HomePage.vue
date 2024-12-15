@@ -369,6 +369,12 @@ onMounted(() => {
   fetchData();
 });
 
+const dynamicColumns = computed(() => {
+  const baseColumns = 7; // Dit zijn de vaste kolommen zoals Product Code, Name, etc.
+  const dynamicConfigColumns = partnerConfigurations.value.length; // Aantal dynamische kolommen gebaseerd op configuraties
+  return baseColumns + dynamicConfigColumns;
+});
+
 // Filter de producten op basis van zoekterm en producttype
 const filteredProducts = computed(() => {
   if (!data.value) return [];
@@ -432,7 +438,10 @@ const filteredProducts = computed(() => {
       </select>
     </div>
     <div class="products">
-      <div class="top">
+      <div
+        class="top"
+        :style="{ gridTemplateColumns: `repeat(${dynamicColumns.value}, 1fr)` }"
+      >
         <input
           type="checkbox"
           @change="toggleSelectAll"
@@ -447,14 +456,9 @@ const filteredProducts = computed(() => {
         <p>Brand</p>
         <p>Description</p>
         <p>Status</p>
-
-        <!-- Dynamically added configuration names -->
         <div v-for="config in partnerConfigurations" :key="config._id">
           <p>{{ config.fieldName }}</p>
         </div>
-
-        <!-- Add extra columns -->
-        <p>Glass Color</p>
       </div>
 
       <ul v-if="filteredProducts.length" class="list">
@@ -613,21 +617,23 @@ select {
   background-color: var(--secondary-color);
   width: 100%;
   border-radius: 8px;
-  overflow-x: auto;
-  white-space: nowrap;
-}
-
-.products::-webkit-scrollbar {
-  display: none;
+  overflow-x: auto; /* Enable horizontal scrolling */
+  white-space: nowrap; /* Prevent wrapping of items */
 }
 
 .products .top {
-  display: grid;
-  grid-template-columns: repeat(10, 1fr);
-  gap: 80px;
+  display: flex; /* Gebruik flexbox voor een enkele rij */
+  gap: 20px; /* Pas de ruimte tussen de items aan */
   border-radius: 8px 8px 0 0;
   padding: 4px 16px;
   background-color: var(--secondary-color);
+  width: 100%; /* Zorg ervoor dat de breedte van de container 100% is */
+  overflow-x: auto; /* Hiermee kan horizontaal gescrold worden */
+  -webkit-overflow-scrolling: touch; /* Zorg voor een vloeiende scroll op mobiele apparaten */
+}
+
+.products .top::-webkit-scrollbar {
+  display: none; /* Verberg de scrollbalk */
 }
 
 .products .list {
@@ -635,6 +641,7 @@ select {
   flex-direction: column;
   padding: 16px;
   gap: 16px;
+  overflow-x: auto; /* Alleen voor verticale scroll indien nodig */
 }
 
 .products .list li {
@@ -643,9 +650,13 @@ select {
   align-items: center;
 }
 
+.products .top input {
+  width: 20px;
+}
+
 .products .list li a {
   display: grid;
-  grid-template-columns: repeat(10, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 80px;
   padding-left: 80px;
 }
@@ -657,44 +668,10 @@ select {
   text-decoration: underline;
 }
 
-.products .top p:nth-child(2),
-.products .list li p:nth-child(1) {
-  width: 190px;
-}
-
-.products .top p:nth-child(3),
-.products .list li p:nth-child(2) {
-  width: 150px;
-}
-
-.products .top p:nth-child(4),
-.products .list li p:nth-child(3) {
-  width: 150px;
-}
-
-.products .top p:nth-child(5),
-.products .list li p:nth-child(6) {
-  width: 190px;
-}
-
-.products .top p:nth-child(6),
-.products .list li p:nth-child(7) {
-  width: 180px;
-}
-
-.products .top p:nth-child(7),
-.products .list li p:nth-child(8) {
-  width: 300px;
-}
-
-.products .top p:nth-child(8),
-.products .list li p:nth-child(9) {
-  width: 90px;
-}
-
-.products .top p:nth-child(9),
-.products .list li p:nth-child(10) {
-  width: 100px;
+.products .top p {
+  flex: 1 1 auto; /* Dit maakt de elementen flexibel, met een minimum van de breedte die ze nodig hebben */
+  min-width: 90px; /* Minimale breedte per kolom */
+  box-sizing: border-box; /* Zorg ervoor dat padding en borders worden meegeteld in de breedte */
 }
 
 .products .top input {
