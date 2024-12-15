@@ -820,7 +820,7 @@ watch(
 }
 
 .elements .menu p.active {
-  background-color: var(--purple);
+  background-color: var(--primary-color);
   padding: 4px 12px 4px 24px;
   border-radius: 8px;
   color: var(--text-color);

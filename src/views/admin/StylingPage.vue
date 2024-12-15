@@ -119,6 +119,29 @@ const openColorPicker = (field) => {
   input.click();
 };
 
+const resetHouseStyle = async () => {
+  // Define the default values for the house style
+  const defaultHuisstijl = {
+    primaryColor: "#9747ff",
+    secondaryColor: "#000000",
+    textColor: "#ffffff",
+    titlesColor: "#0071e3",
+    backgroundColor: "#000000",
+    backgroundImage: "",
+  };
+
+  // Reset the huisstijlData to default values
+  huisstijlData.primaryColor = defaultHuisstijl.primaryColor;
+  huisstijlData.secondaryColor = defaultHuisstijl.secondaryColor;
+  huisstijlData.textColor = defaultHuisstijl.textColor;
+  huisstijlData.titlesColor = defaultHuisstijl.titlesColor;
+  huisstijlData.backgroundColor = defaultHuisstijl.backgroundColor;
+  huisstijlData.backgroundImage = defaultHuisstijl.backgroundImage;
+
+  // Optionally, update the database with the default values
+  await updateHouseStyleInDatabase();
+};
+
 onMounted(() => {
   console.log("Component gemonteerd, data wordt opgehaald...");
   getHouseStyleFromDatabase();

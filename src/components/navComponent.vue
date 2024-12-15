@@ -176,12 +176,17 @@ const profileImage = computed(() => {
 </template>
 
 <style scoped>
+/* background: linear-gradient(-45deg, #473c5d, #000000); */
 nav {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 120px;
-  background: linear-gradient(to bottom, #000000, #473c5d);
+  background: linear-gradient(
+    -45deg,
+    var(--primary-color),
+    var(--background-color)
+  );
   height: 100vh;
   padding: 48px 32px;
   position: fixed;
@@ -234,7 +239,7 @@ nav .menu a.active {
 }
 
 nav .menu a.active {
-  background-color: var(--purple);
+  background-color: var(--primary-color);
   padding: 4px 12px;
   border-radius: 8px;
 }

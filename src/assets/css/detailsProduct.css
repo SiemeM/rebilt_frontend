@@ -346,7 +346,7 @@ li svg {
 
 .config-ui__page .row div.active,
 .config-ui__page .row div.selected {
-  border: 3px solid var(--purple);
+  border: 3px solid var(--primary-color);
 }
 
 .config-ui__page .row div p {
