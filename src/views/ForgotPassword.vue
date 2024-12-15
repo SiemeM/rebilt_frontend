@@ -24,7 +24,6 @@ onMounted(() => {
   const routeEmail = route.query.email;
   if (routeEmail) {
     email.value = routeEmail;
-    console.log("Email from query parameter:", routeEmail);
   }
 });
 

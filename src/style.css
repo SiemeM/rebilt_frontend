@@ -59,6 +59,7 @@ select,
 input,
 input::placeholder,
 button {
+  color: var(--text-color);
   font-family: var(--body-font);
   font-weight: 400;
   font-size: 16px;

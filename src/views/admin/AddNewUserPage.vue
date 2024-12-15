@@ -74,8 +74,6 @@ const addUser = async () => {
     if (profileImage.value) userPayload.user.profileImage = profileImage.value;
     if (bio.value) userPayload.user.bio = bio.value;
 
-    console.log("Gebruiker payload:", JSON.stringify(userPayload, null, 2)); // Voeg dit toe om te zien wat je verzendt
-
     const userResponse = await fetch(`${baseURL}/users/signup`, {
       method: "POST",
       headers: {

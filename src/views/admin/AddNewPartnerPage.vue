@@ -56,8 +56,6 @@ const addPartner = async () => {
     package: subscriptionPackage.value, // Gebruik hier de hernoemde variabele 'subscriptionPackage'
   };
 
-  console.log("Partner payload:", JSON.stringify(partnerPayload, null, 2)); // Log de payload voor debugging
-
   try {
     const response = await fetch(`${baseURL}/partners`, {
       method: "POST",
@@ -76,7 +74,6 @@ const addPartner = async () => {
     }
 
     const result = await response.json();
-    console.log("Partner succesvol toegevoegd:", result);
 
     // Redirect naar partnerspagina
     router.push("/admin/partners");

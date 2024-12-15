@@ -117,15 +117,6 @@ onMounted(async () => {
 // Provide the user data to all components (including Navigation)
 provide("user", user); // Makes user data available to child components like Navigation
 
-// Watch for changes in user data and update the Navigation component
-watch(
-  user,
-  (newUser) => {
-    console.log("User data updated:", newUser);
-  },
-  { deep: true }
-);
-
 // Haal de producten op vanuit de API
 const fetchData = async () => {
   try {
@@ -160,8 +151,6 @@ const selectedConfigurations = ref([]); // Use ref if you're not using a complex
 // const selectedConfigurations = reactive([]);
 
 const fetchPartnerConfigurations = async () => {
-  console.log("Fetching partner configurations...");
-
   if (!partnerId) {
     console.warn("No partnerId provided.");
     return;
@@ -177,7 +166,6 @@ const fetchPartnerConfigurations = async () => {
     if (configs.length === 0) {
       console.warn("No configurations found for the given partnerId.");
     }
-    console.log("Configurations fetched:", configs);
 
     // Filter configurations based on the partnerId
     partnerConfigurations.value = configs.filter(
@@ -187,7 +175,6 @@ const fetchPartnerConfigurations = async () => {
     // Load selected configurations state from localStorage
     const savedSelectedState =
       JSON.parse(localStorage.getItem("selectedConfigurations")) || {};
-    console.log("Saved selected state from localStorage:", savedSelectedState);
 
     // Mark configurations as selected based on localStorage or default to true
     selectedConfigurations.value = partnerConfigurations.value.map(
@@ -196,8 +183,6 @@ const fetchPartnerConfigurations = async () => {
         checked: savedSelectedState[config._id] ?? true, // Default to true if no saved state
       })
     );
-
-    console.log("Selected configurations:", selectedConfigurations.value);
   } catch (error) {
     console.error("Error fetching partner configurations:", error);
   }

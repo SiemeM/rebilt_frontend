@@ -8,7 +8,6 @@ import axios from "axios";
 // Router en JWT-token ophalen
 const router = useRouter();
 const jwtToken = localStorage.getItem("jwtToken");
-console.log(jwtToken); // Check if the token is being fetched properly
 
 const errorMessage = ref("");
 
@@ -27,12 +26,11 @@ const checkToken = () => {
 
 // Functie om partnergegevens op te halen en partnernaam dynamisch in te stellen
 const partnerName = ref("");
+// Functie om partnergegevens op te halen en partnernaam dynamisch in te stellen
 const fetchPartnerData = async () => {
   try {
     const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1])); // Decode token
-    console.log(tokenPayload);
     const partnerId = tokenPayload.companyId;
-    console.log(partnerId);
 
     if (!partnerId) {
       console.error("Partner ID (companyId) is not available in the token.");
@@ -50,6 +48,7 @@ const fetchPartnerData = async () => {
     const partner = response.data?.data?.partner;
     if (partner) {
       partnerName.value = partner.name || "Default"; // Dynamische partnernaam
+      await fetchPartnerConfigurations(partnerId); // Fetch partner configurations
     } else {
       console.error("Partner data not found in response");
       partnerName.value = "Default";
@@ -57,6 +56,39 @@ const fetchPartnerData = async () => {
   } catch (error) {
     console.error("Error fetching partner data:", error.response || error);
     partnerName.value = "Default";
+  }
+};
+
+const fetchPartnerConfigurations = async () => {
+  try {
+    const response = await axios.get(`${baseURL}/configurations`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwtToken}`,
+      },
+    });
+
+    // Decodeer het JWT-token om de partnerId eruit te halen
+    const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1])); // Decodeer token
+    const partnerId = tokenPayload.companyId;
+
+    if (!response.data || !response.data.data) {
+      throw new Error("Geen configuraties gevonden.");
+    }
+
+    // Filter de configuraties op basis van de partnerId
+    const partnerConfigurationsFiltered = response.data.data.filter(
+      (config) => config.partnerId === partnerId
+    );
+
+    // Sla de gefilterde configuraties op in de lokale staat
+    partnerConfigurations.value = partnerConfigurationsFiltered;
+
+    if (partnerConfigurationsFiltered.length === 0) {
+      console.log("Geen configuraties gevonden voor deze partner.");
+    }
+  } catch (error) {
+    console.error("Fout bij het ophalen van partnerconfiguraties:", error);
   }
 };
 
@@ -76,6 +108,7 @@ const description = ref("");
 const colors = ref([]); // Herschrijven naar een array voor kleurselectie
 const newColor = ref(""); // Dit wordt gebruikt voor het kleurinvoerveld
 const images = ref([]); // Geüploade afbeeldingen
+const partnerConfigurations = ref([]);
 
 // Functie voor het uploaden van afbeeldingen naar Cloudinary
 const uploadImageToCloudinary = async (file, productName) => {
@@ -175,6 +208,7 @@ const addProduct = async () => {
     ? JSON.parse(atob(jwtToken.split(".")[1])).companyId
     : null;
 
+  // Create product data with dynamic partner configurations
   const productData = {
     productCode: productCode.value,
     productName: productName.value,
@@ -185,6 +219,10 @@ const addProduct = async () => {
     colors: colorsArray,
     images: [],
     partnerId: userCompanyId,
+    partnerConfigurations: partnerConfigurations.map((config) => ({
+      fieldName: config.fieldName,
+      value: config.value || "", // Add dynamic configurations
+    })),
   };
 
   try {
@@ -218,7 +256,6 @@ const addProduct = async () => {
       throw new Error(data.message || "Unknown error occurred.");
     }
 
-    console.log("Product successfully added:", data);
     router.push("/admin");
   } catch (error) {
     console.error("Error adding product:", error);
@@ -274,6 +311,45 @@ const addProduct = async () => {
         <div class="column">
           <label for="description">Description:</label>
           <textarea v-model="description" id="description" required></textarea>
+        </div>
+      </div>
+
+      <!-- Dynamically render partner configurations -->
+      <!-- Dynamisch renderen van partner configuraties op basis van fieldType -->
+      <div
+        v-for="config in partnerConfigurations"
+        :key="config._id"
+        class="row"
+      >
+        <div class="column">
+          <label :for="config.fieldName">{{ config.fieldName }}:</label>
+          <!-- Renderen van inputvelden op basis van fieldType -->
+          <template v-if="config.fieldType === 'Text'">
+            <input v-model="config.value" :id="config.fieldName" type="text" />
+          </template>
+
+          <template v-else-if="config.fieldType === 'Dropdown'">
+            <select v-model="config.value" :id="config.fieldName">
+              <option
+                v-for="(option, index) in config.options"
+                :key="index"
+                :value="option"
+              >
+                {{ option }}
+              </option>
+            </select>
+          </template>
+
+          <template v-else-if="config.fieldType === 'Number'">
+            <input
+              v-model="config.value"
+              :id="config.fieldName"
+              type="number"
+            />
+          </template>
+
+          <!-- Voeg andere fieldTypes toe indien nodig -->
+          <!-- Bijvoorbeeld een checkbox, radio button of andere formaten -->
         </div>
       </div>
 

@@ -36,7 +36,6 @@ const login = () => {
       return response.json();
     })
     .then((data) => {
-      console.log("API Response:", data); // Voeg deze regel toe om de volledige response te bekijken
       if (data.status === "success") {
         localStorage.setItem("jwtToken", data.data.token);
         const decodedToken = JSON.parse(atob(data.data.token.split(".")[1]));

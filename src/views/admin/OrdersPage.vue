@@ -112,11 +112,7 @@ const fetchOrders = async () => {
   // Iterate over each order to access productCode
   orders.value.forEach((order) => {
     if (order.productId && order.productId.productCode) {
-      console.log("Product Code:", order.productId.productCode);
-      // You can assign the productCode to a variable if you need to use it later
       const productCode = order.productId.productCode;
-    } else {
-      console.log("Product Code is missing for order:", order._id);
     }
   });
 

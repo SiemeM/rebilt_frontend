@@ -119,32 +119,6 @@ onMounted(() => {
   }
 });
 
-// Watch for changes in the user object and log them for debugging
-watch(
-  () => user.firstName,
-  (newValue, oldValue) => {
-    console.log("User firstName updated:", newValue);
-  }
-);
-watch(
-  () => user.lastName,
-  (newValue, oldValue) => {
-    console.log("User lastName updated:", newValue);
-  }
-);
-watch(
-  () => user.role,
-  (newValue, oldValue) => {
-    console.log("User role updated:", newValue);
-  }
-);
-watch(
-  () => user.profilePicture,
-  (newValue, oldValue) => {
-    console.log("User profile picture updated:", newValue);
-  }
-);
-
 // Function to handle logout
 const logout = () => {
   localStorage.removeItem("jwtToken");

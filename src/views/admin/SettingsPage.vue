@@ -47,7 +47,6 @@ const parseJwt = (token) => {
 };
 
 const tokenPayload = parseJwt(token); // Gebruik hier het token dat je hebt
-console.log(tokenPayload); // Bekijk de payload van het token
 const userId = tokenPayload?.userId;
 const partnerId = tokenPayload?.companyId || "defaultPartnerId";
 sessionStorage.setItem("partnerId", partnerId);
@@ -56,9 +55,6 @@ const showSaveButton = ref(false);
 const onConfigurationChange = () => {
   showSaveButton.value = true; // Maak de "Save"-knop zichtbaar
 };
-
-console.log("User ID:", userId); // Checken of userId correct is
-console.log("Partner ID:", partnerId); // Checken of partnerId correct is
 
 if (!userId) {
   router.push("/login");
@@ -84,8 +80,6 @@ const fetchConfigurations = async () => {
 
     // Alle configuraties ophalen en opslaan
     allConfigurations.value = response.data?.data || [];
-    console.log("Fetched all configurations:", allConfigurations.value);
-
     // Na het ophalen van alle configuraties, de partner-specifieke configuraties ophalen
     await fetchPartnerConfigurations();
   } catch (error) {
@@ -124,8 +118,6 @@ const fetchPartnerConfigurations = async () => {
       checked:
         savedSelectedState?.[config._id] ?? partnerConfigIds.has(config._id),
     }));
-
-    console.log("Selected configurations:", selectedConfigurations.value);
   } catch (error) {
     console.error("Error fetching partner configurations:", error);
   }
@@ -148,8 +140,6 @@ const saveUpdatedConfigurations = async () => {
             partnerId: partnerId, // Voeg partnerId toe voor de geselecteerde configuratie
           };
 
-          console.log("Saving configuration with payload:", payload);
-
           // Voer de PUT-aanroep uit om de configuratie bij te werken
           await axios.put(
             `${baseURL}/configurations/${config._id}`, // Gebruik de juiste configuratie-ID
@@ -158,9 +148,6 @@ const saveUpdatedConfigurations = async () => {
           );
         } else {
           // Indien de configuratie niet geselecteerd is, geen update uitvoeren
-          console.log(
-            `Configuratie ${config._id} is niet geselecteerd, dus geen update.`
-          );
         }
       }
     }

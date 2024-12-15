@@ -189,7 +189,6 @@ const fetchpartners = async () => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const result = await response.json();
-    console.log(result); // Debug log om te controleren of alle partners worden opgehaald
     if (result && result.data && result.data.partners) {
       partners.value = result.data.partners;
     } else {

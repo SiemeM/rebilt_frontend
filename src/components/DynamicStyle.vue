@@ -8,7 +8,6 @@ const router = useRouter();
 const token = localStorage.getItem("jwtToken");
 
 if (!token) {
-  console.log("Geen token gevonden, doorsturen naar login.");
   router.push("/login");
 }
 

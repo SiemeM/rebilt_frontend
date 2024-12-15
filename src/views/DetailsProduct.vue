@@ -115,8 +115,6 @@ function applyColorToMaterial(material, color, opacity = 1) {
 }
 
 function applyColorToSpecificLayer(color, layerName) {
-  console.log(`Applying color ${color} to layer ${layerName}`);
-
   const material = materials.value.find((mat) => mat.name === layerName);
 
   if (material) {
@@ -139,7 +137,6 @@ function applyColorToSpecificLayer(color, layerName) {
 
 function selectColor(color, layerName) {
   selectedColor.value = color;
-  console.log(selectedColor.value);
   highlightSelectedItem(color, "row-class-name");
 
   applyColorToSpecificLayer(color, layerName);
@@ -249,7 +246,6 @@ function nextPage() {
 }
 
 function previousPage() {
-  console.log("cd");
   const pages = document.querySelectorAll(".config-ui__page");
   const overview = document.querySelector(".overview");
   const backButton = document.querySelector(".backButton");
