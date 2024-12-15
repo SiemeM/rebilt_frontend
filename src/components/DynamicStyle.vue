@@ -1,8 +1,9 @@
 <script setup>
-import { reactive, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import axios from "axios";
 import { useRouter } from "vue-router";
 
+// Router en JWT-token ophalen
 const router = useRouter();
 const token = localStorage.getItem("jwtToken");
 
@@ -11,7 +12,7 @@ if (!token) {
   router.push("/login");
 }
 
-// Functie om de huisstijl op te halen
+// Functie om de huisstijl op te halen, inclusief fonts
 const getHouseStyleFromDatabase = async (userId) => {
   try {
     const response = await axios.get(
@@ -50,8 +51,51 @@ const getHouseStyleFromDatabase = async (userId) => {
       "--background-image",
       `url(${huisstijlData.logo_url})`
     );
+    document.documentElement.style.setProperty(
+      "--title-font",
+      huisstijlData.fontFamilyTitles || "Arial, sans-serif"
+    );
+    document.documentElement.style.setProperty(
+      "--body-font",
+      huisstijlData.fontFamilyBodyText || "Arial, sans-serif"
+    );
+
+    // Laad en stel de fonts in voor body en titels
+    loadFonts(huisstijlData.fontFamilyBodyText, huisstijlData.fontFamilyTitles);
   } catch (error) {
     console.error("Fout bij het ophalen van huisstijl:", error);
+  }
+};
+
+// Functie om de fonts van Google Fonts te laden en in te stellen
+const loadFonts = (bodyFont, titleFont) => {
+  // Als de body font is ingesteld, laad die
+  if (bodyFont) {
+    const bodyFontUrl = `https://fonts.googleapis.com/css2?family=${bodyFont.replace(
+      / /g,
+      "+"
+    )}:wght@400;700&display=swap`;
+    addFontToDocument(bodyFontUrl);
+  }
+
+  // Als de title font is ingesteld, laad die
+  if (titleFont) {
+    const titleFontUrl = `https://fonts.googleapis.com/css2?family=${titleFont.replace(
+      / /g,
+      "+"
+    )}:wght@400;700&display=swap`;
+    addFontToDocument(titleFontUrl);
+  }
+};
+
+// Functie om een font-link toe te voegen aan de document head
+const addFontToDocument = (fontUrl) => {
+  const existingLink = document.head.querySelector(`link[href="${fontUrl}"]`);
+  if (!existingLink) {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = fontUrl;
+    document.head.appendChild(link);
   }
 };
 
@@ -80,5 +124,23 @@ onMounted(() => {
   --text-color: #ffffff;
   --titles-color: #0071e3;
   --background-image: url("/path/to/your/image.jpg");
+  --body-font: "Arial", sans-serif; /* Standaard body font */
+  --title-font: "Arial", sans-serif; /* Standaard title font */
+}
+
+body {
+  font-family: var(--body-font);
+  color: var(--text-color);
+  background-color: var(--background-color);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--title-font);
+  color: var(--titles-color);
 }
 </style>

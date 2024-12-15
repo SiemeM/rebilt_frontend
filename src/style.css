@@ -23,10 +23,10 @@ h1,
 h2,
 h3 {
   color: var(--titles-color);
+  font-family: var(--title-font);
 }
 
 h1 {
-  font-family: "Syne", Verdana, sans-serif;
   font-weight: 700;
   font-size: 32px;
   text-align: center;
@@ -36,7 +36,6 @@ h1 {
 }
 
 h2 {
-  font-family: "Syne", Verdana, sans-serif;
   font-weight: 600;
   font-size: 24px;
   margin: 0;
@@ -44,7 +43,6 @@ h2 {
 }
 
 h3 {
-  font-family: "Syne", Verdana, sans-serif;
   font-weight: 500;
   font-size: 20px;
   margin: 0;
@@ -61,7 +59,7 @@ select,
 input,
 input::placeholder,
 button {
-  font-family: "DM Sans", Verdana, sans-serif;
+  font-family: var(--body-font);
   font-weight: 400;
   font-size: 16px;
   line-height: 150%;

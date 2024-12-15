@@ -51,6 +51,58 @@ const huisstijlData = reactive({
   logo: "",
   backgroundImage: "",
 });
+const selectedFontForTitles = ref("");
+const selectedFontForText = ref("");
+const GoogleFonts = ref([]);
+
+const setFonts = () => {
+  // Stel de fonts in op basis van de geselecteerde waarden
+  document.documentElement.style.setProperty(
+    "--title-font",
+    selectedFontForTitles.value || "default"
+  );
+  document.documentElement.style.setProperty(
+    "--body-font",
+    selectedFontForText.value || "default"
+  );
+};
+
+const fetchGoogleFonts = async () => {
+  const apiKey = "AIzaSyBAS05cq9-WKD92VljeuLee5V7YkIrTTMw";
+  const googleFontsApi = `https://www.googleapis.com/webfonts/v1/webfonts?key=${apiKey}`;
+  try {
+    const { data } = await axios.get(googleFontsApi);
+    GoogleFonts.value = data.items.map((font) => font.family);
+  } catch (error) {
+    console.error("Error fetching Google Fonts:", error);
+  }
+};
+
+const selectFont = async (font, type) => {
+  const fontUrl = `https://fonts.googleapis.com/css2?family=${font.replace(
+    / /g,
+    "+"
+  )}:wght@400;700&display=swap`;
+
+  // Check if the font is already in the document head
+  const existingLink = document.head.querySelector(`link[href="${fontUrl}"]`);
+  if (!existingLink) {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = fontUrl;
+    document.head.appendChild(link);
+  }
+
+  // Update the selected font based on type (title or text)
+  if (type === "title") {
+    selectedFontForTitles.value = font;
+  } else if (type === "text") {
+    selectedFontForText.value = font;
+  }
+
+  // Directly update the font to the database
+  await updateHouseStyleInDatabase();
+};
 
 // Functie om de huisstijl op te halen
 const getHouseStyleFromDatabase = async () => {
@@ -61,14 +113,17 @@ const getHouseStyleFromDatabase = async () => {
       },
     });
 
-    console.log("Huisstijl succesvol opgehaald:", response.data); // Voeg deze log toe om de API response te controleren
-
+    console.log("Huisstijl succesvol opgehaald:", response.data);
     huisstijlData.primaryColor = response.data.primary_color;
     huisstijlData.secondaryColor = response.data.secondary_color;
     huisstijlData.textColor = response.data.text_color;
+    huisstijlData.titlesColor = response.data.titles_color;
     huisstijlData.backgroundColor = response.data.background_color;
-    huisstijlData.backgroundColor = response.data.background_color;
-    huisstijlData.backgroundImage = response.data.logo_url;
+    huisstijlData.backgroundImage = response.data.logo_url; // Optional field
+
+    // Set the font values if they exist
+    selectedFontForTitles.value = response.data.fontFamilyTitles || "";
+    selectedFontForText.value = response.data.fontFamilyBodyText || "";
   } catch (error) {
     console.error("Fout bij het ophalen van huisstijl:", error);
   }
@@ -83,6 +138,8 @@ const updateHouseStyleInDatabase = async () => {
       text_color: huisstijlData.textColor,
       titles_color: huisstijlData.titlesColor,
       background_color: huisstijlData.backgroundColor,
+      fontFamilyBodyText: selectedFontForText.value, // Font voor tekst
+      fontFamilyTitles: selectedFontForTitles.value, // Font voor titels
     };
 
     const response = await axios.put(
@@ -96,9 +153,8 @@ const updateHouseStyleInDatabase = async () => {
     );
 
     console.log("Huisstijl succesvol geüpdatet:", response.data);
-
-    // Haal de geüpdatete huisstijl opnieuw op
-    await getHouseStyleFromDatabase();
+    await getHouseStyleFromDatabase(); // Refresh om de bijgewerkte data op te halen
+    setFonts(); // Werk de fonts bij nadat de stijl is geüpdatet
   } catch (error) {
     console.error("Fout bij het bijwerken van huisstijl:", error);
   }
@@ -136,7 +192,7 @@ const resetHouseStyle = async () => {
   huisstijlData.textColor = defaultHuisstijl.textColor;
   huisstijlData.titlesColor = defaultHuisstijl.titlesColor;
   huisstijlData.backgroundColor = defaultHuisstijl.backgroundColor;
-  huisstijlData.backgroundImage = defaultHuisstijl.backgroundImage;
+  huisstijlData.backgroundImage = defaultHuisstijl.backgroundImage; // Dit is optioneel
 
   // Optionally, update the database with the default values
   await updateHouseStyleInDatabase();
@@ -145,9 +201,10 @@ const resetHouseStyle = async () => {
 onMounted(() => {
   console.log("Component gemonteerd, data wordt opgehaald...");
   getHouseStyleFromDatabase();
+  fetchGoogleFonts();
+  setFonts();
 });
 </script>
-
 <template>
   <DynamicStyle />
   <Navigation />
@@ -204,18 +261,111 @@ onMounted(() => {
             ></div>
           </div>
         </div>
-        <div class="column">
-          <h3>Background color</h3>
+      </div>
+      <!-- Fonts Section -->
+      <div class="fonts">
+        <h2>Fonts</h2>
+        <!-- Dropdown voor lettertype selectie -->
+        <div class="font">
+          <h3>Font voor titles</h3>
           <div class="row">
-            <p>{{ huisstijlData.backgroundColor }}</p>
-            <div
-              class="color"
-              :style="{ backgroundColor: huisstijlData.backgroundColor }"
-              @click="openColorPicker('backgroundColor')"
-            ></div>
+            <div class="font-preview">
+              <h3>Voorbeeld met "{{ selectedFontForTitles }}"</h3>
+              <p :style="{ fontFamily: selectedFontForTitles }">
+                AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz
+              </p>
+            </div>
+
+            <div class="font-select">
+              <label for="font-dropdown">Selecteer een font:</label>
+              <select
+                id="font-dropdown"
+                v-model="selectedFontForTitles"
+                @change="selectFont(selectedFontForTitles, 'title')"
+              >
+                <option value="" disabled :selected="!selectedFontForTitles">
+                  Selecteer een font
+                </option>
+                <option
+                  v-for="font in [
+                    ...GoogleFonts,
+                    ...huisstijlData.fonts.map((f) => f.name),
+                  ]"
+                  :key="font"
+                  :value="font"
+                >
+                  {{ font }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="font">
+          <h3>Font voor tekst</h3>
+          <div class="row">
+            <div class="font-preview">
+              <h3>Voorbeeld met "{{ selectedFontForText }}"</h3>
+              <p :style="{ fontFamily: selectedFontForText }">
+                AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz
+              </p>
+            </div>
+            <div class="font-select">
+              <label for="font-dropdown">Selecteer een font:</label>
+              <select
+                id="font-dropdown"
+                v-model="selectedFontForText"
+                @change="selectFont(selectedFontForText, 'text')"
+              >
+                <option value="" disabled :selected="!selectedFontForText">
+                  Selecteer een font
+                </option>
+                <!-- Voeg zowel Google Fonts als de fonts uit huisstijlData toe -->
+                <option
+                  v-for="font in [
+                    ...GoogleFonts,
+                    ...huisstijlData.fonts.map((f) => f.name),
+                  ]"
+                  :key="font"
+                  :value="font"
+                >
+                  {{ font }}
+                </option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- <div class="images">
+        <h2>Images</h2>
+        <div class="column">
+          <h3>Logo</h3>
+          <div class="row">
+            <img :src="huisstijlData.logo" alt="Logo" />
+            <input
+              type="file"
+              ref="logoInput"
+              @change="handleFileChange($event, 'logo')"
+              style="display: none"
+            />
+            <button @click="triggerFileInput('logo')">Upload</button>
+          </div>
+        </div>
+
+        <div class="column">
+          <h3>Background Image</h3>
+          <div class="row">
+            <img :src="huisstijlData.backgroundImage" alt="Background Image" />
+            <input
+              type="file"
+              ref="backgroundInput"
+              @change="handleFileChange($event, 'backgroundImage')"
+              style="display: none"
+            />
+            <button @click="triggerFileInput('backgroundImage')">Upload</button>
+          </div>
+        </div>
+      </div> -->
     </div>
   </div>
 </template>
@@ -250,7 +400,9 @@ onMounted(() => {
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.elements .colours {
+.elements .colours,
+.elements .fonts,
+.elements .images {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -275,5 +427,38 @@ onMounted(() => {
   border: 3px solid var(--text-color);
   border-radius: 50%;
   cursor: pointer;
+}
+
+.elements .fonts .font {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.elements .fonts .font .row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+}
+
+.elements .fonts .font .row .font-preview,
+.elements .fonts .font .row .font-select {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 50%;
+}
+
+#font-dropdown {
+  width: 100%;
+  padding: 8px;
+  font-size: 16px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  margin-top: 8px;
 }
 </style>
