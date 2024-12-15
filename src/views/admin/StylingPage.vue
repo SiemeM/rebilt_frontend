@@ -5,7 +5,7 @@ import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
 
-// Router instantie en gebruikersvalidatie
+// Router instance and user validation
 const router = useRouter();
 const token = localStorage.getItem("jwtToken");
 
@@ -13,7 +13,7 @@ if (!token) {
   router.push("/login");
 }
 
-// JWT token parseren
+// JWT token parsing
 const parseJwt = (token) => {
   try {
     const base64Url = token.split(".")[1];
@@ -21,7 +21,7 @@ const parseJwt = (token) => {
     const jsonPayload = atob(base64);
     return JSON.parse(decodeURIComponent(jsonPayload));
   } catch (error) {
-    console.error("Fout bij het parsen van JWT:", error);
+    console.error("Error parsing JWT:", error);
     return null;
   }
 };
@@ -33,13 +33,13 @@ if (!userId) {
   router.push("/login");
 }
 
-// API basis URL configuratie
+// API base URL configuration
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
-// Reactieve data voor het gebruikersprofiel en huisstijl
+// Reactive data for the user profile and house style
 const huisstijlData = reactive({
   primaryColor: "#9747ff",
   secondaryColor: "#000000",
@@ -54,7 +54,7 @@ const selectedFontForTitles = ref("");
 const selectedFontForText = ref("");
 const GoogleFonts = ref([]);
 
-// Zorg ervoor dat setFonts altijd beschikbaar is
+// Ensure setFonts is always available
 const setFonts = () => {
   document.documentElement.style.setProperty(
     "--title-font",
@@ -66,7 +66,7 @@ const setFonts = () => {
   );
 };
 
-// Google Fonts ophalen
+// Fetch Google Fonts
 const fetchGoogleFonts = async () => {
   const apiKey = "AIzaSyBAS05cq9-WKD92VljeuLee5V7YkIrTTMw";
   const googleFontsApi = `https://www.googleapis.com/webfonts/v1/webfonts?key=${apiKey}`;
@@ -104,7 +104,7 @@ const selectFont = async (font, type) => {
   await updateHouseStyleInDatabase();
 };
 
-// Functie om de huisstijl op te halen
+// Fetch house style from the database
 const getHouseStyleFromDatabase = async () => {
   try {
     const response = await axios.get(`${baseURL}/houseStyles/${userId}`, {
@@ -118,17 +118,17 @@ const getHouseStyleFromDatabase = async () => {
     huisstijlData.textColor = response.data.text_color;
     huisstijlData.titlesColor = response.data.titles_color;
     huisstijlData.backgroundColor = response.data.background_color;
-    huisstijlData.logo = response.data.logo_url || ""; // Logo URL instellen
+    huisstijlData.logo = response.data.logo_url || ""; // Set logo URL
 
-    // Set de fonts als ze beschikbaar zijn
+    // Set fonts if available
     selectedFontForTitles.value = response.data.fontFamilyTitles || "";
     selectedFontForText.value = response.data.fontFamilyBodyText || "";
   } catch (error) {
-    console.error("Fout bij het ophalen van huisstijl:", error);
+    console.error("Error fetching house style:", error);
   }
 };
 
-// Functie om de kleurkiezer te openen en kleur te updaten
+// Open color picker and update color
 const openColorPicker = (field) => {
   const input = document.createElement("input");
   input.type = "color";
@@ -136,12 +136,13 @@ const openColorPicker = (field) => {
 
   input.addEventListener("input", async (event) => {
     huisstijlData[field] = event.target.value;
-    await updateHouseStyleInDatabase(); // Update de wijziging in de database
+    await updateHouseStyleInDatabase(); // Update the change in the database
   });
 
   input.click();
 };
 
+// Reset house style function
 const resetHouseStyle = async () => {
   const defaultHuisstijl = {
     primaryColor: "#9747ff",
@@ -149,22 +150,28 @@ const resetHouseStyle = async () => {
     textColor: "#ffffff",
     titlesColor: "#0071e3",
     backgroundColor: "#000000",
-    backgroundImage: "",
-    logo: "", // Logo leeg maken
+    backgroundImage: "", // Clear background image
+    fontFamilyTitles: "Syne", // Default font for titles
+    fontFamilyBodyText: "DM Sans", // Default font for text
+    logo: "https://res.cloudinary.com/dzempjvto/image/upload/v1734208533/Stijn/Huisstijl/yzezrygcrnb8pztjyplp.jpg", // Default Cloudinary logo URL
   };
 
+  // Reset logo and other values
   huisstijlData.primaryColor = defaultHuisstijl.primaryColor;
   huisstijlData.secondaryColor = defaultHuisstijl.secondaryColor;
   huisstijlData.textColor = defaultHuisstijl.textColor;
   huisstijlData.titlesColor = defaultHuisstijl.titlesColor;
   huisstijlData.backgroundColor = defaultHuisstijl.backgroundColor;
-  huisstijlData.backgroundImage = defaultHuisstijl.backgroundImage;
-  huisstijlData.logo = ""; // Het logo leeg maken
+  huisstijlData.backgroundImage = defaultHuisstijl.backgroundImage; // Clear background image
+  huisstijlData.logo = defaultHuisstijl.logo; // Set default logo URL
 
-  await updateHouseStyleInDatabase(); // Update de huisstijl in de database met het lege logo
+  selectedFontForTitles.value = defaultHuisstijl.fontFamilyTitles;
+  selectedFontForText.value = defaultHuisstijl.fontFamilyBodyText;
+
+  await updateHouseStyleInDatabase(); // Update the database with the reset values
 };
 
-// Functie voor het uploaden naar Cloudinary
+// Upload image to Cloudinary
 const uploadToCloudinary = async (file) => {
   const formData = new FormData();
   formData.append("file", file);
@@ -177,36 +184,35 @@ const uploadToCloudinary = async (file) => {
       "https://api.cloudinary.com/v1_1/dzempjvto/image/upload",
       formData
     );
-    return data.secure_url; // Dit is de URL van de geüploade afbeelding op Cloudinary
+    return data.secure_url; // URL of the uploaded image on Cloudinary
   } catch (error) {
-    console.error("Fout bij het uploaden van bestand:", error);
+    console.error("Error uploading file:", error);
     throw error;
   }
 };
 
-// Functie om de logo upload te verwerken
-// Functie om de logo upload te verwerken
+// Handle logo upload
 const handleLogoUpload = async (event) => {
   const file = event.target.files[0];
   if (file) {
     try {
-      // Upload het bestand naar Cloudinary en krijg de URL
+      // Upload file to Cloudinary and get URL
       const logoUrl = await uploadToCloudinary(file);
 
-      // Werk de logo URL bij in huisstijlData
+      // Update logo URL in huisstijlData
       huisstijlData.logo = logoUrl;
 
-      // Werk de huisstijl bij in de database met de nieuwe logo_url
+      // Update the house style in the database with the new logo URL
       await updateHouseStyleInDatabase();
     } catch (error) {
-      console.error("Fout bij het uploaden van logo:", error);
+      console.error("Error uploading logo:", error);
     }
   }
 };
 
-const fallbackLogo = "../../assets/images/REBILT-logo-white.svg"; // Replace this with your actual fallback logo URL
+const fallbackLogo = "../../assets/images/REBILT-logo-white.svg"; // Default fallback logo
 
-// Functie om de huisstijl in de database bij te werken
+// Update house style in the database
 const updateHouseStyleInDatabase = async () => {
   try {
     const payload = {
@@ -217,7 +223,8 @@ const updateHouseStyleInDatabase = async () => {
       background_color: huisstijlData.backgroundColor,
       fontFamilyBodyText: selectedFontForText.value,
       fontFamilyTitles: selectedFontForTitles.value,
-      logo_url: huisstijlData.logo || null, // Zorg ervoor dat de logo URL naar null gaat als leeg
+      logo_url: huisstijlData.logo || "", // Empty logo
+      background_image_url: huisstijlData.backgroundImage || "", // Empty background image
     };
 
     const response = await axios.put(
@@ -230,35 +237,30 @@ const updateHouseStyleInDatabase = async () => {
       }
     );
 
-    await getHouseStyleFromDatabase(); // Haal de geüpdatete huisstijl op
-    setFonts(); // Werk de fonts bij
+    await getHouseStyleFromDatabase(); // Fetch updated house style
+    setFonts(); // Update fonts
   } catch (error) {
-    console.error("Fout bij het bijwerken van huisstijl:", error);
-  }
-};
-
-// Functie om de afbeelding te selecteren
-const triggerLogoUpload = () => {
-  if (logoInput.value) {
-    logoInput.value.click();
+    console.error("Error updating house style:", error);
   }
 };
 
 const logoInput = ref(null);
 const backgroundInput = ref(null);
 
-const triggerFileInput = (field) => {
-  if (field === "logo" && logoInput.value) {
-    logoInput.value.click(); // Verwijst naar het `<input>`-element
-  } else if (field === "backgroundImage" && backgroundInput.value) {
-    backgroundInput.value.click();
-  }
+// Trigger file input for logo upload
+const triggerLogoUpload = () => {
+  logoInput.value.click();
 };
 
+// Trigger file input for background image upload
+const triggerBackgroundUpload = () => {
+  backgroundInput.value.click();
+};
+
+// Initial setup on component mount
 onMounted(() => {
-  getHouseStyleFromDatabase();
-  fetchGoogleFonts();
-  setFonts();
+  fetchGoogleFonts(); // Fetch available Google Fonts
+  getHouseStyleFromDatabase(); // Fetch user's house style from the database
 });
 </script>
 
@@ -408,7 +410,6 @@ onMounted(() => {
 
       <div class="images">
         <h2>Images</h2>
-
         <div class="column">
           <h3>Logo</h3>
           <div class="row">
@@ -422,7 +423,7 @@ onMounted(() => {
               <img :src="fallbackLogo" alt="Logo" class="logo" />
             </div>
 
-            <!-- Logo uploaden -->
+            <!-- Logo upload button -->
             <button @click="triggerLogoUpload" class="btn active">
               Upload Logo
             </button>
