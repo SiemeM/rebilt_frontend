@@ -101,10 +101,12 @@ const fetchPartnerConfigurations = async () => {
   try {
     const response = await axios.get(`${baseURL}/configurations`, {
       headers: { Authorization: `Bearer ${token}` },
-      params: { partnerId },
+      params: { partnerId }, // Alleen ophalen van partner-specifieke configuraties
     });
 
     const configs = response.data?.data || [];
+
+    // Alleen configuraties ophalen die daadwerkelijk gekoppeld zijn aan een partnerId
     partnerConfigurations.value = configs.filter(
       (config) => config.partnerId === partnerId
     );
@@ -113,7 +115,7 @@ const fetchPartnerConfigurations = async () => {
       partnerConfigurations.value.map((config) => config._id)
     );
 
-    // Restore checked state from localStorage if it exists
+    // De geselecteerde configuraties op basis van partnerId
     const savedSelectedState = JSON.parse(
       localStorage.getItem("selectedConfigurations")
     );
@@ -129,18 +131,37 @@ const fetchPartnerConfigurations = async () => {
   }
 };
 
-// Verzend de geselecteerde configuraties (checked items)
 const saveUpdatedConfigurations = async () => {
   try {
-    // Itereer door alle configuraties om alleen de aangepaste te updaten
+    // Itereer door alle configuraties om alleen de aangepaste configuraties te updaten
     for (const config of selectedConfigurations.value) {
-      // Stuur alleen een verzoek voor aangepaste configuraties
+      // Controleer of de configuratie is geselecteerd voor bewerking (config.checked === true)
       if (config.checked !== config.originalChecked) {
-        await axios.put(
-          `${baseURL}/configurations/${config._id}`,
-          { checked: config.checked, partnerId }, // Stuur relevante data
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        // Controleer of de configuratie is geselecteerd
+        if (config.checked) {
+          // Voeg partnerId toe aan de payload alleen voor de geselecteerde configuraties
+          const payload = {
+            fieldName: config.fieldName || "Default Field Name", // Vervang met de juiste waarde van je config
+            fieldType: config.fieldType || "Text", // Vervang met de juiste waarde van je config
+            options: config.options || [], // Vervang met de juiste opties als die er zijn
+            isRequired: config.isRequired || false, // Vervang met de juiste waarde van je config
+            partnerId: partnerId, // Voeg partnerId toe voor de geselecteerde configuratie
+          };
+
+          console.log("Saving configuration with payload:", payload);
+
+          // Voer de PUT-aanroep uit om de configuratie bij te werken
+          await axios.put(
+            `${baseURL}/configurations/${config._id}`, // Gebruik de juiste configuratie-ID
+            payload, // De payload met alle benodigde velden
+            { headers: { Authorization: `Bearer ${token}` } } // Voeg de authorization header toe
+          );
+        } else {
+          // Indien de configuratie niet geselecteerd is, geen update uitvoeren
+          console.log(
+            `Configuratie ${config._id} is niet geselecteerd, dus geen update.`
+          );
+        }
       }
     }
 
