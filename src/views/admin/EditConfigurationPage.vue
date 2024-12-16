@@ -121,7 +121,7 @@ const updateConfiguration = async () => {
     console.log("Update Result:", result);
 
     // Redirect naar de configuratiepagina
-    router.push("/admin/configurations");
+    router.back();
   } catch (error) {
     console.error("Error updating configuration:", error.message);
     alert("Er is een fout opgetreden bij het bijwerken van de configuratie.");

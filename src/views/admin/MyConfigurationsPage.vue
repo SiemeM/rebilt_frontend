@@ -485,11 +485,9 @@ onMounted(() => {
             configurations.length > 0
           "
         />
-        <p>ID</p>
         <p>Field Name</p>
         <p>Type</p>
         <p>Options</p>
-        <p>Partner ID</p>
       </div>
 
       <div class="table-container">
@@ -510,11 +508,9 @@ onMounted(() => {
               query: { partnerId: config.partnerId },
             }"
           >
-            <p>{{ config._id }}</p>
             <p>{{ config.fieldName }}</p>
             <p>{{ config.fieldType }}</p>
             <p>{{ config.options.join(", ") }}</p>
-            <p>{{ config.partnerId || "None" }}</p>
           </router-link>
         </div>
       </div>

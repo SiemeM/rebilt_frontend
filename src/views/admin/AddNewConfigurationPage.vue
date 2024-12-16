@@ -67,7 +67,7 @@ const addConfiguration = async () => {
     const result = await response.json();
 
     // Redirect naar de configuratiepagina
-    router.push("/admin/configurations");
+    router.back();
   } catch (error) {
     console.error("Error adding configuration:", error.message);
     alert("Er is een fout opgetreden bij het toevoegen van de configuratie.");

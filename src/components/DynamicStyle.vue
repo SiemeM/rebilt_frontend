@@ -11,11 +11,10 @@ if (!token) {
   router.push("/login");
 }
 
-// Functie om de huisstijl op te halen, inclusief fonts
-const getHouseStyleFromDatabase = async (userId) => {
+const getHouseStyleFromDatabase = async (partnerId) => {
   try {
     const response = await axios.get(
-      `http://localhost:3000/api/v1/houseStyles/${userId}`,
+      `http://localhost:3000/api/v1/houseStyles/${partnerId}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -23,32 +22,39 @@ const getHouseStyleFromDatabase = async (userId) => {
       }
     );
 
+    console.log("API Response:", response); // Log the entire response object
     const huisstijlData = response.data;
+    console.log("Huisstijl Data:", huisstijlData); // Log the actual house style data
 
-    // Stel de root CSS-variabelen in op basis van de opgehaalde huisstijl
+    if (!huisstijlData) {
+      console.error("No house style data found!");
+      return;
+    }
+
+    // Apply dynamic styles
     document.documentElement.style.setProperty(
       "--primary-color",
-      huisstijlData.primary_color
+      huisstijlData.primary_color || "#9747ff" // Default if not provided
     );
     document.documentElement.style.setProperty(
       "--secondary-color",
-      huisstijlData.secondary_color
+      huisstijlData.secondary_color || "#000000" // Default if not provided
     );
     document.documentElement.style.setProperty(
       "--text-color",
-      huisstijlData.text_color
+      huisstijlData.text_color || "#ffffff" // Default if not provided
     );
     document.documentElement.style.setProperty(
       "--titles-color",
-      huisstijlData.titles_color
+      huisstijlData.titles_color || "#0071e3" // Default if not provided
     );
     document.documentElement.style.setProperty(
       "--background-color",
-      huisstijlData.background_color
+      huisstijlData.background_color || "#ffffff" // Default if not provided
     );
     document.documentElement.style.setProperty(
       "--background-image",
-      `url(${huisstijlData.logo_url})`
+      huisstijlData.logo_url ? `url(${huisstijlData.logo_url})` : "" // Default if not provided
     );
     document.documentElement.style.setProperty(
       "--title-font",
@@ -59,10 +65,10 @@ const getHouseStyleFromDatabase = async (userId) => {
       huisstijlData.fontFamilyBodyText || "Arial, sans-serif"
     );
 
-    // Laad en stel de fonts in voor body en titels
+    // Load and apply fonts
     loadFonts(huisstijlData.fontFamilyBodyText, huisstijlData.fontFamilyTitles);
   } catch (error) {
-    console.error("Fout bij het ophalen van huisstijl:", error);
+    console.error("Error fetching house style:", error);
   }
 };
 
@@ -98,13 +104,15 @@ const addFontToDocument = (fontUrl) => {
   }
 };
 
-// Haal de userId uit de JWT-token
+// Haal de partnerId uit de JWT-token (verander userId naar partnerId)
 const tokenPayload = JSON.parse(atob(token.split(".")[1]));
-const userId = tokenPayload?.userId;
+const partnerId = tokenPayload?.companyId; // Change from userId to partnerId
 
 onMounted(() => {
-  if (userId) {
-    getHouseStyleFromDatabase(userId);
+  console.log("Component mounted");
+  console.log(partnerId);
+  if (partnerId) {
+    getHouseStyleFromDatabase(partnerId); // Use partnerId here
   }
 });
 </script>

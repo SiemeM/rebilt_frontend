@@ -481,7 +481,6 @@ onMounted(() => {
             configurations.length > 0
           "
         />
-        <p>ID</p>
         <p>Field Name</p>
         <p>Type</p>
         <p>Options</p>
@@ -506,7 +505,6 @@ onMounted(() => {
               query: { partnerId: config.partnerId },
             }"
           >
-            <p>{{ config._id }}</p>
             <p>{{ config.fieldName }}</p>
             <p>{{ config.fieldType }}</p>
             <p>{{ config.options.join(", ") }}</p>
