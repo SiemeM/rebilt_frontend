@@ -125,35 +125,27 @@ const fetchPartnerConfigurations = async () => {
 
 const saveUpdatedConfigurations = async () => {
   try {
-    // Itereer door alle configuraties om alleen de aangepaste configuraties te updaten
     for (const config of selectedConfigurations.value) {
-      // Controleer of de configuratie is geselecteerd voor bewerking (config.checked === true)
       if (config.checked !== config.originalChecked) {
-        // Controleer of de configuratie is geselecteerd
-        if (config.checked) {
-          // Voeg partnerId toe aan de payload alleen voor de geselecteerde configuraties
-          const payload = {
-            fieldName: config.fieldName || "Default Field Name", // Vervang met de juiste waarde van je config
-            fieldType: config.fieldType || "Text", // Vervang met de juiste waarde van je config
-            options: config.options || [], // Vervang met de juiste opties als die er zijn
-            isRequired: config.isRequired || false, // Vervang met de juiste waarde van je config
-            partnerId: partnerId, // Voeg partnerId toe voor de geselecteerde configuratie
-          };
+        const payload = { ...config }; // Maak een kopie van de configuratie
 
-          // Voer de PUT-aanroep uit om de configuratie bij te werken
-          await axios.put(
-            `${baseURL}/configurations/${config._id}`, // Gebruik de juiste configuratie-ID
-            payload, // De payload met alle benodigde velden
-            { headers: { Authorization: `Bearer ${token}` } } // Voeg de authorization header toe
-          );
+        if (config.checked) {
+          // **Configuratie aangevinkt**: Voeg partnerId toe
+          payload.partnerId = partnerId;
         } else {
-          // Indien de configuratie niet geselecteerd is, geen update uitvoeren
+          // **Configuratie uitgevinkt**: Verwijder partnerId
+          payload.partnerId = null;
         }
+
+        // Verzend de configuratie naar de backend
+        await axios.put(`${baseURL}/configurations/${config._id}`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
       }
     }
 
     alert("Configuraties zijn succesvol opgeslagen!");
-    showSaveButton.value = false; // Verberg de "Save"-knop na opslaan
+    showSaveButton.value = false;
   } catch (error) {
     console.error("Error saving updated configurations:", error);
     alert("Er is een fout opgetreden bij het opslaan van de configuraties.");

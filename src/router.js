@@ -17,6 +17,9 @@ import Styling from "./views/admin/StylingPage.vue";
 import Users from "./views/admin/UsersPage.vue";
 import AddNewUser from "./views/admin/AddNewUserPage.vue";
 import EditUser from "./views/admin/EditUser.vue";
+import AddNewConfiguration from "./views/admin/AddNewConfigurationPage.vue";
+import EditConfiguration from "./views/admin/EditConfigurationPage.vue";
+import Configurations from "./views/admin/ConfigurationsPage.vue";
 import Settings from "./views/admin/SettingsPage.vue";
 
 export default createRouter({
@@ -121,6 +124,21 @@ export default createRouter({
       path: "/admin/settings",
       name: "Settings",
       component: Settings,
+    },
+    {
+      path: "/admin/configurations",
+      name: "Configurations",
+      component: Configurations,
+    },
+    {
+      path: "/admin/add-new-configuration",
+      name: "addNewConfiguration",
+      component: AddNewConfiguration,
+    },
+    {
+      path: "/admin/editConfiguration/:id",
+      name: "editConfiguration",
+      component: EditConfiguration,
     },
   ],
 });

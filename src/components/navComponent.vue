@@ -155,11 +155,19 @@ const profileImage = computed(() => {
       </div>
     </div>
     <div class="menu">
-      <router-link to="/admin" exact-active-class="active">
+      <router-link
+        v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
+        to="/admin"
+        exact-active-class="active"
+      >
         <img src="../assets/icons/package.svg" alt="icon" />
         <p>Products</p>
       </router-link>
-      <router-link to="/admin/orders" exact-active-class="active">
+      <router-link
+        v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
+        to="/admin/orders"
+        exact-active-class="active"
+      >
         <img src="../assets/icons/order.svg" alt="icon" />
         <p>Orders</p>
       </router-link>
@@ -186,6 +194,10 @@ const profileImage = computed(() => {
       <router-link to="/admin/settings" exact-active-class="active">
         <img src="../assets/icons/settings.svg" alt="icon" />
         <p>Settings</p>
+      </router-link>
+      <router-link to="/admin/configurations" exact-active-class="active">
+        <img src="../assets/icons/settings.svg" alt="icon" />
+        <p>Configurations</p>
       </router-link>
       <a @click.prevent="logout">
         <img src="../assets/icons/logout.svg" alt="icon" />
