@@ -95,12 +95,10 @@ const fetchPartnerConfigurations = async () => {
   try {
     const response = await axios.get(`${baseURL}/configurations`, {
       headers: { Authorization: `Bearer ${token}` },
-      params: { partnerId }, // Alleen ophalen van partner-specifieke configuraties
+      params: { partnerId }, // Voeg partnerId expliciet toe
     });
 
     const configs = response.data?.data || [];
-
-    // Alleen configuraties ophalen die daadwerkelijk gekoppeld zijn aan een partnerId
     partnerConfigurations.value = configs.filter(
       (config) => config.partnerId === partnerId
     );
@@ -109,13 +107,15 @@ const fetchPartnerConfigurations = async () => {
       partnerConfigurations.value.map((config) => config._id)
     );
 
-    // De geselecteerde configuraties op basis van partnerId
     const savedSelectedState = JSON.parse(
       localStorage.getItem("selectedConfigurations")
     );
+
     selectedConfigurations.value = allConfigurations.value.map((config) => ({
       ...config,
       checked:
+        savedSelectedState?.[config._id] ?? partnerConfigIds.has(config._id),
+      originalChecked:
         savedSelectedState?.[config._id] ?? partnerConfigIds.has(config._id),
     }));
   } catch (error) {
@@ -127,17 +127,16 @@ const saveUpdatedConfigurations = async () => {
   try {
     for (const config of selectedConfigurations.value) {
       if (config.checked !== config.originalChecked) {
-        const payload = { ...config }; // Maak een kopie van de configuratie
+        const payload = { ...config };
 
+        // Voeg partnerId toe als de checkbox actief is
         if (config.checked) {
-          // **Configuratie aangevinkt**: Voeg partnerId toe
-          payload.partnerId = partnerId;
+          payload.partnerId = partnerId; // partnerId komt van je gebruikerscontext of API-token
         } else {
-          // **Configuratie uitgevinkt**: Verwijder partnerId
-          payload.partnerId = null;
+          payload.partnerId = null; // Verwijder partnerId als de checkbox niet actief is
         }
 
-        // Verzend de configuratie naar de backend
+        // Verstuur update naar de backend
         await axios.put(`${baseURL}/configurations/${config._id}`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -146,6 +145,11 @@ const saveUpdatedConfigurations = async () => {
 
     alert("Configuraties zijn succesvol opgeslagen!");
     showSaveButton.value = false;
+
+    // Reset originele status na succesvolle opslag
+    selectedConfigurations.value.forEach((config) => {
+      config.originalChecked = config.checked;
+    });
   } catch (error) {
     console.error("Error saving updated configurations:", error);
     alert("Er is een fout opgetreden bij het opslaan van de configuraties.");

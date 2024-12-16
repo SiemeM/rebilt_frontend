@@ -499,11 +499,19 @@ onMounted(() => {
             :checked="selectedConfigurations.includes(config._id)"
             @change="toggleSelection(config._id)"
           />
-          <p>{{ config._id }}</p>
-          <p>{{ config.fieldName }}</p>
-          <p>{{ config.fieldType }}</p>
-          <p>{{ config.options.join(", ") }}</p>
-          <p>{{ config.partnerId || "None" }}</p>
+          <router-link
+            :to="{
+              name: 'EditConfiguration',
+              params: { id: config._id },
+              query: { partnerId: config.partnerId },
+            }"
+          >
+            <p>{{ config._id }}</p>
+            <p>{{ config.fieldName }}</p>
+            <p>{{ config.fieldType }}</p>
+            <p>{{ config.options.join(", ") }}</p>
+            <p>{{ config.partnerId || "None" }}</p>
+          </router-link>
         </div>
       </div>
 

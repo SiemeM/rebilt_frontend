@@ -111,14 +111,9 @@ export default createRouter({
       component: EditUser,
     },
     {
-      path: "/admin/addNewUserPage",
-      name: "addNewUserPage",
+      path: "/admin/add-new-user",
+      name: "AddNewUser",
       component: AddNewUser,
-    },
-    {
-      path: "/admin/editUser/:id",
-      name: "editUser",
-      component: EditUser,
     },
     {
       path: "/admin/settings",
@@ -132,12 +127,12 @@ export default createRouter({
     },
     {
       path: "/admin/add-new-configuration",
-      name: "addNewConfiguration",
+      name: "AddNewConfiguration",
       component: AddNewConfiguration,
     },
     {
-      path: "/admin/editConfiguration/:id",
-      name: "editConfiguration",
+      path: "/admin/edit-configuration/:id",
+      name: "EditConfiguration",
       component: EditConfiguration,
     },
   ],
