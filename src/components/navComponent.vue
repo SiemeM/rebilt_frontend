@@ -195,9 +195,13 @@ const profileImage = computed(() => {
         <img src="../assets/icons/settings.svg" alt="icon" />
         <p>Settings</p>
       </router-link>
-      <router-link to="/admin/configurations" exact-active-class="active">
+      <router-link to="/admin/myconfigurations" exact-active-class="active">
         <img src="../assets/icons/settings.svg" alt="icon" />
-        <p>Configurations</p>
+        <p>Mijn configurations</p>
+      </router-link>
+      <router-link to="/admin/manageconfigurations" exact-active-class="active">
+        <img src="../assets/icons/settings.svg" alt="icon" />
+        <p>Configurations beheren</p>
       </router-link>
       <a @click.prevent="logout">
         <img src="../assets/icons/logout.svg" alt="icon" />

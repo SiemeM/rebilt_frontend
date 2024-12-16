@@ -19,7 +19,8 @@ import AddNewUser from "./views/admin/AddNewUserPage.vue";
 import EditUser from "./views/admin/EditUser.vue";
 import AddNewConfiguration from "./views/admin/AddNewConfigurationPage.vue";
 import EditConfiguration from "./views/admin/EditConfigurationPage.vue";
-import Configurations from "./views/admin/ConfigurationsPage.vue";
+import MyConfigurations from "./views/admin/MyConfigurationsPage.vue";
+import ManageConfigurations from "./views/admin/ManageConfigurationsPage.vue";
 import Settings from "./views/admin/SettingsPage.vue";
 
 export default createRouter({
@@ -121,9 +122,14 @@ export default createRouter({
       component: Settings,
     },
     {
-      path: "/admin/configurations",
-      name: "Configurations",
-      component: Configurations,
+      path: "/admin/manageconfigurations",
+      name: "ManageConfigurations",
+      component: ManageConfigurations,
+    },
+    {
+      path: "/admin/myconfigurations",
+      name: "MyConfigurations",
+      component: MyConfigurations,
     },
     {
       path: "/admin/add-new-configuration",
