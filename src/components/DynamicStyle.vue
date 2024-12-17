@@ -51,9 +51,8 @@ const fetchPartnerId = async () => {
   }
 };
 
-// Functie om huisstijlgegevens op te halen
-const getHouseStyleFromDatabase = async (partnerId) => {
-  // Fallback kleurenpalet
+// Functie om partnergegevens op te halen inclusief huisstijl
+const getPartnerStyles = async (partnerId) => {
   const fallbackStyle = {
     primary_color: "#9747ff",
     secondary_color: "#000000",
@@ -67,55 +66,66 @@ const getHouseStyleFromDatabase = async (partnerId) => {
 
   try {
     const response = await axios.get(
-      `http://localhost:3000/api/v1/houseStyles/${partnerId}`,
+      `http://localhost:3000/api/v1/partners/${partnerId}`,
       {
         headers: { Authorization: `Bearer ${token}` },
       }
     );
 
-    const huisstijlData = response.data || fallbackStyle;
+    // Assuming the partner data contains the styles directly
+    const partnerData = response.data || {};
+    const huisstijlData = partnerData.styles || fallbackStyle;
 
     // CSS Variabelen toepassen
     applyStyles(huisstijlData);
   } catch (error) {
+    console.error("Error fetching partner data:", error);
     applyStyles(fallbackStyle); // Gebruik fallback als de API faalt
   }
 };
 
 // CSS Variabelen toepassen
 const applyStyles = (style) => {
-  document.documentElement.style.setProperty(
-    "--primary-color",
-    style.primary_color
-  );
-  document.documentElement.style.setProperty(
-    "--secondary-color",
-    style.secondary_color
-  );
-  document.documentElement.style.setProperty("--text-color", style.text_color);
-  document.documentElement.style.setProperty(
-    "--titles-color",
-    style.titles_color
-  );
-  document.documentElement.style.setProperty(
-    "--background-color",
-    style.background_color
-  );
-  document.documentElement.style.setProperty(
-    "--background-image",
-    style.logo_url ? `url(${style.logo_url})` : ""
-  );
-  document.documentElement.style.setProperty(
-    "--title-font",
-    style.fontFamilyTitles
-  );
-  document.documentElement.style.setProperty(
-    "--body-font",
-    style.fontFamilyBodyText
-  );
+  // Veilig controleren of alle noodzakelijke eigenschappen bestaan
+  if (style) {
+    document.documentElement.style.setProperty(
+      "--primary-color",
+      style.primary_color || "#9747ff"
+    );
+    document.documentElement.style.setProperty(
+      "--secondary-color",
+      style.secondary_color || "#000000"
+    );
+    document.documentElement.style.setProperty(
+      "--text-color",
+      style.text_color || "#ffffff"
+    );
+    document.documentElement.style.setProperty(
+      "--titles-color",
+      style.titles_color || "#0071e3"
+    );
+    document.documentElement.style.setProperty(
+      "--background-color",
+      style.background_color || "#ffffff"
+    );
+    document.documentElement.style.setProperty(
+      "--background-image",
+      style.logo_url ? `url(${style.logo_url})` : ""
+    );
+    document.documentElement.style.setProperty(
+      "--title-font",
+      style.fontFamilyTitles || "Syne, serif"
+    );
+    document.documentElement.style.setProperty(
+      "--body-font",
+      style.fontFamilyBodyText || "DM Sans, sans-serif"
+    );
 
-  // Fonts laden
-  loadFonts(style.fontFamilyBodyText, style.fontFamilyTitles);
+    // Fonts laden
+    loadFonts(style.fontFamilyBodyText, style.fontFamilyTitles);
+  } else {
+    console.error("Invalid style data received");
+  }
 };
 
 // Functie om fonts te laden
@@ -147,19 +157,19 @@ const addFontToDocument = (fontUrl) => {
   }
 };
 
-// onMounted: Huisstijl ophalen
+// onMounted: Partnergegevens en huisstijl ophalen
 onMounted(async () => {
   if (!partnerId) {
     partnerId = await fetchPartnerId();
   }
 
   if (partnerId) {
-    getHouseStyleFromDatabase(partnerId);
+    getPartnerStyles(partnerId); // Ophalen van huisstijl via partner
   } else {
     console.error(
       "Partner ID is niet beschikbaar. Fallback-stijl wordt toegepast."
     );
-    getHouseStyleFromDatabase(null);
+    getPartnerStyles(null); // Gebruik fallback stijl
   }
 });
 </script>

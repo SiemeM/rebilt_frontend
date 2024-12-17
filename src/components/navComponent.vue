@@ -78,33 +78,6 @@ const huisstijlData = reactive({
   logo: "", // Logo wordt hier ingesteld vanuit de API
 });
 
-// Haal de huisstijlgegevens op van de API
-const fetchHouseStyle = async () => {
-  try {
-    // Haal de userId uit de `user` gegevens of via een andere manier (bijvoorbeeld via een JWT-token)
-    const userId = user?.userId || getUserDataFromToken()?.userId; // Zorg ervoor dat de userId beschikbaar is
-
-    // Bepaal de baseURL op basis van de omgeving (lokaal of productie)
-    const isProduction = window.location.hostname !== "localhost";
-    const baseURL = isProduction
-      ? "https://rebilt-backend.onrender.com/api/v1"
-      : "http://localhost:3000/api/v1";
-
-    // Maak de volledige API-URL voor het ophalen van de huisstijl van de gebruiker
-    const response = await axios.get(`${baseURL}/houseStyles/${userId}`); // De userId wordt hier toegevoegd aan de URL
-
-    const houseStyle = response.data;
-    huisstijlData.logo = houseStyle.logo_url; // Stel de logo_url in uit de API response
-  } catch (error) {
-    console.error("Fout bij het ophalen van huisstijl:", error);
-  }
-};
-
-// Haal huisstijl op zodra de component is gemonteerd
-onMounted(() => {
-  fetchHouseStyle();
-});
-
 // Fetch user data when component is mounted
 onMounted(() => {
   const userData = getUserDataFromToken();

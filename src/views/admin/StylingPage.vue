@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted, computed, watch, provide } from "vue";
+import { ref, reactive, onMounted, watch, provide } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
@@ -8,7 +8,7 @@ import DynamicStyle from "../../components/DynamicStyle.vue";
 // Router setup
 const router = useRouter();
 
-// Reactive user object to store user details (gebruik reactive voor betere reactiviteit)
+// Reactive user object to store user details
 const user = reactive({
   firstName: "",
   lastName: "",
@@ -53,14 +53,20 @@ const parseJwt = (token) => {
 
 const tokenPayload = parseJwt(token);
 const userId = tokenPayload?.userId;
-const partnerId = tokenPayload?.partnerId || null;
-
+const partnerId = tokenPayload?.companyId || null;
 if (!userId) {
   router.push("/login");
 }
 
 // Partner related data
 const partnerPackage = ref(null);
+const fallbackLogo = "../../assets/images/REBILT-logo-white.svg";
+
+// Base URL depending on environment
+const isProduction = window.location.hostname !== "localhost";
+const baseURL = isProduction
+  ? "https://rebilt-backend.onrender.com/api/v1"
+  : "http://localhost:3000/api/v1";
 
 // Fetch user profile data
 const fetchUserProfile = async () => {
@@ -68,20 +74,8 @@ const fetchUserProfile = async () => {
     const response = await axios.get(`${baseURL}/users/${userId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-
     const userData = response.data?.data?.user || {};
-    // Update the user object
-    user.firstName = userData.firstname || "";
-    user.lastName = userData.lastname || "";
-    user.email = userData.email || "";
-    user.oldEmail = userData.email || "";
-    user.country = userData.country || "";
-    user.city = userData.city || "";
-    user.postalCode = userData.postalCode || "";
-    user.profilePicture = userData.profilePicture || "";
-    user.bio = userData.bio || "";
-    user.role = userData.role || "";
-    user.activeUnactive = userData.activeUnactive ?? true;
+    Object.assign(user, userData);
   } catch (error) {
     console.error("Error fetching user profile:", error);
   }
@@ -95,7 +89,6 @@ const fetchPartnerData = async () => {
     const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-
     const partner = response.data?.data?.partner || {};
     partnerPackage.value = partner.package || "No package available";
   } catch (error) {
@@ -104,16 +97,16 @@ const fetchPartnerData = async () => {
   }
 };
 
-// Fetch initial data on mount
+// Initialize data fetching on mount
 onMounted(async () => {
   await fetchUserProfile();
   await fetchPartnerData();
 });
 
 // Provide the user data to all components (including Navigation)
-provide("user", user); // Makes user data available to child components like Navigation
+provide("user", user);
 
-// Watch for changes in user data and update the Navigation component
+// Watch for changes in user data and log updates
 watch(
   user,
   (newUser) => {
@@ -122,70 +115,23 @@ watch(
   { deep: true }
 );
 
-// Haal de producten op vanuit de API
-const fetchData = async () => {
-  try {
-    const token = localStorage.getItem("jwtToken"); // Use the correct variable name
-    const response = await fetch(`${baseURL}/products`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
-    const userCompanyId = getUserCompanyId(token); // Pass the correct token here
-
-    data.value = result.data.products.filter(
-      (product) => product.partnerId === userCompanyId
-    );
-  } catch (error) {
-    console.error("Error fetching data:", error);
-  }
-};
-
-// Initialiseer component en haal data op
-onMounted(fetchData);
-
-// Definities van refs en computed properties
-const selectedTypeFilter = ref("All");
-const data = ref([]);
-
-// Haal companyId uit het JWT token
-const getUserCompanyId = (token) => {
-  if (!token) return null;
-  const decoded = JSON.parse(atob(token.split(".")[1]));
-  return decoded.companyId;
-};
-
-// Haal gegevens op bij het laden van de component
-onMounted(() => {
-  fetchData();
-});
-
-const isProduction = window.location.hostname !== "localhost";
-const baseURL = isProduction
-  ? "https://rebilt-backend.onrender.com/api/v1"
-  : "http://localhost:3000/api/v1";
-
-// Reactive data for the user profile and house style
+// House style data management
 const huisstijlData = reactive({
   primaryColor: "#9747ff",
   secondaryColor: "#000000",
   textColor: "#ffffff",
   titlesColor: "#0071e3",
   backgroundColor: "#000000",
-  fonts: [],
+  fonts: [], // Fonts initialized as an empty array
   logo: "",
   backgroundImage: "",
 });
+
 const selectedFontForTitles = ref("");
 const selectedFontForText = ref("");
 const GoogleFonts = ref([]);
 
-// Ensure setFonts is always available
+// Set dynamic font styles
 const setFonts = () => {
   document.documentElement.style.setProperty(
     "--title-font",
@@ -209,13 +155,13 @@ const fetchGoogleFonts = async () => {
   }
 };
 
+// Select and load a font
 const selectFont = async (font, type) => {
   const fontUrl = `https://fonts.googleapis.com/css2?family=${font.replace(
     / /g,
     "+"
   )}:wght@400;700&display=swap`;
 
-  // Check if the font is already in the document head
   const existingLink = document.head.querySelector(`link[href="${fontUrl}"]`);
   if (!existingLink) {
     const link = document.createElement("link");
@@ -224,42 +170,15 @@ const selectFont = async (font, type) => {
     document.head.appendChild(link);
   }
 
-  // Update the selected font based on type (title or text)
   if (type === "title") {
     selectedFontForTitles.value = font;
   } else if (type === "text") {
     selectedFontForText.value = font;
   }
 
-  // Directly update the font to the database
   await updateHouseStyleInDatabase();
 };
 
-// Fetch house style from the database
-const getHouseStyleFromDatabase = async () => {
-  try {
-    const response = await axios.get(`${baseURL}/houseStyles/${userId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    huisstijlData.primaryColor = response.data.primary_color;
-    huisstijlData.secondaryColor = response.data.secondary_color;
-    huisstijlData.textColor = response.data.text_color;
-    huisstijlData.titlesColor = response.data.titles_color;
-    huisstijlData.backgroundColor = response.data.background_color;
-    huisstijlData.logo = response.data.logo_url || ""; // Set logo URL
-
-    // Set fonts if available
-    selectedFontForTitles.value = response.data.fontFamilyTitles || "";
-    selectedFontForText.value = response.data.fontFamilyBodyText || "";
-  } catch (error) {
-    console.error("Error fetching house style:", error);
-  }
-};
-
-// Open color picker and update color
 const openColorPicker = (field) => {
   const input = document.createElement("input");
   input.type = "color";
@@ -267,13 +186,40 @@ const openColorPicker = (field) => {
 
   input.addEventListener("input", async (event) => {
     huisstijlData[field] = event.target.value;
-    await updateHouseStyleInDatabase(); // Update the change in the database
+    await updateHouseStyleInDatabase();
   });
 
   input.click();
 };
 
-// Reset house style function
+// Fetch house style from the database
+const getHouseStyleFromDatabase = async () => {
+  try {
+    const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const partnerData = response.data?.data?.partner || {};
+    Object.assign(huisstijlData, {
+      primaryColor: partnerData.primary_color || "#9747ff",
+      secondaryColor: partnerData.secondary_color || "#000000",
+      textColor: partnerData.text_color || "#ffffff",
+      titlesColor: partnerData.titles_color || "#0071e3",
+      backgroundColor: partnerData.background_color || "#000000",
+      logo: partnerData.logo_url || "",
+      backgroundImage: partnerData.background_image_url || "",
+    });
+
+    selectedFontForTitles.value = partnerData.fontFamilyTitles || "Syne";
+    selectedFontForText.value = partnerData.fontFamilyBodyText || "DM Sans";
+  } catch (error) {
+    console.error("Error fetching house style:", error);
+  }
+};
+
+// Reset house style to default values
 const resetHouseStyle = async () => {
   const defaultHuisstijl = {
     primaryColor: "#9747ff",
@@ -281,117 +227,62 @@ const resetHouseStyle = async () => {
     textColor: "#ffffff",
     titlesColor: "#0071e3",
     backgroundColor: "#000000",
-    backgroundImage: "", // Clear background image
-    fontFamilyTitles: "Syne", // Default font for titles
-    fontFamilyBodyText: "DM Sans", // Default font for text
-    logo: "https://res.cloudinary.com/dzempjvto/image/upload/v1734208533/Stijn/Huisstijl/yzezrygcrnb8pztjyplp.jpg", // Default Cloudinary logo URL
+    backgroundImage: "",
+    fontFamilyTitles: "Syne",
+    fontFamilyBodyText: "DM Sans",
+    logo: "https://res.cloudinary.com/dzempjvto/image/upload/v1734208533/Stijn/Huisstijl/yzezrygcrnb8pztjyplp.jpg",
   };
 
-  // Reset logo and other values
-  huisstijlData.primaryColor = defaultHuisstijl.primaryColor;
-  huisstijlData.secondaryColor = defaultHuisstijl.secondaryColor;
-  huisstijlData.textColor = defaultHuisstijl.textColor;
-  huisstijlData.titlesColor = defaultHuisstijl.titlesColor;
-  huisstijlData.backgroundColor = defaultHuisstijl.backgroundColor;
-  huisstijlData.backgroundImage = defaultHuisstijl.backgroundImage; // Clear background image
-  huisstijlData.logo = defaultHuisstijl.logo; // Set default logo URL
-
-  selectedFontForTitles.value = defaultHuisstijl.fontFamilyTitles;
-  selectedFontForText.value = defaultHuisstijl.fontFamilyBodyText;
-
-  await updateHouseStyleInDatabase(); // Update the database with the reset values
-};
-
-// Upload image to Cloudinary
-const uploadToCloudinary = async (file) => {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", "ycy4zvmj");
-  formData.append("cloud_name", "dzempjvto");
-  formData.append("folder", "Stijn/Huisstijl");
+  Object.assign(huisstijlData, defaultHuisstijl);
 
   try {
-    const { data } = await axios.post(
-      "https://api.cloudinary.com/v1_1/dzempjvto/image/upload",
-      formData
-    );
-    return data.secure_url; // URL of the uploaded image on Cloudinary
-  } catch (error) {
-    console.error("Error uploading file:", error);
-    throw error;
-  }
-};
-
-// Handle logo upload
-const handleLogoUpload = async (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    try {
-      // Upload file to Cloudinary and get URL
-      const logoUrl = await uploadToCloudinary(file);
-
-      // Update logo URL in huisstijlData
-      huisstijlData.logo = logoUrl;
-
-      // Update the house style in the database with the new logo URL
-      await updateHouseStyleInDatabase();
-    } catch (error) {
-      console.error("Error uploading logo:", error);
-    }
-  }
-};
-
-const fallbackLogo = "../../assets/images/REBILT-logo-white.svg"; // Default fallback logo
-
-// Update house style in the database
-const updateHouseStyleInDatabase = async () => {
-  try {
-    const payload = {
-      primary_color: huisstijlData.primaryColor,
-      secondary_color: huisstijlData.secondaryColor,
-      text_color: huisstijlData.textColor,
-      titles_color: huisstijlData.titlesColor,
-      background_color: huisstijlData.backgroundColor,
-      fontFamilyBodyText: selectedFontForText.value,
-      fontFamilyTitles: selectedFontForTitles.value,
-      logo_url: huisstijlData.logo || "", // Empty logo
-      background_image_url: huisstijlData.backgroundImage || "", // Empty background image
-    };
-
-    const response = await axios.put(
-      `${baseURL}/houseStyles/${userId}`,
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    await getHouseStyleFromDatabase(); // Fetch updated house style
-    setFonts(); // Update fonts
+    await updateHouseStyleInDatabase();
   } catch (error) {
     console.error("Error updating house style:", error);
   }
 };
 
-const logoInput = ref(null);
-const backgroundInput = ref(null);
+// Update house style in the database
+const updateHouseStyleInDatabase = async () => {
+  const houseStyleData = {
+    name: "Odette Lunettes",
+    address: {
+      street: "92, Goudenregenlaan",
+      city: "Sint-Niklaas",
+      postal_code: "9100",
+      country: "België",
+    },
+    contact_email: "jonasdebruyne734@gmail.com",
+    contact_phone: "0472671833",
+    package: "standard",
+    primary_color: huisstijlData.primaryColor,
+    secondary_color: huisstijlData.secondaryColor,
+    titles_color: huisstijlData.titlesColor,
+    text_color: huisstijlData.textColor,
+    background_color: huisstijlData.backgroundColor,
+    fontFamilyBodyText: selectedFontForText.value,
+    fontFamilyTitles: selectedFontForTitles.value,
+    logo_url: huisstijlData.logo || null,
+  };
 
-// Trigger file input for logo upload
-const triggerLogoUpload = () => {
-  logoInput.value.click();
+  try {
+    const response = await axios.put(
+      `${baseURL}/partners/${partnerId}`,
+      houseStyleData,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    console.log("House style updated successfully:", response.data);
+  } catch (error) {
+    console.error("Error updating house style:", error);
+  }
 };
 
-// Trigger file input for background image upload
-const triggerBackgroundUpload = () => {
-  backgroundInput.value.click();
-};
-
-// Initial setup on component mount
+// Fetch house style and Google Fonts
 onMounted(() => {
-  fetchGoogleFonts(); // Fetch available Google Fonts
-  getHouseStyleFromDatabase(); // Fetch user's house style from the database
+  getHouseStyleFromDatabase();
+  fetchGoogleFonts();
 });
 </script>
 
@@ -490,7 +381,9 @@ onMounted(() => {
                 <option
                   v-for="font in [
                     ...GoogleFonts,
-                    ...huisstijlData.fonts.map((f) => f.name),
+                    ...(Array.isArray(huisstijlData.fonts)
+                      ? huisstijlData.fonts
+                      : []),
                   ]"
                   :key="font"
                   :value="font"
