@@ -401,7 +401,7 @@ onMounted(fetchData);
 
 .popup .text .btns .active {
   background-color: #d34848;
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .menu {
@@ -438,7 +438,7 @@ select {
   border: none;
   border: 1px solid rgb(var(--secondary-color));
   background-color: rgb(var(--secondary-color));
-  color: rgb(var(--text-color));
+  color: var(--text-color);
   width: 320px;
 }
 
@@ -450,7 +450,7 @@ select {
 }
 
 .search input {
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .users {
@@ -486,6 +486,10 @@ select {
   padding: 16px;
 }
 
+.users .list li:nth-child(even) {
+  background-color: rgb(var(--primary-color), 0.1);
+}
+
 .users .list li a {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -495,7 +499,7 @@ select {
 }
 
 .users .list li p {
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .users .list li p:hover {
@@ -539,6 +543,6 @@ select {
   text-align: center;
   padding: 20px;
   font-size: 18px;
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 </style>

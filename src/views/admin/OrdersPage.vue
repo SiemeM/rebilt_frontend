@@ -360,7 +360,7 @@ provide("user", user);
 
 .popup .text .btns .active {
   background-color: #d34848;
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .popup img {
@@ -398,7 +398,7 @@ select {
   border: none;
   border: 1px solid rgb(var(--secondary-color));
   background-color: rgb(var(--secondary-color));
-  color: rgb(var(--text-color));
+  color: var(--text-color);
   width: 320px;
   display: flex;
   flex-direction: row;
@@ -407,7 +407,7 @@ select {
 }
 
 .search input {
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .orders {
@@ -445,13 +445,16 @@ select {
   align-items: center;
 }
 
+.orders .list li:nth-child(even) {
+  background-color: rgb(var(--primary-color), 0.1);
+}
 .orders .list li a {
   display: contents; /* Zorg ervoor dat de a-tag zich gedraagt als inhoud van de grid */
 }
 
 .orders .top p,
 .orders .list li p {
-  color: rgb(var(--text-color));
+  color: var(--text-color);
   white-space: nowrap; /* Zorg ervoor dat tekst niet over meerdere regels gaat */
   overflow: hidden; /* Verberg tekst die te lang is */
   text-overflow: ellipsis; /* Voeg een ellipsis toe als de tekst te lang is */
@@ -554,6 +557,6 @@ select {
 .no-orders {
   padding: 16px;
   text-align: center;
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 </style>

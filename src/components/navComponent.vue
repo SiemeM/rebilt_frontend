@@ -75,7 +75,7 @@ const huisstijlData = reactive({
   textColor: "#000000",
   fontFamilyBodyText: "Work Sans",
   fontFamilyTitles: "Libre Barcode 128",
-  logo: "", // Logo wordt hier ingesteld vanuit de API
+  logo_url: "../../src/assets/images/REBILT-logo-white.svg",
 });
 
 // Fetch user data when component is mounted
@@ -105,7 +105,7 @@ const profileImage = computed(() => {
   <nav>
     <div
       class="logo"
-      :style="{ backgroundImage: 'url(' + huisstijlData.logo + ')' }"
+      :style="{ backgroundImage: 'url(' + huisstijlData.logo_url + ')' }"
     ></div>
     <div class="profile">
       <div
@@ -195,8 +195,23 @@ nav {
   gap: 120px;
   background: linear-gradient(
     -45deg,
-    rgb(var(--primary-color)),
-    rgb(var(--background-color))
+    var(--primary-color),
+    var(--background-color)
+  );
+  height: 100vh;
+  padding: 48px 32px;
+  position: fixed;
+}
+
+nav {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 120px;
+  background: linear-gradient(
+    -45deg,
+    var(--primary-color),
+    var(--background-color)
   );
   height: 100vh;
   padding: 48px 32px;
@@ -249,7 +264,7 @@ nav .menu a.active {
 }
 
 nav .menu a.active {
-  background-color: rgb(var(--primary-color));
+  background-color: var(--primary-color);
   padding: 4px 12px;
   border-radius: 8px;
 }
@@ -259,6 +274,6 @@ nav .menu a img {
 }
 
 nav .menu a p {
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 </style>

@@ -575,7 +575,7 @@ onMounted(() => {
 
 .popup .text .btns .active {
   background-color: #d34848;
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .popup img {
@@ -617,7 +617,7 @@ select {
   border: none;
   border: 1px solid rgb(var(--secondary-color));
   background-color: rgb(var(--secondary-color));
-  color: rgb(var(--text-color));
+  color: var(--text-color);
   width: 320px;
   display: flex;
   flex-direction: row;
@@ -626,7 +626,7 @@ select {
 }
 
 .search input {
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .configurations {
@@ -664,6 +664,10 @@ select {
   gap: 16px;
 }
 
+.configurations .listItem:nth-child(even) {
+  background-color: rgb(var(--primary-color), 0.1);
+}
+
 .configurations .listItem a {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -674,7 +678,7 @@ select {
 
 .configurations .top p,
 .configurations .listItem p {
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .configurations .top p:nth-child(1),
@@ -719,6 +723,6 @@ select {
 .no-configurations {
   padding: 16px;
   text-align: center;
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 </style>

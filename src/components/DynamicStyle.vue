@@ -13,12 +13,12 @@ if (!token) {
 
 // Definieer fallback stijlen
 const fallbackStyle = {
-  primary_color: "151, 71, 255",
-  secondary_color: "0, 0, 0",
-  text_color: "255, 255, 255",
-  titles_color: "0, 113, 227",
-  background_color: "0, 0, 0",
-  logo_url: "",
+  primary_color: "rgb(151, 71, 255)", // Correcte RGB-notatie
+  secondary_color: "rgb(26, 26, 26)", // Correcte RGB-notatie
+  text_color: "rgb(255, 255, 255)", // Correcte RGB-notatie
+  titles_color: "rgb(0, 113, 227)", // Correcte RGB-notatie
+  background_color: "rgb(0, 0, 0)", // Correcte RGB-notatie
+  logo_url: "../assets/images/REBILT-logo-white.svg",
   fontFamilyTitles: "Arial, sans-serif",
   fontFamilyBodyText: "Arial, sans-serif",
 };
@@ -153,7 +153,7 @@ const applyFallbackStyles = () => {
 // Haal de partnerId uit de JWT-token (verander userId naar partnerId)
 const tokenPayload = JSON.parse(atob(token.split(".")[1]));
 const partnerId = tokenPayload?.companyId || null;
-console.log(partnerId);
+
 onMounted(() => {
   if (partnerId) {
     getHouseStyleFromDatabase(partnerId); // Gebruik partnerId hier
@@ -170,21 +170,21 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Standaard CSS-variabelen voor fallback */
 :root {
   --primary-color: #9747ff;
-  --secondary-color: #000000;
+  --secondary-color: #111111;
   --text-color: #ffffff;
   --titles-color: #0071e3;
   --background-image: url("/path/to/your/image.jpg");
+  --background-color: #000000;
   --body-font: "Arial", sans-serif; /* Standaard body font */
   --title-font: "Arial", sans-serif; /* Standaard title font */
 }
 
 body {
   font-family: var(--body-font);
-  color: rgb(var(--text-color));
-  background-color: rgb(var(--background-color));
+  color: var(--text-color);
+  background-color: var(--background-color);
 }
 
 h1,
@@ -194,6 +194,6 @@ h4,
 h5,
 h6 {
   font-family: var(--title-font);
-  color: rgb(var(--titles-color));
+  color: var(--titles-color);
 }
 </style>

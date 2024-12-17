@@ -181,7 +181,7 @@ form {
 
 label,
 input {
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 input {
@@ -203,7 +203,7 @@ input::placeholder {
 
 button {
   background-color: #403754;
-  color: rgb(var(--text-color));
+  color: var(--text-color);
   border: none;
   border-radius: 4px;
   padding: 8px;

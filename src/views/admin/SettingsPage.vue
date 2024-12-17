@@ -825,10 +825,10 @@ watch(
 }
 
 .elements .menu p.active {
-  background-color: rgb(var(--primary-color));
+  background-color: var(--primary-color);
   padding: 4px 12px 4px 24px;
   border-radius: 8px;
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .elements .myProfile {
@@ -930,7 +930,7 @@ watch(
 }
 
 .configurations .configurationsItems .row p {
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .custom-checkbox {
@@ -1083,7 +1083,7 @@ textarea {
 }
 
 .successpopup .text .btn {
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .successpopup .text div {
@@ -1167,7 +1167,7 @@ textarea {
 }
 
 .popup-content .btns .btn {
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 button {
@@ -1218,7 +1218,7 @@ button {
 
 .deletePopup .text .btns .active {
   background-color: #d34848;
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .btn.display {

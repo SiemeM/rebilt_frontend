@@ -528,7 +528,7 @@ onMounted(() => {
 .column .row .color {
   width: 24px;
   height: 24px;
-  border: 3px solid rgb(var(--text-color));
+  border: 3px solid var(--text-color);
   border-radius: 50%;
   cursor: pointer;
 }

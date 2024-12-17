@@ -543,7 +543,7 @@ const filteredProducts = computed(() => {
 
 .popup .text .btns .active {
   background-color: #d34848;
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .menu {
@@ -580,7 +580,7 @@ select {
   border: none;
   border: 1px solid rgb(var(--secondary-color));
   background-color: rgb(var(--secondary-color));
-  color: rgb(rgb(var(--text-color)));
+  color: var(--text-color);
   width: 320px;
 }
 
@@ -634,6 +634,10 @@ select {
   align-items: center;
 }
 
+.products .list li:nth-child(even) {
+  background-color: rgb(var(--primary-color), 0.1);
+}
+
 .products .top input {
   width: 20px;
 }
@@ -645,7 +649,7 @@ select {
   padding-left: 80px;
 }
 .products .list li p {
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .products .list li p:hover {
@@ -663,6 +667,6 @@ select {
 }
 
 .search input {
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 </style>

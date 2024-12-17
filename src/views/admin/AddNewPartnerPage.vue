@@ -28,16 +28,15 @@ const contactEmail = ref("");
 const contactPhone = ref("");
 const subscriptionPackage = ref("standard"); // Herbenoemd van 'package' naar 'subscriptionPackage'
 
-// Standaard huisstijlinstellingen die altijd hetzelfde blijven
 const defaultStyles = {
-  primary_color: "#9747ff",
-  secondary_color: "#000000",
-  titles_color: "#0071e3",
-  text_color: "#ffffff",
-  background_color: "#000000",
+  primary_color: "rgb(151, 71, 255)",
+  secondary_color: "rgb(0, 0, 0)",
+  titles_color: "rgb(0, 113, 227)",
+  text_color: "rgb(255, 255, 255)",
+  background_color: "rgb(0, 0, 0)",
   fontFamilyTitles: "Syne, serif",
   fontFamilyBodyText: "DM Sans, sans-serif",
-  logo_url: "",
+  logo_url: "../../src/assets/images/REBILT-logo-white.svg",
 };
 
 // Validatie van het e-mailadres

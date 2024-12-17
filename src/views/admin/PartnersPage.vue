@@ -410,7 +410,7 @@ onMounted(() => {
 
 .popup .text .btns .active {
   background-color: #d34848;
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .popup img {
@@ -445,9 +445,9 @@ onMounted(() => {
 select {
   padding: 4px 12px;
   border-radius: 8px;
-  border: 1px solid rgba(var(--text-color), 0.8);
-  background-color: rgba(var(--text-color), 0.8);
-  color: rgb(var(--text-color));
+  border: 1px solid rgb(var(--secondary-color));
+  background-color: rgb(var(--secondary-color));
+  color: var(--text-color);
   width: 320px;
   display: flex;
   flex-direction: row;
@@ -456,7 +456,7 @@ select {
 }
 
 .search input {
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 
 .partners {
@@ -474,7 +474,7 @@ select {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   gap: 40px;
-  padding: 4px 16px;
+  padding: 16px;
   background-color: rgb(var(--secondary-color));
   align-items: center;
 }
@@ -482,9 +482,6 @@ select {
 .partners .list {
   display: flex;
   flex-direction: column;
-  padding: 16px;
-  gap: 16px;
-  max-height: 300px;
 }
 
 .partners .list li {
@@ -492,6 +489,11 @@ select {
   grid-template-columns: repeat(8, 1fr);
   gap: 40px;
   align-items: center;
+  padding: 16px;
+}
+
+.partners .list li:nth-child(even) {
+  background-color: rgb(var(--primary-color), 0.1);
 }
 
 .partners .list li a {
@@ -500,7 +502,7 @@ select {
 
 .partners .top p,
 .partners .list li p {
-  color: rgb(var(--text-color));
+  color: var(--text-color);
   white-space: nowrap; /* Zorg ervoor dat tekst niet over meerdere regels gaat */
   overflow: hidden; /* Verberg tekst die te lang is */
   text-overflow: ellipsis; /* Voeg een ellipsis toe als de tekst te lang is */
@@ -543,6 +545,6 @@ select {
 .no-partners {
   padding: 16px;
   text-align: center;
-  color: rgb(var(--text-color));
+  color: var(--text-color);
 }
 </style>
