@@ -203,14 +203,14 @@ form {
 .submitBtn {
   border: 1px solid var(--white);
   background-color: transparent;
-  color: var(--text-color);
+  color: rgb(var(--text-color));
   border-radius: 4px;
   padding: 8px;
 }
 
 .submitBtn.active {
   background-color: #403754;
-  color: var(--text-color);
+  color: rgb(var(--text-color));
   border: none;
   border-radius: 4px;
   padding: 8px;
@@ -220,6 +220,6 @@ input {
   border: 1px solid rgba(255, 255, 255, 0.4);
   padding: 4px 8px;
   border-radius: 8px;
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 </style>

@@ -13,11 +13,11 @@ if (!token) {
 
 // Definieer fallback stijlen
 const fallbackStyle = {
-  primary_color: "#9747ff",
-  secondary_color: "#000000",
-  text_color: "#ffffff",
-  titles_color: "#0071e3",
-  background_color: "#000000",
+  primary_color: "151, 71, 255",
+  secondary_color: "0, 0, 0",
+  text_color: "255, 255, 255",
+  titles_color: "0, 113, 227",
+  background_color: "0, 0, 0",
   logo_url: "",
   fontFamilyTitles: "Arial, sans-serif",
   fontFamilyBodyText: "Arial, sans-serif",
@@ -183,8 +183,8 @@ onMounted(() => {
 
 body {
   font-family: var(--body-font);
-  color: var(--text-color);
-  background-color: var(--background-color);
+  color: rgb(var(--text-color));
+  background-color: rgb(var(--background-color));
 }
 
 h1,
@@ -194,6 +194,6 @@ h4,
 h5,
 h6 {
   font-family: var(--title-font);
-  color: var(--titles-color);
+  color: rgb(var(--titles-color));
 }
 </style>

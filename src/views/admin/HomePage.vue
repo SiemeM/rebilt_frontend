@@ -505,7 +505,7 @@ const filteredProducts = computed(() => {
   align-items: center;
   justify-content: center;
   gap: 24px;
-  background-color: var(--secondary-color);
+  background-color: rgb(var(--secondary-color));
   padding: 24px 32px;
   border-radius: 8px;
   position: fixed;
@@ -543,7 +543,7 @@ const filteredProducts = computed(() => {
 
 .popup .text .btns .active {
   background-color: #d34848;
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .menu {
@@ -578,9 +578,9 @@ select {
   padding: 4px 12px;
   border-radius: 8px;
   border: none;
-  border: 1px solid var(--secondary-color);
-  background-color: var(--secondary-color);
-  color: var(--text-color);
+  border: 1px solid rgb(var(--secondary-color));
+  background-color: rgb(var(--secondary-color));
+  color: rgb(rgb(var(--text-color)));
   width: 320px;
 }
 
@@ -598,7 +598,7 @@ select {
 }
 
 .products {
-  background-color: var(--secondary-color);
+  background-color: rgb(var(--secondary-color));
   width: 100%;
   border-radius: 8px;
   overflow-x: auto; /* Enable horizontal scrolling */
@@ -610,7 +610,7 @@ select {
   gap: 20px; /* Pas de ruimte tussen de items aan */
   border-radius: 8px 8px 0 0;
   padding: 4px 16px;
-  background-color: var(--secondary-color);
+  background-color: rgb(var(--secondary-color));
   width: 100%; /* Zorg ervoor dat de breedte van de container 100% is */
   overflow-x: auto; /* Hiermee kan horizontaal gescrold worden */
   -webkit-overflow-scrolling: touch; /* Zorg voor een vloeiende scroll op mobiele apparaten */
@@ -645,7 +645,7 @@ select {
   padding-left: 80px;
 }
 .products .list li p {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .products .list li p:hover {
@@ -663,6 +663,6 @@ select {
 }
 
 .search input {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 </style>

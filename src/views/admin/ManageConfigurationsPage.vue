@@ -542,7 +542,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 24px;
-  background-color: var(--secondary-color);
+  background-color: rgb(var(--secondary-color));
   padding: 24px 32px;
   border-radius: 8px;
   position: fixed;
@@ -575,7 +575,7 @@ onMounted(() => {
 
 .popup .text .btns .active {
   background-color: #d34848;
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .popup img {
@@ -615,9 +615,9 @@ select {
   padding: 4px 12px;
   border-radius: 8px;
   border: none;
-  border: 1px solid var(--secondary-color);
-  background-color: var(--secondary-color);
-  color: var(--text-color);
+  border: 1px solid rgb(var(--secondary-color));
+  background-color: rgb(var(--secondary-color));
+  color: rgb(var(--text-color));
   width: 320px;
   display: flex;
   flex-direction: row;
@@ -626,11 +626,11 @@ select {
 }
 
 .search input {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .configurations {
-  background-color: var(--secondary-color);
+  background-color: rgb(var(--secondary-color));
   width: 100%;
   border-radius: 8px;
   overflow-x: auto;
@@ -648,7 +648,7 @@ select {
   border-radius: 8px 8px 0 0;
   gap: 16px;
   padding: 4px 16px;
-  background-color: var(--secondary-color);
+  background-color: rgb(var(--secondary-color));
 }
 
 .configurations .list {
@@ -674,7 +674,7 @@ select {
 
 .configurations .top p,
 .configurations .listItem p {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .configurations .top p:nth-child(1),
@@ -719,6 +719,6 @@ select {
 .no-configurations {
   padding: 16px;
   text-align: center;
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 </style>

@@ -42,7 +42,7 @@
   gap: 8px;
   padding: 12px 16px;
   border-radius: 4px;
-  background-color: var(--secondary-color);
+  background-color: rgb(var(--secondary-color));
   box-shadow: 0 0 8px #0006;
   transition: transform 0.5s;
 }
@@ -68,7 +68,7 @@
 
 .icons .icon div {
   border-radius: 100%;
-  background-color: var(--secondary-color);
+  background-color: rgb(rgb(var(--secondary-color)));
   box-shadow: 0 0 8px #0006;
   transition: transform 0.5s;
   width: 40px;
@@ -80,7 +80,7 @@
 }
 
 .icons .icon p {
-  background-color: var(--secondary-color);
+  background-color: rgb(rgb(var(--secondary-color)));
   color: #fff;
   padding: 8px 12px;
   border-radius: 4px;
@@ -105,7 +105,7 @@
 }
 
 .rotate-informer p {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .QR_code {
@@ -113,7 +113,7 @@
   left: 6%;
   top: 75%;
   transform: translate(-50%, -50%);
-  background-color: var(--secondary-color);
+  background-color: rgb(rgb(var(--secondary-color)));
   border-radius: 1rem;
   padding: 1rem;
   height: 120px;
@@ -159,7 +159,7 @@
 .config-wrapper a p {
   font-size: 0.8em;
   text-transform: uppercase;
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .config-wrapper a svg,
@@ -212,15 +212,15 @@ li svg {
   justify-content: center;
   width: 32px;
   height: 29.54px;
-  border: 1px solid var(--text-color);
-  color: var(--text-color);
+  border: 1px solid rgb(var(--text-color));
+  color: rgb(var(--text-color));
   border-radius: 100%;
   font-size: 11px;
 }
 
 .config-wrapper .bullets .bullet.active {
   opacity: 1;
-  border: 1px solid var(--text-color);
+  border: 1px solid rgb(var(--text-color));
 }
 
 .config-wrapper .bullets .bullet.done {
@@ -253,7 +253,7 @@ li svg {
 }
 
 .config-wrapper .summary .fontweight {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .config-wrapper h2 {
@@ -290,7 +290,7 @@ li svg {
 .config-wrapper .summary .configurations div .row p {
   width: 24px;
   height: 24px;
-  border: 1px solid var(--text-color);
+  border: 1px solid rgb(var(--text-color));
   border-radius: 50%;
 }
 
@@ -310,7 +310,7 @@ li svg {
 }
 
 .config-wrapper form .row .column input {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
   padding-left: 8px;
@@ -346,7 +346,7 @@ li svg {
 
 .config-ui__page .row div.active,
 .config-ui__page .row div.selected {
-  border: 3px solid var(--primary-color);
+  border: 3px solid rgb(var(--primary-color));
 }
 
 .config-ui__page .row div p {
@@ -368,19 +368,19 @@ li svg {
   gap: 8px;
   border: none;
   border-radius: 8px;
-  color: var(--text-color);
+  color: rgb(var(--text-color));
   text-transform: uppercase;
   letter-spacing: -2%;
   background-color: transparent;
 }
 
 .nextButton p {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
   font-size: 12px;
 }
 
 .btn {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .errorMessage {
@@ -422,7 +422,7 @@ li svg {
   gap: 8px;
   padding: 12px 16px;
   border-radius: 4px;
-  background-color: var(--secondary-color);
+  background-color: rgb(rgb(var(--secondary-color)));
   box-shadow: 0 0 8px #0006;
   transition: transform 0.5s;
 }
@@ -448,7 +448,7 @@ li svg {
 
 .icons .icon div {
   border-radius: 100%;
-  background-color: var(--secondary-color);
+  background-color: rgb(rgb(var(--secondary-color)));
   box-shadow: 0 0 8px #0006;
   transition: transform 0.5s;
   width: 40px;
@@ -460,7 +460,7 @@ li svg {
 }
 
 .icons .icon p {
-  background-color: var(--secondary-color);
+  background-color: rgb(rgb(var(--secondary-color)));
   color: #fff;
   padding: 8px 12px;
   border-radius: 4px;
@@ -485,7 +485,7 @@ li svg {
 }
 
 .rotate-informer p {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .QR_code {
@@ -493,7 +493,7 @@ li svg {
   left: 6%;
   top: 75%;
   transform: translate(-50%, -50%);
-  background-color: var(--secondary-color);
+  background-color: rgb(var(--secondary-color));
   border-radius: 1rem;
   padding: 1rem;
   height: 120px;
@@ -538,7 +538,7 @@ li svg {
 .config-wrapper a p {
   font-size: 0.8em;
   text-transform: uppercase;
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .config-wrapper a svg,
@@ -592,7 +592,7 @@ li svg {
   width: 32px;
   height: 29.54px;
   border: 1px solid var(--white);
-  color: var(--text-color);
+  color: rgb(var(--text-color));
   border-radius: 100%;
   font-size: 11px;
 }
@@ -631,7 +631,7 @@ li svg {
 }
 
 .config-wrapper .summary .fontweight {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .config-wrapper h2 {
@@ -679,7 +679,7 @@ li svg {
 }
 
 .config-wrapper form .row .column input {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
   padding-left: 8px;

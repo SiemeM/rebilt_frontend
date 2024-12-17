@@ -802,7 +802,7 @@ watch(
 
 <style scoped>
 .elements {
-  background-color: var(--secondary-color);
+  background-color: rgb(var(--secondary-color));
   width: 100%;
   display: flex;
   flex-direction: row;
@@ -825,10 +825,10 @@ watch(
 }
 
 .elements .menu p.active {
-  background-color: var(--primary-color);
+  background-color: rgb(var(--primary-color));
   padding: 4px 12px 4px 24px;
   border-radius: 8px;
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .elements .myProfile {
@@ -930,7 +930,7 @@ watch(
 }
 
 .configurations .configurationsItems .row p {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .custom-checkbox {
@@ -1065,7 +1065,7 @@ textarea {
 }
 
 .successpopup {
-  background-color: var(--secondary-color);
+  background-color: rgb(var(--secondary-color));
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1083,7 +1083,7 @@ textarea {
 }
 
 .successpopup .text .btn {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .successpopup .text div {
@@ -1123,7 +1123,7 @@ textarea {
 }
 
 .popup-content {
-  background-color: var(--secondary-color);
+  background-color: rgb(var(--secondary-color));
   padding: 24px;
   border-radius: 8px;
   position: relative;
@@ -1167,7 +1167,7 @@ textarea {
 }
 
 .popup-content .btns .btn {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 button {
@@ -1180,7 +1180,7 @@ button {
   align-items: center;
   justify-content: center;
   gap: 24px;
-  background-color: var(--secondary-color);
+  background-color: rgb(var(--secondary-color));
   padding: 24px 32px;
   border-radius: 8px;
   position: fixed;
@@ -1218,7 +1218,7 @@ button {
 
 .deletePopup .text .btns .active {
   background-color: #d34848;
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .btn.display {

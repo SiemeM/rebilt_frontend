@@ -327,7 +327,7 @@ provide("user", user);
   align-items: center;
   justify-content: center;
   gap: 24px;
-  background-color: var(--secondary-color);
+  background-color: rgb(var(--secondary-color));
   padding: 24px 32px;
   border-radius: 8px;
   position: fixed;
@@ -360,7 +360,7 @@ provide("user", user);
 
 .popup .text .btns .active {
   background-color: #d34848;
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .popup img {
@@ -396,9 +396,9 @@ select {
   padding: 4px 12px;
   border-radius: 8px;
   border: none;
-  border: 1px solid var(--secondary-color);
-  background-color: var(--secondary-color);
-  color: var(--text-color);
+  border: 1px solid rgb(var(--secondary-color));
+  background-color: rgb(var(--secondary-color));
+  color: rgb(var(--text-color));
   width: 320px;
   display: flex;
   flex-direction: row;
@@ -407,11 +407,11 @@ select {
 }
 
 .search input {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 
 .orders {
-  background-color: var(--secondary-color);
+  background-color: rgb(var(--secondary-color));
   width: 100%;
   border-radius: 8px;
   overflow-x: auto;
@@ -426,7 +426,7 @@ select {
   grid-template-columns: repeat(18, 1fr);
   gap: 40px;
   padding: 4px 16px;
-  background-color: var(--secondary-color);
+  background-color: rgb(var(--secondary-color));
   align-items: center; /* --- */
 }
 
@@ -451,7 +451,7 @@ select {
 
 .orders .top p,
 .orders .list li p {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
   white-space: nowrap; /* Zorg ervoor dat tekst niet over meerdere regels gaat */
   overflow: hidden; /* Verberg tekst die te lang is */
   text-overflow: ellipsis; /* Voeg een ellipsis toe als de tekst te lang is */
@@ -554,6 +554,6 @@ select {
 .no-orders {
   padding: 16px;
   text-align: center;
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 </style>

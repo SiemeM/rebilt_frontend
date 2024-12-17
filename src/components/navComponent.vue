@@ -195,8 +195,8 @@ nav {
   gap: 120px;
   background: linear-gradient(
     -45deg,
-    var(--primary-color),
-    var(--background-color)
+    rgb(var(--primary-color)),
+    rgb(var(--background-color))
   );
   height: 100vh;
   padding: 48px 32px;
@@ -249,7 +249,7 @@ nav .menu a.active {
 }
 
 nav .menu a.active {
-  background-color: var(--primary-color);
+  background-color: rgb(var(--primary-color));
   padding: 4px 12px;
   border-radius: 8px;
 }
@@ -259,6 +259,6 @@ nav .menu a img {
 }
 
 nav .menu a p {
-  color: var(--text-color);
+  color: rgb(var(--text-color));
 }
 </style>
