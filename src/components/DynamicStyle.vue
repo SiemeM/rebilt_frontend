@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import axios from "axios";
 import { useRouter } from "vue-router";
 
@@ -7,129 +7,69 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 const token = localStorage.getItem("jwtToken");
 
-// Controleer of een token aanwezig is, anders doorsturen naar login
 if (!token) {
   router.push("/login");
 }
 
-// JWT Token Parsing
-const parseJwt = (token) => {
-  try {
-    const base64Url = token.split(".")[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
-    );
-    return JSON.parse(jsonPayload);
-  } catch (error) {
-    console.error("Error parsing JWT:", error);
-    return null;
-  }
-};
-
-// JWT Payload uitlezen
-const tokenPayload = parseJwt(token);
-const userId = tokenPayload?.userId;
-let partnerId = tokenPayload?.companyId || null;
-
-// Fallback PartnerId ophalen via API
-const fetchPartnerId = async () => {
-  try {
-    const response = await axios.get(
-      `http://localhost:3000/api/v1/users/${userId}/partner`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    return response.data.partnerId;
-  } catch (error) {
-    console.error("Error fetching partnerId:", error);
-    return null;
-  }
-};
-
-// Functie om partnergegevens op te halen inclusief huisstijl
-const getPartnerStyles = async (partnerId) => {
-  const fallbackStyle = {
-    primary_color: "#9747ff",
-    secondary_color: "#000000",
-    text_color: "#ffffff",
-    titles_color: "#0071e3",
-    background_color: "#000000",
-    logo_url: "",
-    fontFamilyTitles: "Syne, serif",
-    fontFamilyBodyText: "DM Sans, sans-serif",
-  };
-
+// Functie om de huisstijl op te halen, inclusief fonts
+const getHouseStyleFromDatabase = async (partnerId) => {
   try {
     const response = await axios.get(
       `http://localhost:3000/api/v1/partners/${partnerId}`,
       {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       }
     );
 
-    // Assuming the partner data contains the styles directly
-    const partnerData = response.data || {};
-    const huisstijlData = partnerData.styles || fallbackStyle;
+    const huisstijlData = response.data.data.partner;
+    console.log("Huisstijl data:", huisstijlData); // Log de huisstijl data
 
-    // CSS Variabelen toepassen
-    applyStyles(huisstijlData);
-  } catch (error) {
-    console.error("Error fetching partner data:", error);
-    applyStyles(fallbackStyle); // Gebruik fallback als de API faalt
-  }
-};
-
-// CSS Variabelen toepassen
-const applyStyles = (style) => {
-  // Veilig controleren of alle noodzakelijke eigenschappen bestaan
-  if (style) {
+    // Stel de root CSS-variabelen in op basis van de opgehaalde huisstijl
     document.documentElement.style.setProperty(
       "--primary-color",
-      style.primary_color || "#9747ff"
+      huisstijlData.primary_color
     );
     document.documentElement.style.setProperty(
       "--secondary-color",
-      style.secondary_color || "#000000"
+      huisstijlData.secondary_color
     );
     document.documentElement.style.setProperty(
       "--text-color",
-      style.text_color || "#ffffff"
+      huisstijlData.text_color
     );
     document.documentElement.style.setProperty(
       "--titles-color",
-      style.titles_color || "#0071e3"
+      huisstijlData.titles_color
     );
     document.documentElement.style.setProperty(
       "--background-color",
-      style.background_color || "#ffffff"
+      huisstijlData.background_color
     );
     document.documentElement.style.setProperty(
       "--background-image",
-      style.logo_url ? `url(${style.logo_url})` : ""
+      `url(${huisstijlData.logo_url})`
     );
     document.documentElement.style.setProperty(
       "--title-font",
-      style.fontFamilyTitles || "Syne, serif"
+      huisstijlData.fontFamilyTitles || "Arial, sans-serif"
     );
     document.documentElement.style.setProperty(
       "--body-font",
-      style.fontFamilyBodyText || "DM Sans, sans-serif"
+      huisstijlData.fontFamilyBodyText || "Arial, sans-serif"
     );
 
-    // Fonts laden
-    loadFonts(style.fontFamilyBodyText, style.fontFamilyTitles);
-  } else {
-    console.error("Invalid style data received");
+    // Laad en stel de fonts in voor body en titels
+    loadFonts(huisstijlData.fontFamilyBodyText, huisstijlData.fontFamilyTitles);
+  } catch (error) {
+    console.error("Fout bij het ophalen van huisstijl:", error);
   }
 };
 
-// Functie om fonts te laden
+// Functie om de fonts van Google Fonts te laden en in te stellen
 const loadFonts = (bodyFont, titleFont) => {
+  // Als de body font is ingesteld, laad die
   if (bodyFont) {
     const bodyFontUrl = `https://fonts.googleapis.com/css2?family=${bodyFont.replace(
       / /g,
@@ -138,6 +78,7 @@ const loadFonts = (bodyFont, titleFont) => {
     addFontToDocument(bodyFontUrl);
   }
 
+  // Als de title font is ingesteld, laad die
   if (titleFont) {
     const titleFontUrl = `https://fonts.googleapis.com/css2?family=${titleFont.replace(
       / /g,
@@ -147,9 +88,10 @@ const loadFonts = (bodyFont, titleFont) => {
   }
 };
 
-// Functie om een font-link toe te voegen aan het document
+// Functie om een font-link toe te voegen aan de document head
 const addFontToDocument = (fontUrl) => {
-  if (!document.querySelector(`link[href="${fontUrl}"]`)) {
+  const existingLink = document.head.querySelector(`link[href="${fontUrl}"]`);
+  if (!existingLink) {
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = fontUrl;
@@ -157,39 +99,33 @@ const addFontToDocument = (fontUrl) => {
   }
 };
 
-// onMounted: Partnergegevens en huisstijl ophalen
-onMounted(async () => {
-  if (!partnerId) {
-    partnerId = await fetchPartnerId();
-  }
-
+// Haal de partnerId uit de JWT-token (verander userId naar partnerId)
+const tokenPayload = JSON.parse(atob(token.split(".")[1]));
+const partnerId = tokenPayload?.companyId || null;
+console.log(partnerId);
+onMounted(() => {
   if (partnerId) {
-    getPartnerStyles(partnerId); // Ophalen van huisstijl via partner
-  } else {
-    console.error(
-      "Partner ID is niet beschikbaar. Fallback-stijl wordt toegepast."
-    );
-    getPartnerStyles(null); // Gebruik fallback stijl
+    getHouseStyleFromDatabase(partnerId); // Use partnerId here
   }
 });
 </script>
 
 <template>
-  <!-- Component voor dynamische CSS-variabelen -->
+  <!-- Deze component is verantwoordelijk voor het dynamisch instellen van de root CSS-variabelen -->
   <div></div>
+  <!-- Deze component doet verder niets visueel -->
 </template>
 
 <style scoped>
-/* Fallback CSS-variabelen */
+/* Standaard CSS-variabelen voor fallback */
 :root {
   --primary-color: #9747ff;
   --secondary-color: #000000;
   --text-color: #ffffff;
   --titles-color: #0071e3;
-  --background-color: #ffffff;
-  --background-image: none;
-  --body-font: "Arial", sans-serif;
-  --title-font: "Arial", sans-serif;
+  --background-image: url("/path/to/your/image.jpg");
+  --body-font: "Arial", sans-serif; /* Standaard body font */
+  --title-font: "Arial", sans-serif; /* Standaard title font */
 }
 
 body {
