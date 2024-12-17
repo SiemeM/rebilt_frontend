@@ -93,39 +93,6 @@ const addUser = async () => {
     const userResult = await userResponse.json();
     console.log("Gebruiker succesvol aangemaakt:", userResult);
 
-    // Huisstijl toevoegen (optioneel)
-    const userId = userResult.data.user.id;
-
-    // Plaats de houseStyle gegevens binnen de 'houseStyle' sleutel
-    const houseStylePayload = {
-      houseStyle: {
-        primary_color: "#0071e3",
-        secondary_color: "#9747ff",
-        background_color: "#e5e5e5",
-        text_color: "#000000",
-        fontFamilyBodyText: "DM Sans",
-        fontFamilyTitles: "Syne",
-        logo_url: "assets/images/logo.png",
-        userId: userId,
-      },
-    };
-
-    const houseStyleResponse = await fetch(`${baseURL}/housestyle`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${jwtToken}`,
-      },
-      body: JSON.stringify(houseStylePayload), // Verzend de gegevens binnen 'houseStyle' sleutel
-    });
-
-    if (!houseStyleResponse.ok) {
-      const errorDetail = await houseStyleResponse.json();
-      throw new Error(
-        `Fout bij het toevoegen van de huisstijl: ${errorDetail.message}`
-      );
-    }
-
     // Navigeer naar gebruikerspagina
     router.push("/admin/users");
   } catch (error) {

@@ -162,25 +162,8 @@ const fetchPartnerConfigurations = async () => {
     });
 
     const configs = response.data?.data || [];
-    if (configs.length === 0) {
-      console.warn("No configurations found for the given partnerId.");
-    }
-
-    // Filter de configuraties op basis van partnerId
     partnerConfigurations.value = configs.filter(
       (config) => config.partnerId === partnerId
-    );
-
-    // Load selected configurations state from localStorage
-    const savedSelectedState =
-      JSON.parse(localStorage.getItem("selectedConfigurations")) || {};
-
-    // Mark configuraties als geselecteerd op basis van localStorage
-    selectedConfigurations.value = partnerConfigurations.value.map(
-      (config) => ({
-        ...config,
-        checked: savedSelectedState[config._id] ?? true, // Standaard instellen op true als er geen opgeslagen staat is
-      })
     );
   } catch (error) {
     console.error("Error fetching partner configurations:", error);
@@ -456,7 +439,7 @@ onMounted(() => {
     <!-- Actions menu -->
     <div class="menu">
       <div class="btns">
-        <router-link to="/admin/add-new-configuration" class="btn active"
+        <router-link to="/admin/settings" class="btn active"
           >Add New <img src="../../assets/icons/add.svg" alt="icon" />
         </router-link>
         <div

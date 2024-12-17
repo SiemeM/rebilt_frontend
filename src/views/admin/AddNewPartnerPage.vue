@@ -28,6 +28,18 @@ const contactEmail = ref("");
 const contactPhone = ref("");
 const subscriptionPackage = ref("standard"); // Herbenoemd van 'package' naar 'subscriptionPackage'
 
+// Standaard huisstijlinstellingen die altijd hetzelfde blijven
+const defaultStyles = {
+  primary_color: "#9747ff",
+  secondary_color: "#000000",
+  titles_color: "#0071e3",
+  text_color: "#ffffff",
+  background_color: "#000000",
+  fontFamilyTitles: "Syne, serif",
+  fontFamilyBodyText: "DM Sans, sans-serif",
+  logo_url: "",
+};
+
 // Validatie van het e-mailadres
 const isValidEmail = (email) => {
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -36,13 +48,18 @@ const isValidEmail = (email) => {
 
 // Functie om een nieuwe partner toe te voegen
 const addPartner = async () => {
-  // Alleen name en subscriptionPackage zijn verplicht
+  // Validatie van verplichte velden
   if (!name.value || !subscriptionPackage.value) {
     alert("Naam en pakket zijn verplicht.");
     return;
   }
 
-  // Definieer de partnerPayload hier, voordat deze wordt gebruikt
+  if (contactEmail.value && !isValidEmail(contactEmail.value)) {
+    alert("Voer een geldig e-mailadres in.");
+    return;
+  }
+
+  // Definieer de partnerPayload hier
   const partnerPayload = {
     name: name.value,
     address: {
@@ -51,9 +68,10 @@ const addPartner = async () => {
       postal_code: postalCode.value,
       country: country.value,
     },
-    contact_email: contactEmail.value,
-    contact_phone: contactPhone.value,
+    contact_email: contactEmail.value || null,
+    contact_phone: contactPhone.value || null,
     package: subscriptionPackage.value, // Gebruik hier de hernoemde variabele 'subscriptionPackage'
+    ...defaultStyles, // Voeg de standaard huisstijl toe aan het payload
   };
 
   try {
@@ -74,6 +92,7 @@ const addPartner = async () => {
     }
 
     const result = await response.json();
+    console.log("Partner succesvol toegevoegd:", result);
 
     // Redirect naar partnerspagina
     router.push("/admin/partners");
@@ -136,8 +155,8 @@ const addPartner = async () => {
             id="subscriptionPackage"
             required
           >
-            <option value="standard">standard</option>
-            <option value="pro">pro</option>
+            <option value="standard">Standard</option>
+            <option value="pro">Pro</option>
           </select>
         </div>
       </div>
@@ -148,6 +167,7 @@ const addPartner = async () => {
 </template>
 
 <style scoped>
+/* Voeg hier je stijlen toe */
 .content {
   width: 100%;
   height: 100vh;

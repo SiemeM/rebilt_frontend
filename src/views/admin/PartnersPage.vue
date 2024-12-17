@@ -113,15 +113,6 @@ onMounted(async () => {
 // Provide the user data to all components (including Navigation)
 provide("user", user); // Makes user data available to child components like Navigation
 
-// Watch for changes in user data and update the Navigation component
-watch(
-  user,
-  (newUser) => {
-    console.log("User data updated:", newUser);
-  },
-  { deep: true }
-);
-
 // Haal de producten op vanuit de API
 const fetchData = async () => {
   try {
@@ -185,10 +176,13 @@ const fetchpartners = async () => {
         Authorization: `Bearer ${token}`,
       },
     });
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
+
     const result = await response.json();
+
     if (result && result.data && result.data.partners) {
       partners.value = result.data.partners;
     } else {
@@ -348,6 +342,10 @@ onMounted(() => {
             </router-link>
           </li>
         </ul>
+
+        <div v-else class="no-partners">
+          <p>No partners found matching the selected filters.</p>
+        </div>
 
         <div v-else class="no-partners">
           <p>No partners found matching the selected filters.</p>

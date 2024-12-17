@@ -420,6 +420,7 @@ watch(
           Login settings
         </p>
         <p
+          v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
           :class="{ active: activeSection === 'configurations' }"
           @click="setActiveSection('configurations')"
         >

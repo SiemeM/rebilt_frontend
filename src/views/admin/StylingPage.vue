@@ -1,25 +1,50 @@
 <script setup>
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, onMounted, computed, watch, provide } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
 
-// Router instance and user validation
+// Router setup
 const router = useRouter();
-const token = localStorage.getItem("jwtToken");
 
+// Reactive user object to store user details (gebruik reactive voor betere reactiviteit)
+const user = reactive({
+  firstName: "",
+  lastName: "",
+  email: "",
+  newEmail: "",
+  oldEmail: "",
+  password: "",
+  newPassword: "",
+  oldPassword: "",
+  newPasswordRepeat: "",
+  country: "",
+  city: "",
+  postalCode: "",
+  profilePicture: "",
+  bio: "",
+  role: "",
+  activeUnactive: true,
+});
+
+// Authentication and token handling
+const token = localStorage.getItem("jwtToken");
 if (!token) {
   router.push("/login");
 }
 
-// JWT token parsing
 const parseJwt = (token) => {
   try {
     const base64Url = token.split(".")[1];
     const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = atob(base64);
-    return JSON.parse(decodeURIComponent(jsonPayload));
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
   } catch (error) {
     console.error("Error parsing JWT:", error);
     return null;
@@ -27,13 +52,119 @@ const parseJwt = (token) => {
 };
 
 const tokenPayload = parseJwt(token);
-const userId = tokenPayload?.userId || null;
+const userId = tokenPayload?.userId;
+const partnerId = tokenPayload?.partnerId || null;
 
 if (!userId) {
   router.push("/login");
 }
 
-// API base URL configuration
+// Partner related data
+const partnerPackage = ref(null);
+
+// Fetch user profile data
+const fetchUserProfile = async () => {
+  try {
+    const response = await axios.get(`${baseURL}/users/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const userData = response.data?.data?.user || {};
+    // Update the user object
+    user.firstName = userData.firstname || "";
+    user.lastName = userData.lastname || "";
+    user.email = userData.email || "";
+    user.oldEmail = userData.email || "";
+    user.country = userData.country || "";
+    user.city = userData.city || "";
+    user.postalCode = userData.postalCode || "";
+    user.profilePicture = userData.profilePicture || "";
+    user.bio = userData.bio || "";
+    user.role = userData.role || "";
+    user.activeUnactive = userData.activeUnactive ?? true;
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+  }
+};
+
+// Fetch partner data (if applicable)
+const fetchPartnerData = async () => {
+  if (!partnerId) return;
+
+  try {
+    const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const partner = response.data?.data?.partner || {};
+    partnerPackage.value = partner.package || "No package available";
+  } catch (error) {
+    console.error("Error fetching partner data:", error);
+    partnerPackage.value = "Error loading partner data";
+  }
+};
+
+// Fetch initial data on mount
+onMounted(async () => {
+  await fetchUserProfile();
+  await fetchPartnerData();
+});
+
+// Provide the user data to all components (including Navigation)
+provide("user", user); // Makes user data available to child components like Navigation
+
+// Watch for changes in user data and update the Navigation component
+watch(
+  user,
+  (newUser) => {
+    console.log("User data updated:", newUser);
+  },
+  { deep: true }
+);
+
+// Haal de producten op vanuit de API
+const fetchData = async () => {
+  try {
+    const token = localStorage.getItem("jwtToken"); // Use the correct variable name
+    const response = await fetch(`${baseURL}/products`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const userCompanyId = getUserCompanyId(token); // Pass the correct token here
+
+    data.value = result.data.products.filter(
+      (product) => product.partnerId === userCompanyId
+    );
+  } catch (error) {
+    console.error("Error fetching data:", error);
+  }
+};
+
+// Initialiseer component en haal data op
+onMounted(fetchData);
+
+// Definities van refs en computed properties
+const selectedTypeFilter = ref("All");
+const data = ref([]);
+
+// Haal companyId uit het JWT token
+const getUserCompanyId = (token) => {
+  if (!token) return null;
+  const decoded = JSON.parse(atob(token.split(".")[1]));
+  return decoded.companyId;
+};
+
+// Haal gegevens op bij het laden van de component
+onMounted(() => {
+  fetchData();
+});
+
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"

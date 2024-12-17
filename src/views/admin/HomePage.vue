@@ -54,7 +54,7 @@ const parseJwt = (token) => {
 const tokenPayload = parseJwt(token);
 const userId = tokenPayload?.userId;
 const partnerId = tokenPayload?.companyId || null;
-
+console.log(partnerId);
 if (!userId) {
   router.push("/login");
 }

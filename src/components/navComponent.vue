@@ -84,11 +84,6 @@ const fetchHouseStyle = async () => {
     // Haal de userId uit de `user` gegevens of via een andere manier (bijvoorbeeld via een JWT-token)
     const userId = user?.userId || getUserDataFromToken()?.userId; // Zorg ervoor dat de userId beschikbaar is
 
-    if (!userId) {
-      console.error("Geen userId gevonden");
-      return;
-    }
-
     // Bepaal de baseURL op basis van de omgeving (lokaal of productie)
     const isProduction = window.location.hostname !== "localhost";
     const baseURL = isProduction
@@ -140,7 +135,6 @@ const profileImage = computed(() => {
       :style="{ backgroundImage: 'url(' + huisstijlData.logo + ')' }"
     ></div>
     <div class="profile">
-      <!-- Add dynamic profile picture from user data -->
       <div
         class="profilePicture"
         :style="{ backgroundImage: 'url(' + profileImage + ')' }"
@@ -195,13 +189,21 @@ const profileImage = computed(() => {
         <img src="../assets/icons/settings.svg" alt="icon" />
         <p>Settings</p>
       </router-link>
-      <router-link to="/admin/myconfigurations" exact-active-class="active">
+      <router-link
+        v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
+        to="/admin/myconfigurations"
+        exact-active-class="active"
+      >
         <img src="../assets/icons/settings.svg" alt="icon" />
         <p>Mijn configurations</p>
       </router-link>
-      <router-link to="/admin/manageconfigurations" exact-active-class="active">
+      <router-link
+        v-if="user.role === 'platform_admin'"
+        to="/admin/manageconfigurations"
+        exact-active-class="active"
+      >
         <img src="../assets/icons/settings.svg" alt="icon" />
-        <p>Configurations beheren</p>
+        <p>Configurations</p>
       </router-link>
       <a @click.prevent="logout">
         <img src="../assets/icons/logout.svg" alt="icon" />

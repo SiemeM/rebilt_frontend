@@ -1,110 +1,242 @@
 <script setup>
-import { ref, onMounted } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { ref, reactive, onMounted, computed, watch, provide } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
 
-// Basis-URL afhankelijk van de omgeving
+// Router setup
+const router = useRouter();
+const route = useRoute(); // Access route information
+
+// Reactive user object to store user details
+const user = reactive({
+  firstName: "",
+  lastName: "",
+  email: "",
+  newEmail: "",
+  oldEmail: "",
+  password: "",
+  newPassword: "",
+  oldPassword: "",
+  newPasswordRepeat: "",
+  country: "",
+  city: "",
+  postalCode: "",
+  profilePicture: "",
+  bio: "",
+  role: "",
+  activeUnactive: true,
+});
+
+// JWT token and user data
+const token = localStorage.getItem("jwtToken");
+if (!token) {
+  router.push("/login");
+}
+
+const parseJwt = (token) => {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error("Error parsing JWT:", error);
+    return null;
+  }
+};
+
+const tokenPayload = parseJwt(token);
+const userId = tokenPayload?.userId;
+const partnerId = tokenPayload?.companyId || null;
+console.log(partnerId);
+if (!userId) {
+  router.push("/login");
+}
+
+// Partner related data
+const partnerPackage = ref(null);
+
+// Fetch user profile data
+const fetchUserProfile = async () => {
+  try {
+    const response = await axios.get(`${baseURL}/users/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const userData = response.data?.data?.user || {};
+    // Update the user object with the fetched data
+    user.firstName = userData.firstname || "";
+    user.lastName = userData.lastname || "";
+    user.email = userData.email || "";
+    user.oldEmail = userData.email || "";
+    user.country = userData.country || "";
+    user.city = userData.city || "";
+    user.postalCode = userData.postalCode || "";
+    user.profilePicture = userData.profilePicture || "";
+    user.bio = userData.bio || "";
+    user.role = userData.role || "";
+    user.activeUnactive = userData.activeUnactive ?? true;
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+  }
+};
+
+// Fetch partner data (if applicable)
+const fetchPartnerData = async () => {
+  if (!partnerId) return;
+
+  try {
+    const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const partner = response.data?.data?.partner || {};
+    partnerPackage.value = partner.package || "No package available";
+  } catch (error) {
+    console.error("Error fetching partner data:", error);
+    partnerPackage.value = "Error loading partner data";
+  }
+};
+
+// Fetch initial data on mount
+onMounted(async () => {
+  await fetchUserProfile();
+  await fetchPartnerData();
+});
+
+// Provide user data to all components
+provide("user", user);
+
+// Watch for changes in user data
+watch(
+  user,
+  (newUser) => {
+    console.log("User data updated:", newUser);
+  },
+  { deep: true }
+);
+
+// Product-related data and fetching
+const fetchData = async () => {
+  try {
+    const response = await fetch(`${baseURL}/products`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const userCompanyId = getUserCompanyId(token);
+
+    data.value = result.data.products.filter(
+      (product) => product.partnerId === userCompanyId
+    );
+  } catch (error) {
+    console.error("Error fetching data:", error);
+  }
+};
+
+// Get company ID from JWT token
+const getUserCompanyId = (token) => {
+  if (!token) return null;
+  const decoded = JSON.parse(atob(token.split(".")[1]));
+  return decoded.companyId;
+};
+
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
-const jwtToken = localStorage.getItem("jwtToken");
-const router = useRouter();
-const route = useRoute();
-let partnerId = route.query.partnerId; // Verkrijg de partnerId uit de queryparameters
-
-// Redirect naar login als er geen token is
-if (!jwtToken) {
-  router.push("/login");
-}
-
-// Variabelen voor configuratiegegevens
+// Configuration form data
 const fieldName = ref("");
 const fieldType = ref("");
-const optionsInput = ref(""); // Gebruiken we om de invoer voor opties vast te leggen
-const options = ref([]); // Dit wordt een array van opties
+const optionsInput = ref(""); // Input for options
+const options = ref([]); // Array of options
 
+// Fetch configuration data based on ID
 onMounted(async () => {
   const configId = route.params.id;
 
-  // Als partnerId "null" is, converteren we het naar null (JavaScript null)
-  if (partnerId === "null") {
-    partnerId = null;
-  }
-
   if (configId) {
     try {
+      // Only include the partnerId in the query string if it's available
+      const partnerQuery = partnerId ? `?partnerId=${partnerId}` : "";
       const response = await fetch(
-        `${baseURL}/configurations/${configId}?partnerId=${partnerId}`,
+        `${baseURL}/configurations/${configId}${partnerQuery}`, // Fetch with partnerId if available
         {
           headers: {
-            Authorization: `Bearer ${jwtToken}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
 
       if (!response.ok) {
-        throw new Error("Fout bij het ophalen van de configuratie.");
+        throw new Error("Error fetching configuration.");
       }
 
       const config = await response.json();
+      console.log("Received configuration:", config); // Debug output
 
-      // Log de ontvangen configuratie
-      console.log("Received configuration:", config);
-
-      // Controleer of config de nodige velden bevat
+      // Populate the form with the fetched configuration data
       const configOptions = Array.isArray(config.data.options)
         ? config.data.options
         : [];
       const configFieldName = config.data.fieldName || "";
       const configFieldType = config.data.fieldType || "";
 
-      // Vul de velden met de gegevens van de configuratie
       fieldName.value = configFieldName;
       fieldType.value = configFieldType;
-      optionsInput.value = configOptions.join(", "); // Join de opties als een string
-      options.value = configOptions; // Zet de opties als een array
-
-      // Log de ingevulde velden
-      console.log("Veldnaam:", fieldName.value);
-      console.log("Veldtype:", fieldType.value);
-      console.log("Opties:", optionsInput.value);
+      optionsInput.value = configOptions.join(", ");
+      options.value = configOptions;
     } catch (error) {
       console.error("Error fetching configuration:", error.message);
-      alert("Er is een fout opgetreden bij het ophalen van de configuratie.");
+      alert("Error fetching configuration.");
     }
   }
 });
 
-// Functie om opties om te zetten naar een array
+// Update options from input
 const updateOptions = () => {
   options.value = optionsInput.value
     .split(",")
-    .map((option) => option.trim()) // Trim de extra spaties
-    .filter((option) => option !== ""); // Verwijder lege waarden
+    .map((option) => option.trim()) // Remove extra spaces
+    .filter((option) => option !== ""); // Remove empty values
 };
 
-// Functie om een configuratie bij te werken
+// Update the configuration via API
 const updateConfiguration = async () => {
-  // Configuratie payload
   const configurationPayload = {
     fieldName: fieldName.value,
     fieldType: fieldType.value,
-    options: options.value, // Voor een dropdown, vul hier de opties in
+    options: options.value, // Dropdown options
   };
 
+  // Ensure that partnerId from token is included, only if not null
+  if (partnerId) {
+    configurationPayload.partnerId = partnerId;
+  }
+
   const configId = route.params.id;
-  const partnerQuery = partnerId ? `?partnerId=${partnerId}` : ""; // PartnerId optioneel
   try {
+    const partnerQuery = partnerId ? `?partnerId=${partnerId}` : "";
     const response = await fetch(
       `${baseURL}/configurations/${configId}${partnerQuery}`,
       {
         method: "PUT",
         headers: {
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
-          Authorization: `Bearer ${jwtToken}`,
         },
         body: JSON.stringify(configurationPayload),
       }
@@ -112,19 +244,16 @@ const updateConfiguration = async () => {
 
     if (!response.ok) {
       const errorDetail = await response.json();
-      throw new Error(
-        `Fout bij het bijwerken van de configuratie: ${errorDetail.message}`
-      );
+      throw new Error(`Error updating configuration: ${errorDetail.message}`);
     }
 
     const result = await response.json();
     console.log("Update Result:", result);
 
-    // Redirect naar de configuratiepagina
-    router.back();
+    router.back(); // Navigate back after update
   } catch (error) {
     console.error("Error updating configuration:", error.message);
-    alert("Er is een fout opgetreden bij het bijwerken van de configuratie.");
+    alert("Error updating configuration.");
   }
 };
 </script>
@@ -133,41 +262,46 @@ const updateConfiguration = async () => {
   <DynamicStyle />
   <Navigation />
   <div class="content">
-    <h1>Configuratie Bewerken</h1>
+    <h1>Edit Configuration</h1>
     <form @submit.prevent="updateConfiguration">
       <div class="row">
         <div class="column">
-          <label for="fieldName">Veldnaam:</label>
-          <input v-model="fieldName" id="fieldName" type="text" required />
+          <label for="fieldName">Field Name:</label>
+          <input
+            v-model="fieldName"
+            id="fieldName"
+            type="text"
+            :placeholder="fieldName || 'Enter field name'"
+            required
+          />
         </div>
       </div>
       <div class="row">
         <div class="column">
-          <label for="fieldType">Veldtype:</label>
+          <label for="fieldType">Field Type:</label>
           <select v-model="fieldType" id="fieldType" required>
-            <option value="">Selecteer een veldtype</option>
-            <option value="Text">Tekst</option>
+            <option value="">Select field type</option>
+            <option value="Text">Text</option>
             <option value="Dropdown">Dropdown</option>
-            <!-- Voeg hier eventueel andere veldtypes toe -->
           </select>
         </div>
       </div>
 
       <div class="row" v-if="fieldType === 'Dropdown'">
         <div class="column">
-          <label for="options">Opties:</label>
+          <label for="options">Options:</label>
           <input
             v-model="optionsInput"
             id="options"
             type="text"
-            placeholder="Voer opties in, gescheiden door komma's"
+            placeholder="Enter options separated by commas"
             @input="updateOptions"
           />
-          <small>Bijv. Optie 1, Optie 2, Optie 3</small>
+          <small>Example: Option 1, Option 2, Option 3</small>
         </div>
       </div>
 
-      <button type="submit" class="btn active">Update Configuratie</button>
+      <button type="submit" class="btn active">Update Configuration</button>
     </form>
   </div>
 </template>

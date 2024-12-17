@@ -279,7 +279,7 @@ onMounted(fetchData);
     </div>
     <div class="menu">
       <div class="btns">
-        <router-link exact to="/admin/AddNewUserPage" class="btn active">
+        <router-link exact to="/admin/add-new-user" class="btn active">
           <p>Add new</p>
           <img src="../../assets/icons/add.svg" alt="icon" />
         </router-link>
