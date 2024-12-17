@@ -11,6 +11,18 @@ if (!token) {
   router.push("/login");
 }
 
+// Definieer fallback stijlen
+const fallbackStyle = {
+  primary_color: "#9747ff",
+  secondary_color: "#000000",
+  text_color: "#ffffff",
+  titles_color: "#0071e3",
+  background_color: "#000000",
+  logo_url: "",
+  fontFamilyTitles: "Arial, sans-serif",
+  fontFamilyBodyText: "Arial, sans-serif",
+};
+
 // Functie om de huisstijl op te halen, inclusief fonts
 const getHouseStyleFromDatabase = async (partnerId) => {
   try {
@@ -23,7 +35,7 @@ const getHouseStyleFromDatabase = async (partnerId) => {
       }
     );
 
-    const huisstijlData = response.data.data.partner;
+    const huisstijlData = response.data.data.partner || fallbackStyle;
     console.log("Huisstijl data:", huisstijlData); // Log de huisstijl data
 
     // Stel de root CSS-variabelen in op basis van de opgehaalde huisstijl
@@ -53,17 +65,19 @@ const getHouseStyleFromDatabase = async (partnerId) => {
     );
     document.documentElement.style.setProperty(
       "--title-font",
-      huisstijlData.fontFamilyTitles || "Arial, sans-serif"
+      huisstijlData.fontFamilyTitles
     );
     document.documentElement.style.setProperty(
       "--body-font",
-      huisstijlData.fontFamilyBodyText || "Arial, sans-serif"
+      huisstijlData.fontFamilyBodyText
     );
 
     // Laad en stel de fonts in voor body en titels
     loadFonts(huisstijlData.fontFamilyBodyText, huisstijlData.fontFamilyTitles);
   } catch (error) {
     console.error("Fout bij het ophalen van huisstijl:", error);
+    // Als de API-aanroep mislukt, stel de fallback stijl in
+    applyFallbackStyles();
   }
 };
 
@@ -99,13 +113,52 @@ const addFontToDocument = (fontUrl) => {
   }
 };
 
+// Functie om de fallback stijlen toe te passen
+const applyFallbackStyles = () => {
+  document.documentElement.style.setProperty(
+    "--primary-color",
+    fallbackStyle.primary_color
+  );
+  document.documentElement.style.setProperty(
+    "--secondary-color",
+    fallbackStyle.secondary_color
+  );
+  document.documentElement.style.setProperty(
+    "--text-color",
+    fallbackStyle.text_color
+  );
+  document.documentElement.style.setProperty(
+    "--titles-color",
+    fallbackStyle.titles_color
+  );
+  document.documentElement.style.setProperty(
+    "--background-color",
+    fallbackStyle.background_color
+  );
+  document.documentElement.style.setProperty(
+    "--background-image",
+    `url(${fallbackStyle.logo_url})`
+  );
+  document.documentElement.style.setProperty(
+    "--title-font",
+    fallbackStyle.fontFamilyTitles
+  );
+  document.documentElement.style.setProperty(
+    "--body-font",
+    fallbackStyle.fontFamilyBodyText
+  );
+  loadFonts(fallbackStyle.fontFamilyBodyText, fallbackStyle.fontFamilyTitles);
+};
+
 // Haal de partnerId uit de JWT-token (verander userId naar partnerId)
 const tokenPayload = JSON.parse(atob(token.split(".")[1]));
 const partnerId = tokenPayload?.companyId || null;
 console.log(partnerId);
 onMounted(() => {
   if (partnerId) {
-    getHouseStyleFromDatabase(partnerId); // Use partnerId here
+    getHouseStyleFromDatabase(partnerId); // Gebruik partnerId hier
+  } else {
+    applyFallbackStyles(); // Pas fallback stijl toe als geen partnerId beschikbaar is
   }
 });
 </script>
