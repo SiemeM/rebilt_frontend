@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
@@ -22,19 +22,43 @@ const firstname = ref("");
 const lastname = ref("");
 const email = ref("");
 const password = ref("");
-const role = ref("customer"); // Standaardwaarde aangepast
+const role = ref("customer");
 const status = ref("active");
-const company = ref("");
+const partner = ref(""); // Dit wordt de gekozen partner
 const country = ref("");
 const city = ref("");
 const postalCode = ref("");
 const profileImage = ref("");
 const bio = ref("");
+const partners = ref([]); // Lijst van partners
 
 const isValidEmail = (email) => {
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailPattern.test(email);
 };
+
+// Haal de partners op bij het laden van de component
+onMounted(async () => {
+  try {
+    const response = await fetch(`${baseURL}/partners`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwtToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Fout bij het ophalen van partners");
+    }
+
+    const data = await response.json();
+    partners.value = data.data.partners || []; // Zorg ervoor dat we de juiste gegevens gebruiken
+  } catch (error) {
+    console.error("Error fetching partners:", error.message);
+    alert("Er is een fout opgetreden bij het ophalen van de partners.");
+  }
+});
 
 const addUser = async () => {
   if (
@@ -62,12 +86,12 @@ const addUser = async () => {
         email: email.value,
         password: password.value,
         role: role.value,
-        activeUnactive: status.value, // activeUnactive wordt gebruikt i.p.v. status
+        activeUnactive: status.value,
       },
     };
 
     // Voeg alleen optionele velden toe als ze niet leeg zijn
-    if (company.value) userPayload.user.company = company.value;
+    if (partner.value) userPayload.user.partner = partner.value;
     if (country.value) userPayload.user.country = country.value;
     if (city.value) userPayload.user.city = city.value;
     if (postalCode.value) userPayload.user.postalCode = postalCode.value;
@@ -153,8 +177,17 @@ const addUser = async () => {
       <!-- Optionele velden -->
       <div class="row">
         <div class="column">
-          <label for="company">Company (optioneel):</label>
-          <input v-model="company" id="company" type="text" />
+          <label for="partner">Partner (optioneel):</label>
+          <select v-model="partner" id="partner">
+            <option value="">Selecteer een partner</option>
+            <option
+              v-for="partner in partners"
+              :key="partner._id"
+              :value="partner.name"
+            >
+              {{ partner.name }}
+            </option>
+          </select>
         </div>
         <div class="column">
           <label for="country">Country (optioneel):</label>
