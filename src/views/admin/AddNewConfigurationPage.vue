@@ -1,7 +1,6 @@
 <script setup>
-import { ref, reactive, onMounted, computed, watch, provide } from "vue";
+import { ref } from "vue";
 import { useRouter } from "vue-router";
-import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
 
@@ -19,77 +18,34 @@ if (!jwtToken) {
   router.push("/login");
 }
 
-// Reactive user object
-const user = reactive({
-  firstName: "",
-  lastName: "",
-  email: "",
-  newEmail: "",
-  oldEmail: "",
-  password: "",
-  newPassword: "",
-  oldPassword: "",
-  newPasswordRepeat: "",
-  country: "",
-  city: "",
-  postalCode: "",
-  profilePicture: "",
-  bio: "",
-  role: "",
-  activeUnactive: true,
-});
-
-const token = localStorage.getItem("jwtToken");
-if (!token) {
-  router.push("/login");
-}
-
-const parseJwt = (token) => {
-  try {
-    const base64Url = token.split(".")[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
-    );
-    return JSON.parse(jsonPayload);
-  } catch (error) {
-    console.error("Error parsing JWT:", error);
-    return null;
-  }
-};
-
-const tokenPayload = parseJwt(token);
-const userId = tokenPayload?.userId;
-const partnerId = tokenPayload?.partnerId || null;
-
-if (!userId) {
-  router.push("/login");
-}
-
 // Variabelen voor configuratiegegevens
 const fieldName = ref("");
 const fieldType = ref("");
 const optionsInput = ref("");
-const options = ref([]);
-const colorInput = ref(""); // Input voor kleurconfiguratie
-const selectedColors = ref([]); // Opslag voor meerdere geselecteerde kleuren
+const options = ref([]); // Dit zal de kleur-ID's bevatten
 
-// Functie om opties om te zetten naar een array
-const updateOptions = () => {
-  options.value = optionsInput.value
-    .split(",")
-    .map((option) => option.trim())
-    .filter((option) => option !== "");
+// Kleur input
+const colorInput = ref(""); // Input voor kleurconfiguratie
+const selectedColors = ref([]); // Dit slaat de geselecteerde kleuren op als kleur-ID's
+
+// Functie om een unieke kleur-ID te genereren (UUID)
+const generateUniqueId = () => {
+  return "_" + Math.random().toString(36).substr(2, 9); // Dit genereert een eenvoudige unieke ID
 };
 
 // Functie om kleur toe te voegen aan de geselecteerde kleuren
 const addColor = () => {
   if (colorInput.value && !selectedColors.value.includes(colorInput.value)) {
-    selectedColors.value.push(colorInput.value);
+    // Genereer een unieke ID voor de kleur
+    const colorId = generateUniqueId();
+
+    // Voeg de kleur-ID toe aan de opties-array en de naam voor weergave
+    selectedColors.value.push({ id: colorId, hex: colorInput.value });
+    options.value.push(colorId); // Voeg de kleur-ID toe aan de opties
+
     colorInput.value = ""; // Reset de kleurinput
+  } else {
+    console.error("De geselecteerde kleur heeft geen bijbehorende kleur-ID.");
   }
 };
 
@@ -98,16 +54,15 @@ const addConfiguration = async () => {
   const configurationPayload = {
     fieldName: fieldName.value,
     fieldType: fieldType.value,
-    options: options.value,
-    colors: selectedColors.value, // Voeg de geselecteerde kleuren toe
-    isColor: fieldType.value === "Color" ? true : false, // Voeg isColor toe als het een kleurveld is
+    options:
+      fieldType.value === "Color"
+        ? selectedColors.value.map((c) => c.hex) // Stuur hex-waarden als opties
+        : options.value,
+    isColor: fieldType.value === "Color",
   };
 
-  if (fieldType.value === "Dropdown" && !options.value.length) {
-    return;
-  }
-
   try {
+    console.log("Sending request to add configuration...");
     const response = await fetch(`${baseURL}/configurations`, {
       method: "POST",
       headers: {
@@ -119,17 +74,27 @@ const addConfiguration = async () => {
 
     if (!response.ok) {
       const errorDetail = await response.json();
+      console.error("Error from server:", errorDetail);
       throw new Error(
         `Fout bij het toevoegen van de configuratie: ${errorDetail.message}`
       );
     }
 
     const result = await response.json();
+    console.log("Configuration added successfully:", result);
     router.back();
   } catch (error) {
     console.error("Error adding configuration:", error.message);
     alert("Er is een fout opgetreden bij het toevoegen van de configuratie.");
   }
+};
+
+const updateOptions = () => {
+  // Verwerk de tekst in het invoerveld en zet om naar een array
+  options.value = optionsInput.value
+    .split(",") // Split de string op komma's
+    .map((opt) => opt.trim()) // Verwijder eventuele spaties rond de waarde
+    .filter((opt) => opt); // Filter lege waarden eruit
 };
 </script>
 
@@ -186,9 +151,13 @@ const addConfiguration = async () => {
           <li
             v-for="(color, index) in selectedColors"
             :key="index"
-            :style="{ backgroundColor: color }"
+            :style="{
+              backgroundColor: color.hex,
+            }"
             class="color-circle"
-          ></li>
+          >
+            {{ color.hex }}
+          </li>
         </ul>
       </div>
 
@@ -198,6 +167,7 @@ const addConfiguration = async () => {
 </template>
 
 <style scoped>
+/* Stijl voor de pagina */
 .content {
   width: 100%;
   height: 100vh;
