@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted, computed, watch, provide } from "vue";
+import { ref, reactive, onMounted, computed, provide } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
@@ -8,7 +8,7 @@ import DynamicStyle from "../../components/DynamicStyle.vue";
 // Router setup
 const router = useRouter();
 
-// Reactive user object to store user details (gebruik reactive voor betere reactiviteit)
+// Reactive user object to store user details
 const user = reactive({
   firstName: "",
   lastName: "",
@@ -28,28 +28,11 @@ const user = reactive({
   activeUnactive: true,
 });
 
-// Authentication and token handling
+// JWT Token handling
 const token = localStorage.getItem("jwtToken");
 if (!token) {
   router.push("/login");
 }
-
-const decodeToken = (token) => {
-  if (!token) return null;
-  const base64Payload = token.split(".")[1];
-  const decodedPayload = JSON.parse(atob(base64Payload));
-  return decodedPayload; // Dit bevat de payload, inclusief de partner-id
-};
-
-// JWT-token controle
-const jwtToken = localStorage.getItem("jwtToken");
-if (!jwtToken) {
-  router.push("/login");
-}
-
-const decoded = decodeToken(token);
-const decodedToken = decodeToken(jwtToken);
-const userPartnerId = decodedToken?.companyId;
 
 const parseJwt = (token) => {
   try {
@@ -70,20 +53,24 @@ const parseJwt = (token) => {
 
 const tokenPayload = parseJwt(token);
 const userId = tokenPayload?.userId;
-const partnerId = tokenPayload?.partnerId || null;
+const partnerId = tokenPayload?.companyId || null;
 
 if (!userId) {
   router.push("/login");
 }
 
-// Base URL for API calls
-const isProduction = window.location.hostname !== "localhost";
-const baseURL = isProduction
-  ? "https://https://rebilt-backend.onrender.com/api/v1"
-  : "http://localhost:3000/api/v1";
+// API base URL
+const baseURL =
+  window.location.hostname !== "localhost"
+    ? "https://rebilt-backend.onrender.com/api/v1"
+    : "http://localhost:3000/api/v1";
 
-// Partner related data
+// Reactive references for partner data and configurations
 const partnerPackage = ref(null);
+const configurations = ref([]);
+const partnerConfigurations = ref([]);
+const loadingConfigurations = ref(false);
+const optionsMap = reactive({});
 
 // Fetch user profile data
 const fetchUserProfile = async () => {
@@ -91,9 +78,7 @@ const fetchUserProfile = async () => {
     const response = await axios.get(`${baseURL}/users/${userId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-
     const userData = response.data?.data?.user || {};
-    // Update the user object
     user.firstName = userData.firstname || "";
     user.lastName = userData.lastname || "";
     user.email = userData.email || "";
@@ -118,7 +103,6 @@ const fetchPartnerData = async () => {
     const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-
     const partner = response.data?.data?.partner || {};
     partnerPackage.value = partner.package || "No package available";
   } catch (error) {
@@ -127,101 +111,75 @@ const fetchPartnerData = async () => {
   }
 };
 
-// Fetch initial data on mount
-onMounted(async () => {
-  await fetchUserProfile();
-  await fetchPartnerData();
-});
-
-// Provide the user data to all components (including Navigation)
-provide("user", user); // Makes user data available to child components like Navigation
-
-// Fetch product data
-const fetchData = async () => {
+const fetchConfigurations = async () => {
+  loadingConfigurations.value = true;
   try {
-    const response = await fetch(`${baseURL}/products`, {
+    const response = await axios.get(`${baseURL}/configurations`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-    const result = await response.json();
-    const userCompanyId = getUserCompanyId(token);
-    data.value = result.data.products.filter(
-      (product) => product.partnerId === userCompanyId
-    );
+    console.log("Configurations response:", response); // Voeg logging toe
+    configurations.value = response.data?.data || [];
   } catch (error) {
-    console.error("Error fetching data:", error);
+    console.error("Error fetching configurations:", error);
+    configurations.value = [];
+  } finally {
+    loadingConfigurations.value = false;
   }
 };
 
-// Fetch partner configurations
 const fetchPartnerConfigurations = async () => {
+  loadingConfigurations.value = true;
   try {
     const [configResponse, optionsResponse] = await Promise.all([
-      axios.get(`${baseURL}/configurations`, {
+      axios.get(`${baseURL}/partnerconfigurations`, {
         headers: { Authorization: `Bearer ${token}` },
       }),
       axios.get(`${baseURL}/options`, {
         headers: { Authorization: `Bearer ${token}` },
       }),
     ]);
+    console.log("Partner Configurations response:", configResponse); // Voeg logging toe
+    console.log("Options response:", optionsResponse); // Voeg logging toe
 
     const configs = configResponse.data?.data || [];
     const options = optionsResponse.data?.data || [];
 
+    // Map options by their IDs
+    options.forEach((option) => {
+      optionsMap[option._id] = option;
+    });
+
+    // Filter configurations to only include those where the partnerId matches
     partnerConfigurations.value = configs.filter(
       (config) => config.partnerId === partnerId
     );
-    optionsMap.value = options.reduce((acc, option) => {
-      acc[option._id] = option.name;
-      return acc;
-    }, {});
   } catch (error) {
     console.error("Error fetching partner configurations or options:", error);
-    partnerConfigurations.value = []; // Ensure partnerConfigurations is an empty array on error
+    partnerConfigurations.value = [];
+  } finally {
+    loadingConfigurations.value = false;
   }
 };
 
-// Helper function to get the user company ID from JWT
-const getUserCompanyId = (token) => {
-  if (!token) return null;
-  const decoded = JSON.parse(atob(token.split(".")[1]));
-  return decoded.companyId;
-};
-
-// Fetch data when component mounts
+// Fetch initial data on mount
 onMounted(async () => {
   await fetchUserProfile();
   await fetchPartnerData();
-  await fetchData();
   await fetchPartnerConfigurations();
+  await fetchConfigurations();
 });
 
-// Reactive references and computed properties
-const selectedTypeFilter = ref("All");
-const data = ref([]);
-const searchTerm = ref("");
+// Provide user data globally
+provide("user", user);
+
+// Search and product selection logic
 const selectedProducts = ref([]);
 const isDeleteButtonVisible = computed(() => selectedProducts.value.length > 0);
 const isPopupVisible = ref(false);
-const partnerConfigurations = ref([]); // Initialize as empty array
-const optionsMap = ref({});
+const selectedConfigurations = ref([]);
+const searchTerm = ref(""); // Add this line in your setup() function
 
-const filteredConfigurations = computed(() => {
-  // Safely check for partnerConfigurations.value
-  return partnerConfigurations.value && partnerConfigurations.value.length > 0
-    ? partnerConfigurations.value.filter(
-        (config) =>
-          config.partnerId === partnerId &&
-          Object.values(config)
-            .join(" ")
-            .toLowerCase()
-            .includes(searchTerm.value.toLowerCase())
-      )
-    : []; // Return an empty array if partnerConfigurations is empty or undefined
-});
-
-// Handling product selection
+// Handle product selection
 const toggleSelection = (productId) => {
   const index = selectedProducts.value.indexOf(productId);
   if (index === -1) {
@@ -231,107 +189,14 @@ const toggleSelection = (productId) => {
   }
 };
 
-// Select or deselect all products
+// Handle select/deselect all products
 const toggleSelectAll = (event) => {
   selectedProducts.value = event.target.checked
-    ? data.value.map((product) => product._id)
+    ? configurations.value.map((product) => product._id)
     : [];
 };
 
-// Handle product deletion
-const deleteSelectedProducts = () => {
-  if (selectedProducts.value.length === 0) return;
-  showPopup();
-};
-
-const confirmDelete = async () => {
-  await deleteProducts();
-  hidePopup();
-};
-
-// Cloudinary image deletion helpers
-const extractPublicId = (imageUrl) => {
-  try {
-    const parts = imageUrl.split("/image/upload/");
-    if (parts.length < 2) return null;
-
-    let publicIdWithVersion = parts[1];
-    const publicIdParts = publicIdWithVersion.split("/");
-
-    if (
-      publicIdParts[0].startsWith("v") &&
-      !isNaN(Number(publicIdParts[0].slice(1)))
-    ) {
-      publicIdParts.shift();
-    }
-
-    return publicIdParts.join("/").split(".")[0];
-  } catch (error) {
-    console.error("Error extracting public_id:", error);
-    return null;
-  }
-};
-
-const deleteImageFromCloudinary = async (imageUrl) => {
-  const publicId = extractPublicId(imageUrl);
-  if (!publicId) return;
-
-  try {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const signature = generateSignature(timestamp, publicId);
-
-    const response = await fetch(
-      "https://api.cloudinary.com/v1_1/dzempjvto/image/destroy",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          public_id: publicId,
-          api_key: "496836855294519",
-          timestamp: timestamp,
-          signature: signature,
-        }),
-      }
-    );
-
-    const result = await response.json();
-    if (result.result !== "ok") {
-      throw new Error("Cloudinary delete failed: " + result.result);
-    }
-  } catch (error) {
-    console.error("Error deleting image from Cloudinary:", error);
-  }
-};
-
-const deleteProducts = async () => {
-  try {
-    for (const id of selectedProducts.value) {
-      const product = data.value.find((product) => product._id === id);
-      if (product && product.images && product.images.length > 0) {
-        for (const imageUrl of product.images) {
-          await deleteImageFromCloudinary(imageUrl);
-        }
-      }
-
-      const response = await fetch(`${baseURL}/products/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-    }
-
-    await fetchData();
-    selectedProducts.value = [];
-  } catch (error) {
-    console.error("Error deleting products:", error);
-    alert("An error occurred while deleting products.");
-  }
-};
-
-// Show and hide popup for confirmation
+// Handle delete confirmation
 const showPopup = () => {
   isPopupVisible.value = true;
 };
@@ -339,6 +204,30 @@ const showPopup = () => {
 const hidePopup = () => {
   isPopupVisible.value = false;
 };
+
+const getOptionsNames = (optionIds) => {
+  if (!Array.isArray(optionIds) || optionIds.length === 0) {
+    return "No options"; // Geef "No options" terug als er geen opties zijn
+  }
+  return optionIds
+    .map((optionId) => optionsMap[optionId]?.name)
+    .filter(Boolean)
+    .join(", ");
+};
+
+// Get full configuration data for partner's configurations
+const getFullConfiguration = (partnerConfig) => {
+  // Find the full configuration in the 'configurations' array using 'configurationId'
+  return (
+    configurations.value.find(
+      (config) => config._id === partnerConfig.configurationId
+    ) || {}
+  ); // Return an empty object if no matching configuration is found
+};
+
+console.log(configurations.value); // Controleer of configuraties goed geladen zijn
+console.log(partnerConfigurations.value); // Controleer de partnerconfiguraties
+console.log(optionsMap); // Controleer de opties
 </script>
 
 <template>
@@ -359,12 +248,15 @@ const hidePopup = () => {
     <!-- Actions menu -->
     <div class="menu">
       <div class="btns">
-        <router-link to="/admin/settings" class="btn active"
-          >Add New <img src="../../assets/icons/add.svg" alt="icon" />
+        <router-link to="/admin/settings" class="btn active">
+          Add New <img src="../../assets/icons/add.svg" alt="icon" />
         </router-link>
         <div
           class="btn display"
-          :style="{ visibility: isDeleteButtonVisible ? 'visible' : 'hidden' }"
+          :style="{
+            visibility:
+              selectedConfigurations.length > 0 ? 'visible' : 'hidden',
+          }"
           @click="showPopup"
         >
           <p>Delete item(s)</p>
@@ -380,15 +272,6 @@ const hidePopup = () => {
     <!-- Configurations table -->
     <div class="configurations">
       <div class="top">
-        <input
-          v-if="filteredConfigurations.length > 0"
-          type="checkbox"
-          @change="toggleSelectAll"
-          :checked="
-            selectedConfigurations.length === filteredConfigurations.length &&
-            filteredConfigurations.length > 0
-          "
-        />
         <p>Field Name</p>
         <p>Type</p>
         <p>Options</p>
@@ -396,7 +279,7 @@ const hidePopup = () => {
 
       <div class="table-container">
         <div
-          v-for="config in filteredConfigurations"
+          v-for="config in partnerConfigurations"
           :key="config._id"
           class="listItem"
         >
@@ -405,32 +288,18 @@ const hidePopup = () => {
             :checked="selectedConfigurations.includes(config._id)"
             @change="toggleSelection(config._id)"
           />
-          <router-link
-            :to="{
-              name: 'EditConfiguration',
-              params: { id: config._id },
-              query: { partnerId: config.partnerId },
-            }"
-          >
-            <p>{{ config.fieldName }}</p>
-            <p>{{ config.fieldType }}</p>
-            <p>
-              {{
-                config.options
-                  .map((optionId) => optionsMap[optionId])
-                  .join(", ")
-              }}
-            </p>
+          <router-link :to="'/admin/settings/' + config._id" class="name">
+            <p>{{ getFullConfiguration(config)?.fieldName || "No name" }}</p>
           </router-link>
+          <p>{{ getFullConfiguration(config)?.fieldType || "No type" }}</p>
+          <p>
+            {{
+              getOptionsNames(getFullConfiguration(config)?.options) ||
+              "No options"
+            }}
+          </p>
         </div>
       </div>
-
-      <p
-        v-if="!partnerConfigurations || partnerConfigurations.length === 0"
-        class="no-configurations"
-      >
-        No configurations found.
-      </p>
     </div>
   </div>
 </template>
