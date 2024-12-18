@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted, computed, watch, provide } from "vue";
+import { ref, reactive, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
@@ -7,30 +7,15 @@ import DynamicStyle from "../../components/DynamicStyle.vue";
 
 // Router setup
 const router = useRouter();
-const route = useRoute(); // Access route information
+const route = useRoute();
 
-// Reactive user object to store user details
-const user = reactive({
-  firstName: "",
-  lastName: "",
-  email: "",
-  newEmail: "",
-  oldEmail: "",
-  password: "",
-  newPassword: "",
-  oldPassword: "",
-  newPasswordRepeat: "",
-  country: "",
-  city: "",
-  postalCode: "",
-  profilePicture: "",
-  bio: "",
-  role: "",
-  activeUnactive: true,
-});
-
-// JWT token and user data
+// Auth & API setup
 const token = localStorage.getItem("jwtToken");
+const baseURL =
+  window.location.hostname !== "localhost"
+    ? "https://rebilt-backend.onrender.com/api/v1"
+    : "http://localhost:3000/api/v1";
+
 if (!token) {
   router.push("/login");
 }
@@ -55,214 +40,174 @@ const parseJwt = (token) => {
 const tokenPayload = parseJwt(token);
 const userId = tokenPayload?.userId;
 const partnerId = tokenPayload?.companyId || null;
-console.log(partnerId);
+
 if (!userId) {
   router.push("/login");
 }
 
-// Partner related data
-const partnerPackage = ref(null);
-
-// Fetch user profile data
-const fetchUserProfile = async () => {
-  try {
-    const response = await axios.get(`${baseURL}/users/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const userData = response.data?.data?.user || {};
-    // Update the user object with the fetched data
-    user.firstName = userData.firstname || "";
-    user.lastName = userData.lastname || "";
-    user.email = userData.email || "";
-    user.oldEmail = userData.email || "";
-    user.country = userData.country || "";
-    user.city = userData.city || "";
-    user.postalCode = userData.postalCode || "";
-    user.profilePicture = userData.profilePicture || "";
-    user.bio = userData.bio || "";
-    user.role = userData.role || "";
-    user.activeUnactive = userData.activeUnactive ?? true;
-  } catch (error) {
-    console.error("Error fetching user profile:", error);
-  }
-};
-
-// Fetch partner data (if applicable)
-const fetchPartnerData = async () => {
-  if (!partnerId) return;
-
-  try {
-    const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const partner = response.data?.data?.partner || {};
-    partnerPackage.value = partner.package || "No package available";
-  } catch (error) {
-    console.error("Error fetching partner data:", error);
-    partnerPackage.value = "Error loading partner data";
-  }
-};
-
-// Fetch initial data on mount
-onMounted(async () => {
-  await fetchUserProfile();
-  await fetchPartnerData();
-});
-
-// Provide user data to all components
-provide("user", user);
-
-// Watch for changes in user data
-watch(
-  user,
-  (newUser) => {
-    console.log("User data updated:", newUser);
-  },
-  { deep: true }
-);
-
-// Product-related data and fetching
-const fetchData = async () => {
-  try {
-    const response = await fetch(`${baseURL}/products`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
-    const userCompanyId = getUserCompanyId(token);
-
-    data.value = result.data.products.filter(
-      (product) => product.partnerId === userCompanyId
-    );
-  } catch (error) {
-    console.error("Error fetching data:", error);
-  }
-};
-
-// Get company ID from JWT token
-const getUserCompanyId = (token) => {
-  if (!token) return null;
-  const decoded = JSON.parse(atob(token.split(".")[1]));
-  return decoded.companyId;
-};
-
-const isProduction = window.location.hostname !== "localhost";
-const baseURL = isProduction
-  ? "https://rebilt-backend.onrender.com/api/v1"
-  : "http://localhost:3000/api/v1";
-
-// Configuration form data
+// Reactive data for configuration form
 const fieldName = ref("");
 const fieldType = ref("");
-const optionsInput = ref(""); // Input for options
-const options = reactive([]); // Array of options (reactive for better updates)
+const optionsInput = ref("");
+const colorInput = ref(""); // For color type
+const colorOptions = reactive([]); // Store color options with names and color codes
+const options = reactive([]); // Dropdown options (names)
+const isLoading = ref(false);
 
-// Fetch configuration data based on ID
-onMounted(async () => {
-  const configId = route.params.id;
-
-  if (configId) {
-    try {
-      // Only include the partnerId in the query string if it's available
-      const partnerQuery = partnerId ? `?partnerId=${partnerId}` : "";
-      const response = await fetch(
-        `${baseURL}/configurations/${configId}${partnerQuery}`, // Fetch with partnerId if available
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Error fetching configuration.");
-      }
-
-      const config = await response.json();
-      console.log("Received configuration:", config); // Debug output
-
-      // Populate the form with the fetched configuration data
-      const configOptions = Array.isArray(config.data.options)
-        ? config.data.options.map((option) => option.name) // Only keep the names
-        : [];
-      const configFieldName = config.data.fieldName || "";
-      const configFieldType = config.data.fieldType || "";
-
-      fieldName.value = configFieldName;
-      fieldType.value = configFieldType;
-      optionsInput.value = configOptions.join(", ");
-      options.splice(0, options.length, ...configOptions); // Update options reactively
-    } catch (error) {
-      console.error("Error fetching configuration:", error.message);
-      alert("Error fetching configuration.");
-    }
+// Helper function to fetch option names by ID
+const fetchOptionNameById = async (optionId) => {
+  try {
+    const response = await axios.get(`${baseURL}/options/${optionId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data?.data?.name || `Unknown (${optionId})`;
+  } catch (error) {
+    console.error(`Error fetching option ${optionId}:`, error.message);
+    return `Unknown (${optionId})`;
   }
-});
+};
 
-// Update options from input
+// Update options based on input (for dropdown)
 const updateOptions = () => {
-  console.log("Input value:", optionsInput.value); // Check the current input value
   options.splice(
     0,
     options.length,
     ...optionsInput.value
       .split(",")
-      .map((option) => option.trim())
-      .filter((option) => option !== "")
-  ); // Update the options value reactively
-
-  // Show the updated options in the UI (optional)
-  console.log("Updated options:", options); // Logs the updated array
+      .map((opt) => opt.trim())
+      .filter((opt) => opt !== "")
+  );
 };
 
-// Update the configuration via API
+// Add color to the list of color options
+// Add color to the list of color options
+const addColorToList = async () => {
+  if (colorInput.value) {
+    try {
+      // Make an API request to create a new color option
+      const response = await axios.post(
+        `${baseURL}/options`,
+        {
+          name: colorInput.value, // Store color code as the name
+          type: "Color", // Specify this is a Color option
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const colorOption = response.data.data;
+      colorOptions.push({
+        name: colorInput.value, // Use the color code as the name (this is what we want)
+        colorCode: colorOption._id, // Store the _id of the created option
+      });
+      colorInput.value = ""; // Clear the color input after adding
+    } catch (error) {
+      console.error("Error adding color:", error.message);
+      alert("Failed to add color. Please try again.");
+    }
+  } else {
+    alert("Please select a color.");
+  }
+};
+
+// Update the configuration
 const updateConfiguration = async () => {
+  if (!fieldName.value.trim()) {
+    alert("Field name cannot be empty.");
+    return;
+  }
+
+  // Check if dropdown options or color input is valid
+  if (fieldType.value === "Dropdown" && options.length === 0) {
+    alert("Please provide at least one option for the dropdown.");
+    return;
+  }
+
+  if (fieldType.value === "Color" && colorOptions.length === 0) {
+    alert("Please select at least one color.");
+    return;
+  }
+
+  const configId = route.params.id;
   const configurationPayload = {
     fieldName: fieldName.value,
     fieldType: fieldType.value,
-    options: options, // Dropdown options
+    // For color, pass all the selected colors
+    options:
+      fieldType.value === "Color"
+        ? colorOptions.map((c) => c.name) // Use the color name (or colorCode if preferred) instead of the _id
+        : options,
+    ...(fieldType.value === "Color" && { isColor: true }),
   };
 
-  // Ensure that partnerId from token is included, only if not null
   if (partnerId) {
     configurationPayload.partnerId = partnerId;
   }
 
-  const configId = route.params.id;
   try {
-    const partnerQuery = partnerId ? `?partnerId=${partnerId}` : "";
-    const response = await fetch(
-      `${baseURL}/configurations/${configId}${partnerQuery}`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(configurationPayload),
-      }
+    isLoading.value = true;
+    const response = await axios.put(
+      `${baseURL}/configurations/${configId}`,
+      configurationPayload,
+      { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    if (!response.ok) {
-      const errorDetail = await response.json();
-      throw new Error(`Error updating configuration: ${errorDetail.message}`);
-    }
-
-    const result = await response.json();
-    console.log("Update Result:", result);
-    router.back(); // Navigate back after update
+    console.log("Configuration updated:", response.data);
+    router.back();
   } catch (error) {
     console.error("Error updating configuration:", error.message);
-    alert("Error updating configuration. Please try again.");
+    alert("Failed to update configuration. Please try again.");
+  } finally {
+    isLoading.value = false;
   }
 };
+
+// Update the configuration
+// Fetch configuration data
+const fetchConfiguration = async () => {
+  const configId = route.params.id;
+  if (!configId) {
+    alert("Configuration ID is missing.");
+    router.push("/configurations");
+    return;
+  }
+
+  try {
+    const response = await axios.get(`${baseURL}/configurations/${configId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const config = response.data?.data || {};
+    fieldName.value = config.fieldName || "";
+    fieldType.value = config.fieldType || "";
+
+    // Handle dropdown and color field types
+    if (config.fieldType === "Dropdown" && Array.isArray(config.options)) {
+      const optionNames = await Promise.all(
+        config.options.map((optionId) => fetchOptionNameById(optionId))
+      );
+      options.splice(0, options.length, ...optionNames);
+      optionsInput.value = optionNames.join(", ");
+    } else if (config.fieldType === "Color") {
+      // Fetch names for color options (colors are stored as IDs)
+      const colorDetails = await Promise.all(
+        config.options.map(async (colorId) => {
+          const name = await fetchOptionNameById(colorId);
+          return { name, colorCode: colorId }; // Store color name and code
+        })
+      );
+      colorOptions.splice(0, colorOptions.length, ...colorDetails); // Store color details
+      colorInput.value = colorDetails[0]?.colorCode || ""; // Set the first color option as default
+    }
+  } catch (error) {
+    console.error("Error fetching configuration:", error.message);
+    alert("Failed to load configuration. Please try again.");
+  }
+};
+
+// Fetch configuration on mount
+onMounted(() => {
+  fetchConfiguration();
+});
 </script>
 
 <template>
@@ -270,6 +215,7 @@ const updateConfiguration = async () => {
   <Navigation />
   <div class="content">
     <h1>Edit Configuration</h1>
+
     <form @submit.prevent="updateConfiguration">
       <div class="row">
         <div class="column">
@@ -278,11 +224,12 @@ const updateConfiguration = async () => {
             v-model="fieldName"
             id="fieldName"
             type="text"
-            :placeholder="fieldName || 'Enter field name'"
+            placeholder="Enter field name"
             required
           />
         </div>
       </div>
+
       <div class="row">
         <div class="column">
           <label for="fieldType">Field Type:</label>
@@ -290,6 +237,7 @@ const updateConfiguration = async () => {
             <option value="">Select field type</option>
             <option value="Text">Text</option>
             <option value="Dropdown">Dropdown</option>
+            <option value="Color">Color</option>
           </select>
         </div>
       </div>
@@ -301,18 +249,48 @@ const updateConfiguration = async () => {
             v-model="optionsInput"
             id="options"
             type="text"
+            placeholder="Enter options separated by commas"
             @input="updateOptions"
           />
           <small>Example: Option 1, Option 2, Option 3</small>
         </div>
       </div>
 
-      <button type="submit" class="btn active">Update Configuration</button>
+      <div class="row" v-if="fieldType === 'Color'">
+        <div class="column">
+          <label for="color">Color:</label>
+          <input v-model="colorInput" id="color" type="color" required />
+          <button type="button" @click="addColorToList">Add Color</button>
+        </div>
+
+        <div class="column">
+          <label>Current Colors:</label>
+          <ul class="color-list">
+            <li
+              v-for="(color, index) in colorOptions"
+              :key="index"
+              class="color-item"
+              :style="{ backgroundColor: color.colorCode }"
+            >
+              {{ color.name }}
+              <!-- We use the color name here -->
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="row">
+        <button type="submit" :disabled="isLoading">
+          <span v-if="isLoading">Saving...</span>
+          <span v-else>Save Configuration</span>
+        </button>
+      </div>
     </form>
   </div>
 </template>
 
 <style scoped>
+/* CSS */
 .content {
   width: 100%;
   height: 100vh;
@@ -355,5 +333,26 @@ select {
 button {
   color: white;
   cursor: pointer;
+}
+
+.color-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.color-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #333;
 }
 </style>
