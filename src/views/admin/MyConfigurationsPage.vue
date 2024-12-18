@@ -8,7 +8,7 @@ import DynamicStyle from "../../components/DynamicStyle.vue";
 // Router setup
 const router = useRouter();
 
-// Reactive user object to store user details
+// Reactive user object to store user details (gebruik reactive voor betere reactiviteit)
 const user = reactive({
   firstName: "",
   lastName: "",
@@ -34,6 +34,23 @@ if (!token) {
   router.push("/login");
 }
 
+const decodeToken = (token) => {
+  if (!token) return null;
+  const base64Payload = token.split(".")[1];
+  const decodedPayload = JSON.parse(atob(base64Payload));
+  return decodedPayload; // Dit bevat de payload, inclusief de partner-id
+};
+
+// JWT-token controle
+const jwtToken = localStorage.getItem("jwtToken");
+if (!jwtToken) {
+  router.push("/login");
+}
+
+const decoded = decodeToken(token);
+const decodedToken = decodeToken(jwtToken);
+const userPartnerId = decodedToken?.companyId;
+
 const parseJwt = (token) => {
   try {
     const base64Url = token.split(".")[1];
@@ -53,7 +70,7 @@ const parseJwt = (token) => {
 
 const tokenPayload = parseJwt(token);
 const userId = tokenPayload?.userId;
-const partnerId = tokenPayload?.companyId || null;
+const partnerId = tokenPayload?.partnerId || null;
 
 if (!userId) {
   router.push("/login");
@@ -62,7 +79,7 @@ if (!userId) {
 // Base URL for API calls
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
-  ? "https://rebilt-backend.onrender.com/api/v1"
+  ? "https://https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
 // Partner related data
@@ -76,6 +93,7 @@ const fetchUserProfile = async () => {
     });
 
     const userData = response.data?.data?.user || {};
+    // Update the user object
     user.firstName = userData.firstname || "";
     user.lastName = userData.lastname || "";
     user.email = userData.email || "";
@@ -94,6 +112,8 @@ const fetchUserProfile = async () => {
 
 // Fetch partner data (if applicable)
 const fetchPartnerData = async () => {
+  if (!partnerId) return;
+
   try {
     const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -120,17 +140,12 @@ provide("user", user); // Makes user data available to child components like Nav
 const fetchData = async () => {
   try {
     const response = await fetch(`${baseURL}/products`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
     const result = await response.json();
-    const userCompanyId = getUserCompanyId(token); // Pass the correct token here
-
+    const userCompanyId = getUserCompanyId(token);
     data.value = result.data.products.filter(
       (product) => product.partnerId === userCompanyId
     );
@@ -139,60 +154,74 @@ const fetchData = async () => {
   }
 };
 
-// Partner configurations and options
-const partnerConfigurations = ref([]);
-const selectedConfigurations = ref([]);
-const optionsMap = ref({}); // For mapping option IDs to names
-
+// Fetch partner configurations
 const fetchPartnerConfigurations = async () => {
   try {
-    // Haal partnerconfiguraties op
-    const response = await axios.get(`${baseURL}/configurations`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const [configResponse, optionsResponse] = await Promise.all([
+      axios.get(`${baseURL}/configurations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+      axios.get(`${baseURL}/options`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    ]);
 
-    const configs = response.data?.data || [];
+    const configs = configResponse.data?.data || [];
+    const options = optionsResponse.data?.data || [];
+
     partnerConfigurations.value = configs.filter(
       (config) => config.partnerId === partnerId
     );
-
-    // Haal opties op en map ze naar een object van ID's naar namen
-    const optionsResponse = await axios.get(`${baseURL}/options`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const options = optionsResponse.data?.data || [];
     optionsMap.value = options.reduce((acc, option) => {
-      acc[option._id] = option.name; // Map optie ID naar naam
+      acc[option._id] = option.name;
       return acc;
     }, {});
   } catch (error) {
-    console.error("Error fetching configurations or options:", error);
+    console.error("Error fetching partner configurations or options:", error);
+    partnerConfigurations.value = []; // Ensure partnerConfigurations is an empty array on error
   }
 };
 
-// Reactive refs and data
-const selectedTypeFilter = ref("All");
-const data = ref([]);
-const searchTerm = ref("");
-const selectedProducts = ref([]);
-const isDeleteButtonVisible = computed(() => selectedProducts.value.length > 0);
-const isPopupVisible = ref(false);
-
-// Fetch data when the component is mounted
-onMounted(() => {
-  fetchData();
-  fetchPartnerConfigurations();
-});
-
-// Haal companyId uit het JWT token
+// Helper function to get the user company ID from JWT
 const getUserCompanyId = (token) => {
   if (!token) return null;
   const decoded = JSON.parse(atob(token.split(".")[1]));
   return decoded.companyId;
 };
 
-// Selecteer of deselecteer een product
+// Fetch data when component mounts
+onMounted(async () => {
+  await fetchUserProfile();
+  await fetchPartnerData();
+  await fetchData();
+  await fetchPartnerConfigurations();
+});
+
+// Reactive references and computed properties
+const selectedTypeFilter = ref("All");
+const data = ref([]);
+const searchTerm = ref("");
+const selectedProducts = ref([]);
+const isDeleteButtonVisible = computed(() => selectedProducts.value.length > 0);
+const isPopupVisible = ref(false);
+const partnerConfigurations = ref([]); // Initialize as empty array
+const optionsMap = ref({});
+
+const filteredConfigurations = computed(() => {
+  // Safely check for partnerConfigurations.value
+  return partnerConfigurations.value && partnerConfigurations.value.length > 0
+    ? partnerConfigurations.value.filter(
+        (config) =>
+          config.partnerId === partnerId &&
+          Object.values(config)
+            .join(" ")
+            .toLowerCase()
+            .includes(searchTerm.value.toLowerCase())
+      )
+    : []; // Return an empty array if partnerConfigurations is empty or undefined
+});
+
+// Handling product selection
 const toggleSelection = (productId) => {
   const index = selectedProducts.value.indexOf(productId);
   if (index === -1) {
@@ -202,33 +231,29 @@ const toggleSelection = (productId) => {
   }
 };
 
-// Selecteer of deselecteer alle producten
+// Select or deselect all products
 const toggleSelectAll = (event) => {
   selectedProducts.value = event.target.checked
     ? data.value.map((product) => product._id)
     : [];
 };
 
-// Start het verwijderproces van geselecteerde producten
+// Handle product deletion
 const deleteSelectedProducts = () => {
   if (selectedProducts.value.length === 0) return;
   showPopup();
 };
 
-// Bevestig het verwijderen van geselecteerde producten
 const confirmDelete = async () => {
   await deleteProducts();
   hidePopup();
 };
 
-// Cloudinary image deletion
+// Cloudinary image deletion helpers
 const extractPublicId = (imageUrl) => {
   try {
     const parts = imageUrl.split("/image/upload/");
-    if (parts.length < 2) {
-      console.error("Invalid URL structure:", imageUrl);
-      return null;
-    }
+    if (parts.length < 2) return null;
 
     let publicIdWithVersion = parts[1];
     const publicIdParts = publicIdWithVersion.split("/");
@@ -249,10 +274,7 @@ const extractPublicId = (imageUrl) => {
 
 const deleteImageFromCloudinary = async (imageUrl) => {
   const publicId = extractPublicId(imageUrl);
-  if (!publicId) {
-    console.error("No valid public_id found for image:", imageUrl);
-    return;
-  }
+  if (!publicId) return;
 
   try {
     const timestamp = Math.floor(Date.now() / 1000);
@@ -273,7 +295,6 @@ const deleteImageFromCloudinary = async (imageUrl) => {
     );
 
     const result = await response.json();
-
     if (result.result !== "ok") {
       throw new Error("Cloudinary delete failed: " + result.result);
     }
@@ -282,7 +303,6 @@ const deleteImageFromCloudinary = async (imageUrl) => {
   }
 };
 
-// Delete selected products, including images
 const deleteProducts = async () => {
   try {
     for (const id of selectedProducts.value) {
@@ -295,9 +315,7 @@ const deleteProducts = async () => {
 
       const response = await fetch(`${baseURL}/products/${id}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -312,14 +330,8 @@ const deleteProducts = async () => {
     alert("An error occurred while deleting products.");
   }
 };
-// Functie om de handtekening voor Cloudinary te genereren
-// Functie om de handtekening voor Cloudinary te genereren
-const generateSignature = (timestamp, imageId) => {
-  const apiSecret = "g3uD4zo94Nn1l7S20LW_Y8wPKKY"; // Cloudinary API Secret
-  const signatureString = `public_id=${imageId}&timestamp=${timestamp}${apiSecret}`;
-  return sha1(signatureString);
-};
-// Popup management
+
+// Show and hide popup for confirmation
 const showPopup = () => {
   isPopupVisible.value = true;
 };
@@ -327,95 +339,6 @@ const showPopup = () => {
 const hidePopup = () => {
   isPopupVisible.value = false;
 };
-
-// Haal gegevens op bij het laden van de component
-onMounted(() => {
-  fetchData();
-});
-
-const dynamicColumns = computed(() => {
-  const baseColumns = 7; // Dit zijn de vaste kolommen zoals Product Code, Name, etc.
-  const dynamicConfigColumns = partnerConfigurations.value.length; // Aantal dynamische kolommen gebaseerd op configuraties
-  return baseColumns + dynamicConfigColumns;
-});
-
-// Filter de producten op basis van zoekterm en producttype
-const filteredProducts = computed(() => {
-  if (!data.value) return [];
-
-  const filteredBySearch = data.value.filter((product) => {
-    return Object.values(product).some((value) =>
-      String(value).toLowerCase().includes(searchTerm.value.toLowerCase())
-    );
-  });
-
-  const filteredByType = filteredBySearch.filter(
-    (product) =>
-      selectedTypeFilter.value === "All" ||
-      product.typeOfProduct === selectedTypeFilter.value
-  );
-
-  return filteredByType;
-});
-
-const showSaveButton = ref(false);
-
-const onConfigurationChange = () => {
-  showSaveButton.value = true; // Maak de "Save"-knop zichtbaar
-};
-
-if (!userId) {
-  router.push("/login");
-}
-
-// Reactive refs and data
-const configurations = ref([]);
-
-// Fetch configurations
-const fetchConfigurations = async () => {
-  try {
-    const response = await axios.get(`${baseURL}/configurations`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    configurations.value = response.data?.data || [];
-  } catch (error) {
-    console.error("Error fetching configurations:", error);
-  }
-};
-
-const deleteConfigurations = async () => {
-  try {
-    for (const id of selectedConfigurations.value) {
-      await axios.delete(`${baseURL}/configurations/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    }
-    selectedConfigurations.value = [];
-    await fetchConfigurations();
-  } catch (error) {
-    console.error("Error deleting configurations:", error);
-  }
-};
-
-// Computed properties
-const filteredConfigurations = computed(() => {
-  // Filter de configuraties op basis van partnerId
-  return partnerConfigurations.value.filter(
-    (config) =>
-      config.partnerId === partnerId &&
-      Object.values(config)
-        .join(" ")
-        .toLowerCase()
-        .includes(searchTerm.value.toLowerCase())
-  );
-});
-
-let fetchInterval;
-
-onMounted(() => {
-  fetchConfigurations();
-  fetchInterval = setInterval(fetchConfigurations, 10000);
-});
 </script>
 
 <template>
@@ -458,11 +381,12 @@ onMounted(() => {
     <div class="configurations">
       <div class="top">
         <input
+          v-if="filteredConfigurations.length > 0"
           type="checkbox"
           @change="toggleSelectAll"
           :checked="
-            selectedConfigurations.length === configurations.length &&
-            configurations.length > 0
+            selectedConfigurations.length === filteredConfigurations.length &&
+            filteredConfigurations.length > 0
           "
         />
         <p>Field Name</p>
@@ -472,7 +396,7 @@ onMounted(() => {
 
       <div class="table-container">
         <div
-          v-for="config in partnerConfigurations"
+          v-for="config in filteredConfigurations"
           :key="config._id"
           class="listItem"
         >
@@ -491,7 +415,6 @@ onMounted(() => {
             <p>{{ config.fieldName }}</p>
             <p>{{ config.fieldType }}</p>
             <p>
-              <!-- Toon de opties op basis van hun ID -->
               {{
                 config.options
                   .map((optionId) => optionsMap[optionId])
@@ -502,9 +425,12 @@ onMounted(() => {
         </div>
       </div>
 
-      <div v-if="!partnerConfigurations.length" class="no-data">
+      <p
+        v-if="!partnerConfigurations || partnerConfigurations.length === 0"
+        class="no-configurations"
+      >
         No configurations found.
-      </div>
+      </p>
     </div>
   </div>
 </template>
