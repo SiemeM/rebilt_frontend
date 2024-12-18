@@ -802,7 +802,7 @@ watch(
 
 <style scoped>
 .elements {
-  background-color: rgb(var(--secondary-color));
+  background-color: var(--secondary-color);
   width: 100%;
   display: flex;
   flex-direction: row;
@@ -1065,7 +1065,7 @@ textarea {
 }
 
 .successpopup {
-  background-color: rgb(var(--secondary-color));
+  background-color: var(--secondary-color);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1123,7 +1123,7 @@ textarea {
 }
 
 .popup-content {
-  background-color: rgb(var(--secondary-color));
+  background-color: var(--secondary-color);
   padding: 24px;
   border-radius: 8px;
   position: relative;
@@ -1180,7 +1180,7 @@ button {
   align-items: center;
   justify-content: center;
   gap: 24px;
-  background-color: rgb(var(--secondary-color));
+  background-color: var(--secondary-color);
   padding: 24px 32px;
   border-radius: 8px;
   position: fixed;

@@ -168,7 +168,7 @@ const profileImage = computed(() => {
         exact-active-class="active"
       >
         <img src="../assets/icons/settings.svg" alt="icon" />
-        <p>Mijn configurations</p>
+        <p>Configurations</p>
       </router-link>
       <router-link
         v-if="user.role === 'platform_admin'"

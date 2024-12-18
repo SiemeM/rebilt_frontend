@@ -8,7 +8,7 @@ import DynamicStyle from "../../components/DynamicStyle.vue";
 // Router setup
 const router = useRouter();
 
-// Reactive user object to store user details (gebruik reactive voor betere reactiviteit)
+// Reactive user object to store user details
 const user = reactive({
   firstName: "",
   lastName: "",
@@ -76,7 +76,6 @@ const fetchUserProfile = async () => {
     });
 
     const userData = response.data?.data?.user || {};
-    // Update the user object
     user.firstName = userData.firstname || "";
     user.lastName = userData.lastname || "";
     user.email = userData.email || "";
@@ -117,10 +116,9 @@ onMounted(async () => {
 // Provide the user data to all components (including Navigation)
 provide("user", user); // Makes user data available to child components like Navigation
 
-// Haal de producten op vanuit de API
+// Fetch product data
 const fetchData = async () => {
   try {
-    const token = localStorage.getItem("jwtToken"); // Use the correct variable name
     const response = await fetch(`${baseURL}/products`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -141,21 +139,13 @@ const fetchData = async () => {
   }
 };
 
-// Array om de configuraties op te slaan
+// Partner configurations and options
 const partnerConfigurations = ref([]);
+const selectedConfigurations = ref([]);
+const optionsMap = ref({}); // For mapping option IDs to names
 
-// Declare selectedConfigurations as a ref or reactive object
-const selectedConfigurations = ref([]); // Use ref if you're not using a complex structure
-
-// Or, if you want to make it more complex, you could use reactive
-// const selectedConfigurations = reactive([]);
-
+// Fetch partner configurations and options
 const fetchPartnerConfigurations = async () => {
-  if (!partnerId) {
-    console.warn("No partnerId provided.");
-    return;
-  }
-
   try {
     const response = await axios.get(`${baseURL}/configurations`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -165,22 +155,34 @@ const fetchPartnerConfigurations = async () => {
     partnerConfigurations.value = configs.filter(
       (config) => config.partnerId === partnerId
     );
+
+    const optionsResponse = await axios.get(`${baseURL}/options`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const options = optionsResponse.data?.data || [];
+    optionsMap.value = options.reduce((acc, option) => {
+      acc[option._id] = option.name;
+      return acc;
+    }, {});
   } catch (error) {
-    console.error("Error fetching partner configurations:", error);
+    console.error("Error fetching configurations or options:", error);
   }
 };
 
-// Initialiseer component en haal data op
-onMounted(fetchData);
-onMounted(fetchPartnerConfigurations);
-
-// Definities van refs en computed properties
+// Reactive refs and data
 const selectedTypeFilter = ref("All");
 const data = ref([]);
 const searchTerm = ref("");
 const selectedProducts = ref([]);
 const isDeleteButtonVisible = computed(() => selectedProducts.value.length > 0);
 const isPopupVisible = ref(false);
+
+// Fetch data when the component is mounted
+onMounted(() => {
+  fetchData();
+  fetchPartnerConfigurations();
+});
 
 // Haal companyId uit het JWT token
 const getUserCompanyId = (token) => {
@@ -218,45 +220,42 @@ const confirmDelete = async () => {
   hidePopup();
 };
 
-// Functie om de public_id uit de URL van Cloudinary te extraheren
+// Cloudinary image deletion
 const extractPublicId = (imageUrl) => {
   try {
     const parts = imageUrl.split("/image/upload/");
     if (parts.length < 2) {
-      console.error("Ongeldige URL-structuur:", imageUrl);
+      console.error("Invalid URL structure:", imageUrl);
       return null;
     }
 
-    let publicIdWithVersion = parts[1]; // Deel na "/image/upload/"
-    const publicIdParts = publicIdWithVersion.split("/"); // Split om de versie eruit te halen
+    let publicIdWithVersion = parts[1];
+    const publicIdParts = publicIdWithVersion.split("/");
 
-    // Als de eerste component begint met "v" gevolgd door een nummer, negeer die
     if (
       publicIdParts[0].startsWith("v") &&
       !isNaN(Number(publicIdParts[0].slice(1)))
     ) {
-      publicIdParts.shift(); // Verwijder de versie
+      publicIdParts.shift();
     }
 
-    const publicIdWithoutExtension = publicIdParts.join("/").split(".")[0]; // Combineer en verwijder bestandsextensie
-    return publicIdWithoutExtension;
+    return publicIdParts.join("/").split(".")[0];
   } catch (error) {
-    console.error("Fout bij het extraheren van public_id:", error);
+    console.error("Error extracting public_id:", error);
     return null;
   }
 };
 
-// Functie om een afbeelding van Cloudinary te verwijderen
 const deleteImageFromCloudinary = async (imageUrl) => {
   const publicId = extractPublicId(imageUrl);
   if (!publicId) {
-    console.error("Geen geldige public_id gevonden voor afbeelding:", imageUrl);
+    console.error("No valid public_id found for image:", imageUrl);
     return;
   }
 
   try {
     const timestamp = Math.floor(Date.now() / 1000);
-    const signature = generateSignature(timestamp, publicId); // Gebruik alleen de public_id
+    const signature = generateSignature(timestamp, publicId);
 
     const response = await fetch(
       "https://api.cloudinary.com/v1_1/dzempjvto/image/destroy",
@@ -282,7 +281,7 @@ const deleteImageFromCloudinary = async (imageUrl) => {
   }
 };
 
-// Verwijder geselecteerde producten, inclusief hun afbeeldingen
+// Delete selected products, including images
 const deleteProducts = async () => {
   try {
     for (const id of selectedProducts.value) {
@@ -296,7 +295,7 @@ const deleteProducts = async () => {
       const response = await fetch(`${baseURL}/products/${id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${token}`, // Use the correct token variable
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -305,14 +304,13 @@ const deleteProducts = async () => {
       }
     }
 
-    await fetchData(); // Reload the product list
-    selectedProducts.value = []; // Reset selected products
+    await fetchData();
+    selectedProducts.value = [];
   } catch (error) {
     console.error("Error deleting products:", error);
-    alert("Er is een fout opgetreden bij het verwijderen van de producten.");
+    alert("An error occurred while deleting products.");
   }
 };
-
 // Functie om de handtekening voor Cloudinary te genereren
 // Functie om de handtekening voor Cloudinary te genereren
 const generateSignature = (timestamp, imageId) => {
@@ -320,13 +318,11 @@ const generateSignature = (timestamp, imageId) => {
   const signatureString = `public_id=${imageId}&timestamp=${timestamp}${apiSecret}`;
   return sha1(signatureString);
 };
-
-// Toon de popup voor bevestiging
+// Popup management
 const showPopup = () => {
   isPopupVisible.value = true;
 };
 
-// Verberg de popup
 const hidePopup = () => {
   isPopupVisible.value = false;
 };
@@ -475,7 +471,7 @@ onMounted(() => {
 
       <div class="table-container">
         <div
-          v-for="config in filteredConfigurations"
+          v-for="config in partnerConfigurations"
           :key="config._id"
           class="listItem"
         >
@@ -493,12 +489,19 @@ onMounted(() => {
           >
             <p>{{ config.fieldName }}</p>
             <p>{{ config.fieldType }}</p>
-            <p>{{ config.options.join(", ") }}</p>
+            <p>
+              <!-- Toon de opties op basis van hun ID -->
+              {{
+                config.options
+                  .map((optionId) => optionsMap[optionId])
+                  .join(", ")
+              }}
+            </p>
           </router-link>
         </div>
       </div>
 
-      <div v-if="!filteredConfigurations.length" class="no-data">
+      <div v-if="!partnerConfigurations.length" class="no-data">
         No configurations found.
       </div>
     </div>
@@ -527,7 +530,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 24px;
-  background-color: rgb(var(--secondary-color));
+  background-color: var(--secondary-color);
   padding: 24px 32px;
   border-radius: 8px;
   position: fixed;
@@ -600,8 +603,8 @@ select {
   padding: 4px 12px;
   border-radius: 8px;
   border: none;
-  border: 1px solid rgb(var(--secondary-color));
-  background-color: rgb(var(--secondary-color));
+  border: 1px solid var(--secondary-color);
+  background-color: var(--secondary-color);
   color: var(--text-color);
   width: 320px;
   display: flex;
@@ -615,7 +618,7 @@ select {
 }
 
 .configurations {
-  background-color: rgb(var(--secondary-color));
+  background-color: var(--secondary-color);
   width: 100%;
   border-radius: 8px;
   overflow-x: auto;
@@ -633,7 +636,7 @@ select {
   border-radius: 8px 8px 0 0;
   gap: 16px;
   padding: 4px 16px;
-  background-color: rgb(var(--secondary-color));
+  background-color: var(--secondary-color);
 }
 
 .configurations .list {
@@ -655,7 +658,7 @@ select {
 
 .configurations .listItem a {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   align-items: center;
   column-gap: 16px;
   row-gap: 16px;

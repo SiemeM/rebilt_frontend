@@ -468,7 +468,7 @@ onMounted(() => {
 <style scoped>
 .elements {
   padding: 24px;
-  background-color: rgb(var(--secondary-color));
+  background-color: var(--secondary-color);
   width: 100%;
   display: flex;
   flex-direction: column;

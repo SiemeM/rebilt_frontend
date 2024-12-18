@@ -377,7 +377,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 24px;
-  background-color: rgb(var(--secondary-color));
+  background-color: var(--secondary-color);
   padding: 24px 32px;
   border-radius: 8px;
   position: fixed;
@@ -445,8 +445,8 @@ onMounted(() => {
 select {
   padding: 4px 12px;
   border-radius: 8px;
-  border: 1px solid rgb(var(--secondary-color));
-  background-color: rgb(var(--secondary-color));
+  border: 1px solid var(--secondary-color);
+  background-color: var(--secondary-color);
   color: var(--text-color);
   width: 320px;
   display: flex;
@@ -460,7 +460,7 @@ select {
 }
 
 .partners {
-  background-color: rgb(var(--secondary-color));
+  background-color: var(--secondary-color);
   width: 100%;
   border-radius: 8px;
   overflow-x: auto;
@@ -475,7 +475,7 @@ select {
   grid-template-columns: repeat(8, 1fr);
   gap: 40px;
   padding: 16px;
-  background-color: rgb(var(--secondary-color));
+  background-color: var(--secondary-color);
   align-items: center;
 }
 
