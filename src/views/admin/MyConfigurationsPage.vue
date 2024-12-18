@@ -144,9 +144,9 @@ const partnerConfigurations = ref([]);
 const selectedConfigurations = ref([]);
 const optionsMap = ref({}); // For mapping option IDs to names
 
-// Fetch partner configurations and options
 const fetchPartnerConfigurations = async () => {
   try {
+    // Haal partnerconfiguraties op
     const response = await axios.get(`${baseURL}/configurations`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -156,13 +156,14 @@ const fetchPartnerConfigurations = async () => {
       (config) => config.partnerId === partnerId
     );
 
+    // Haal opties op en map ze naar een object van ID's naar namen
     const optionsResponse = await axios.get(`${baseURL}/options`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
     const options = optionsResponse.data?.data || [];
     optionsMap.value = options.reduce((acc, option) => {
-      acc[option._id] = option.name;
+      acc[option._id] = option.name; // Map optie ID naar naam
       return acc;
     }, {});
   } catch (error) {

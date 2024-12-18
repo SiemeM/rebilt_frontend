@@ -392,12 +392,12 @@ if (!userId) {
 // Reactive refs and data
 const configurations = ref([]);
 
-// Fetch configurations
 const fetchConfigurations = async () => {
   try {
     const response = await axios.get(`${baseURL}/configurations`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    console.log(response.data); // Log the data to check its structure
     configurations.value = response.data?.data || [];
   } catch (error) {
     console.error("Error fetching configurations:", error);
@@ -418,7 +418,6 @@ const deleteConfigurations = async () => {
   }
 };
 
-// Computed properties
 const filteredConfigurations = computed(() => {
   const lowerSearchTerm = searchTerm.value.toLowerCase();
   return configurations.value.filter((config) =>
@@ -507,7 +506,7 @@ onMounted(() => {
           >
             <p>{{ config.fieldName }}</p>
             <p>{{ config.fieldType }}</p>
-            <p>{{ config.options.join(", ") }}</p>
+            <p>{{ (config.options || []).join(", ") }}</p>
             <p>{{ config.partnerId || "None" }}</p>
           </router-link>
         </div>

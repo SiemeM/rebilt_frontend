@@ -162,7 +162,7 @@ const baseURL = isProduction
 const fieldName = ref("");
 const fieldType = ref("");
 const optionsInput = ref(""); // Input for options
-const options = ref([]); // Array of options
+const options = reactive([]); // Array of options (reactive for better updates)
 
 // Fetch configuration data based on ID
 onMounted(async () => {
@@ -190,7 +190,7 @@ onMounted(async () => {
 
       // Populate the form with the fetched configuration data
       const configOptions = Array.isArray(config.data.options)
-        ? config.data.options
+        ? config.data.options.map((option) => option.name) // Only keep the names
         : [];
       const configFieldName = config.data.fieldName || "";
       const configFieldType = config.data.fieldType || "";
@@ -198,7 +198,7 @@ onMounted(async () => {
       fieldName.value = configFieldName;
       fieldType.value = configFieldType;
       optionsInput.value = configOptions.join(", ");
-      options.value = configOptions;
+      options.splice(0, options.length, ...configOptions); // Update options reactively
     } catch (error) {
       console.error("Error fetching configuration:", error.message);
       alert("Error fetching configuration.");
@@ -208,10 +208,18 @@ onMounted(async () => {
 
 // Update options from input
 const updateOptions = () => {
-  options.value = optionsInput.value
-    .split(",")
-    .map((option) => option.trim()) // Remove extra spaces
-    .filter((option) => option !== ""); // Remove empty values
+  console.log("Input value:", optionsInput.value); // Check the current input value
+  options.splice(
+    0,
+    options.length,
+    ...optionsInput.value
+      .split(",")
+      .map((option) => option.trim())
+      .filter((option) => option !== "")
+  ); // Update the options value reactively
+
+  // Show the updated options in the UI (optional)
+  console.log("Updated options:", options); // Logs the updated array
 };
 
 // Update the configuration via API
@@ -219,7 +227,7 @@ const updateConfiguration = async () => {
   const configurationPayload = {
     fieldName: fieldName.value,
     fieldType: fieldType.value,
-    options: options.value, // Dropdown options
+    options: options, // Dropdown options
   };
 
   // Ensure that partnerId from token is included, only if not null
@@ -249,11 +257,10 @@ const updateConfiguration = async () => {
 
     const result = await response.json();
     console.log("Update Result:", result);
-
     router.back(); // Navigate back after update
   } catch (error) {
     console.error("Error updating configuration:", error.message);
-    alert("Error updating configuration.");
+    alert("Error updating configuration. Please try again.");
   }
 };
 </script>
@@ -294,7 +301,6 @@ const updateConfiguration = async () => {
             v-model="optionsInput"
             id="options"
             type="text"
-            placeholder="Enter options separated by commas"
             @input="updateOptions"
           />
           <small>Example: Option 1, Option 2, Option 3</small>

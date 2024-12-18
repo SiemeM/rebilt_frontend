@@ -5,10 +5,21 @@ import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
 
-// Router setup
+// Basis-URL afhankelijk van de omgeving
+const isProduction = window.location.hostname !== "localhost";
+const baseURL = isProduction
+  ? "https://rebilt-backend.onrender.com/api/v1"
+  : "http://localhost:3000/api/v1";
+
+const jwtToken = localStorage.getItem("jwtToken");
 const router = useRouter();
 
-// Reactive user object to store user details (gebruik reactive voor betere reactiviteit)
+// Redirect naar login als er geen token is
+if (!jwtToken) {
+  router.push("/login");
+}
+
+// Reactive user object
 const user = reactive({
   firstName: "",
   lastName: "",
@@ -28,7 +39,6 @@ const user = reactive({
   activeUnactive: true,
 });
 
-// Authentication and token handling
 const token = localStorage.getItem("jwtToken");
 if (!token) {
   router.push("/login");
@@ -59,150 +69,41 @@ if (!userId) {
   router.push("/login");
 }
 
-// Partner related data
-const partnerPackage = ref(null);
-
-// Fetch user profile data
-const fetchUserProfile = async () => {
-  try {
-    const response = await axios.get(`${baseURL}/users/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const userData = response.data?.data?.user || {};
-    // Update the user object
-    user.firstName = userData.firstname || "";
-    user.lastName = userData.lastname || "";
-    user.email = userData.email || "";
-    user.oldEmail = userData.email || "";
-    user.country = userData.country || "";
-    user.city = userData.city || "";
-    user.postalCode = userData.postalCode || "";
-    user.profilePicture = userData.profilePicture || "";
-    user.bio = userData.bio || "";
-    user.role = userData.role || "";
-    user.activeUnactive = userData.activeUnactive ?? true;
-  } catch (error) {
-    console.error("Error fetching user profile:", error);
-  }
-};
-
-// Fetch partner data (if applicable)
-const fetchPartnerData = async () => {
-  if (!partnerId) return;
-
-  try {
-    const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const partner = response.data?.data?.partner || {};
-    partnerPackage.value = partner.package || "No package available";
-  } catch (error) {
-    console.error("Error fetching partner data:", error);
-    partnerPackage.value = "Error loading partner data";
-  }
-};
-
-// Fetch initial data on mount
-onMounted(async () => {
-  await fetchUserProfile();
-  await fetchPartnerData();
-});
-
-// Provide the user data to all components (including Navigation)
-provide("user", user); // Makes user data available to child components like Navigation
-
-// Watch for changes in user data and update the Navigation component
-watch(
-  user,
-  (newUser) => {
-    console.log("User data updated:", newUser);
-  },
-  { deep: true }
-);
-
-// Haal de producten op vanuit de API
-const fetchData = async () => {
-  try {
-    const token = localStorage.getItem("jwtToken"); // Use the correct variable name
-    const response = await fetch(`${baseURL}/products`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
-    const userCompanyId = getUserCompanyId(token); // Pass the correct token here
-
-    data.value = result.data.products.filter(
-      (product) => product.partnerId === userCompanyId
-    );
-  } catch (error) {
-    console.error("Error fetching data:", error);
-  }
-};
-
-// Initialiseer component en haal data op
-onMounted(fetchData);
-
-// Definities van refs en computed properties
-const selectedTypeFilter = ref("All");
-const data = ref([]);
-
-// Haal companyId uit het JWT token
-const getUserCompanyId = (token) => {
-  if (!token) return null;
-  const decoded = JSON.parse(atob(token.split(".")[1]));
-  return decoded.companyId;
-};
-
-// Haal gegevens op bij het laden van de component
-onMounted(() => {
-  fetchData();
-});
-
-const isProduction = window.location.hostname !== "localhost";
-const baseURL = isProduction
-  ? "https://rebilt-backend.onrender.com/api/v1"
-  : "http://localhost:3000/api/v1";
-
-const jwtToken = localStorage.getItem("jwtToken");
-
-// Redirect naar login als er geen token is
-if (!jwtToken) {
-  router.push("/login");
-}
-
 // Variabelen voor configuratiegegevens
 const fieldName = ref("");
 const fieldType = ref("");
-const optionsInput = ref(""); // Gebruiken we om de invoer voor opties vast te leggen
-const options = ref([]); // Dit wordt een array van opties
+const optionsInput = ref("");
+const options = ref([]);
+const colorInput = ref(""); // Input voor kleurconfiguratie
+const selectedColors = ref([]); // Opslag voor meerdere geselecteerde kleuren
 
 // Functie om opties om te zetten naar een array
 const updateOptions = () => {
   options.value = optionsInput.value
     .split(",")
-    .map((option) => option.trim()) // Trim de extra spaties
-    .filter((option) => option !== ""); // Verwijder lege waarden
+    .map((option) => option.trim())
+    .filter((option) => option !== "");
 };
 
-// Functie om een nieuwe configuratie toe te voegen
+// Functie om kleur toe te voegen aan de geselecteerde kleuren
+const addColor = () => {
+  if (colorInput.value && !selectedColors.value.includes(colorInput.value)) {
+    selectedColors.value.push(colorInput.value);
+    colorInput.value = ""; // Reset de kleurinput
+  }
+};
+
+// Functie om de configuratie toe te voegen
 const addConfiguration = async () => {
-  // Configuratie payload
   const configurationPayload = {
     fieldName: fieldName.value,
     fieldType: fieldType.value,
-    options: options.value, // Voor een dropdown, vul hier de opties in
+    options: options.value,
+    colors: selectedColors.value, // Voeg de geselecteerde kleuren toe
+    isColor: fieldType.value === "Color" ? true : false, // Voeg isColor toe als het een kleurveld is
   };
 
-  // Als het veldtype 'Dropdown' is, moeten we controleren of de opties zijn ingevoerd
   if (fieldType.value === "Dropdown" && !options.value.length) {
-    // Opties zijn niet ingevuld, maar geen alert meer
     return;
   }
 
@@ -224,8 +125,6 @@ const addConfiguration = async () => {
     }
 
     const result = await response.json();
-
-    // Redirect naar de configuratiepagina
     router.back();
   } catch (error) {
     console.error("Error adding configuration:", error.message);
@@ -253,7 +152,7 @@ const addConfiguration = async () => {
             <option value="">Selecteer een veldtype</option>
             <option value="Text">Tekst</option>
             <option value="Dropdown">Dropdown</option>
-            <!-- Je kunt hier meer opties toevoegen voor andere types -->
+            <option value="Color">Kleur</option>
           </select>
         </div>
       </div>
@@ -269,6 +168,28 @@ const addConfiguration = async () => {
           />
           <small>Bijv. Optie 1, Optie 2, Optie 3</small>
         </div>
+      </div>
+      <!-- Kleur input -->
+      <div class="row" v-if="fieldType === 'Color'">
+        <div class="column">
+          <label for="color">Kleur:</label>
+          <input v-model="colorInput" id="color" type="color" />
+          <button type="button" @click="addColor">Voeg Kleur Toe</button>
+          <small>Selecteer een kleur voor de configuratie</small>
+        </div>
+      </div>
+
+      <!-- Toon de geselecteerde kleuren als cirkels -->
+      <div v-if="fieldType === 'Color' && selectedColors.length > 0">
+        <h4>Geselecteerde Kleuren:</h4>
+        <ul class="color-list">
+          <li
+            v-for="(color, index) in selectedColors"
+            :key="index"
+            :style="{ backgroundColor: color }"
+            class="color-circle"
+          ></li>
+        </ul>
       </div>
 
       <button type="submit" class="btn active">Voeg Configuratie Toe</button>
@@ -319,5 +240,18 @@ select {
 button {
   color: white;
   cursor: pointer;
+}
+
+.color-list {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.color-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #fff;
 }
 </style>
