@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted, computed, provide } from "vue";
+import { ref, reactive, onMounted, computed, watch, provide } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
@@ -8,23 +8,143 @@ import DynamicStyle from "../../components/DynamicStyle.vue";
 // Router setup
 const router = useRouter();
 
-// JWT and token setup
+// Reactive user object to store user details (gebruik reactive voor betere reactiviteit)
+const user = reactive({
+  firstName: "",
+  lastName: "",
+  email: "",
+  newEmail: "",
+  oldEmail: "",
+  password: "",
+  newPassword: "",
+  oldPassword: "",
+  newPasswordRepeat: "",
+  country: "",
+  city: "",
+  postalCode: "",
+  profilePicture: "",
+  bio: "",
+  role: "",
+  activeUnactive: true,
+});
+
+// Authentication and token handling
 const token = localStorage.getItem("jwtToken");
 if (!token) {
+  router.push("/login");
+}
+
+const decodeToken = (token) => {
+  if (!token) return null;
+  const base64Payload = token.split(".")[1];
+  const decodedPayload = JSON.parse(atob(base64Payload));
+  return decodedPayload; // Dit bevat de payload, inclusief de partner-id
+};
+
+// JWT-token controle
+const jwtToken = localStorage.getItem("jwtToken");
+if (!jwtToken) {
+  router.push("/login");
+}
+
+const decoded = decodeToken(token);
+const decodedToken = decodeToken(jwtToken);
+const userPartnerId = decodedToken?.companyId;
+
+const parseJwt = (token) => {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error("Error parsing JWT:", error);
+    return null;
+  }
+};
+
+const tokenPayload = parseJwt(token);
+const userId = tokenPayload?.userId;
+const partnerId = tokenPayload?.partnerId || null;
+
+if (!userId) {
   router.push("/login");
 }
 
 // Base URL for API calls
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
-  ? "https://rebilt-backend.onrender.com/api/v1"
+  ? "https://https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
+
+// Partner related data
+const partnerPackage = ref(null);
+
+// Fetch user profile data
+const fetchUserProfile = async () => {
+  try {
+    const response = await axios.get(`${baseURL}/users/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const userData = response.data?.data?.user || {};
+    // Update the user object
+    user.firstName = userData.firstname || "";
+    user.lastName = userData.lastname || "";
+    user.email = userData.email || "";
+    user.oldEmail = userData.email || "";
+    user.country = userData.country || "";
+    user.city = userData.city || "";
+    user.postalCode = userData.postalCode || "";
+    user.profilePicture = userData.profilePicture || "";
+    user.bio = userData.bio || "";
+    user.role = userData.role || "";
+    user.activeUnactive = userData.activeUnactive ?? true;
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+  }
+};
+
+// Fetch partner data (if applicable)
+const fetchPartnerData = async () => {
+  if (!partnerId) return;
+
+  try {
+    const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const partner = response.data?.data?.partner || {};
+    partnerPackage.value = partner.package || "No package available";
+  } catch (error) {
+    console.error("Error fetching partner data:", error);
+    partnerPackage.value = "Error loading partner data";
+  }
+};
+
+// Fetch initial data on mount
+onMounted(async () => {
+  await fetchUserProfile();
+  await fetchPartnerData();
+});
+
+// Provide the user data to all components (including Navigation)
+provide("user", user); // Makes user data available to child components like Navigation
 
 // Reactive variables for configurations and options
 const configurations = ref([]);
 const selectedConfigurations = ref([]);
 const allOptions = ref([]); // To hold all options (ID -> name mapping)
 const searchTerm = ref("");
+const showDeletePopup = ref(false); // To control the visibility of the delete popup
+const isDeleteButtonVisible = computed(
+  () => selectedConfigurations.value.length > 0
+);
 
 // Fetch configurations data
 const fetchConfigurations = async () => {
@@ -85,6 +205,44 @@ const getOptionName = (optionId) => {
   return option ? option.name : "Unknown"; // Return the name or "Unknown" if not found
 };
 
+// Show the delete confirmation popup
+const showPopup = () => {
+  showDeletePopup.value = true;
+};
+
+// Hide the delete confirmation popup
+const hidePopup = () => {
+  showDeletePopup.value = false;
+};
+
+// Delete selected configurations
+// Function to delete the selected configurations
+const deleteSelectedConfigurations = async () => {
+  if (selectedConfigurations.value.length === 0) {
+    return;
+  }
+
+  try {
+    // Iterate over each selected configuration
+    for (const configId of selectedConfigurations.value) {
+      // Send the DELETE request to the correct endpoint with the specific config ID
+      await axios.delete(`${baseURL}/configurations/${configId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    }
+
+    // Optionally, refresh the list of configurations after deletion
+    await fetchConfigurations();
+
+    // Clear the selected configurations
+    selectedConfigurations.value = [];
+  } catch (error) {
+    console.error("Error deleting configurations:", error);
+  }
+};
+
 // Fetch data on component mount
 onMounted(() => {
   fetchConfigurations();
@@ -96,6 +254,20 @@ onMounted(() => {
   <Navigation />
 
   <div class="content">
+    <div class="popup" v-if="showDeletePopup">
+      <img src="../../assets/icons/cross-circle.svg" alt="icon" />
+      <div class="text">
+        <h2>Are you sure?</h2>
+        <p>Do you really want to delete this item(s)?</p>
+        <div class="btns">
+          <button @click="hidePopup">Cancel</button>
+          <button @click="deleteSelectedConfigurations" class="btn active">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div class="menu">
       <div class="btns">
         <router-link to="/admin/add-new-configuration" class="btn active">
@@ -122,8 +294,7 @@ onMounted(() => {
           type="checkbox"
           @change="toggleSelectAll"
           :checked="
-            selectedConfigurations.length ===
-            (configurations.value?.length || 0)
+            selectedConfigurations.length === configurations.value?.length
           "
         />
         <p>Field Name</p>
