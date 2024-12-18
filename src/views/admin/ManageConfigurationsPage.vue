@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted, computed, watch, provide } from "vue";
+import { ref, reactive, onMounted, computed, provide } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
@@ -8,54 +8,9 @@ import DynamicStyle from "../../components/DynamicStyle.vue";
 // Router setup
 const router = useRouter();
 
-// Reactive user object to store user details (gebruik reactive voor betere reactiviteit)
-const user = reactive({
-  firstName: "",
-  lastName: "",
-  email: "",
-  newEmail: "",
-  oldEmail: "",
-  password: "",
-  newPassword: "",
-  oldPassword: "",
-  newPasswordRepeat: "",
-  country: "",
-  city: "",
-  postalCode: "",
-  profilePicture: "",
-  bio: "",
-  role: "",
-  activeUnactive: true,
-});
-
-// Authentication and token handling
+// JWT and token setup
 const token = localStorage.getItem("jwtToken");
 if (!token) {
-  router.push("/login");
-}
-
-const parseJwt = (token) => {
-  try {
-    const base64Url = token.split(".")[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
-    );
-    return JSON.parse(jsonPayload);
-  } catch (error) {
-    console.error("Error parsing JWT:", error);
-    return null;
-  }
-};
-
-const tokenPayload = parseJwt(token);
-const userId = tokenPayload?.userId;
-const partnerId = tokenPayload?.companyId || null;
-
-if (!userId) {
   router.push("/login");
 }
 
@@ -65,359 +20,38 @@ const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
-// Partner related data
-const partnerPackage = ref(null);
-
-// Fetch user profile data
-const fetchUserProfile = async () => {
-  try {
-    const response = await axios.get(`${baseURL}/users/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const userData = response.data?.data?.user || {};
-    // Update the user object
-    user.firstName = userData.firstname || "";
-    user.lastName = userData.lastname || "";
-    user.email = userData.email || "";
-    user.oldEmail = userData.email || "";
-    user.country = userData.country || "";
-    user.city = userData.city || "";
-    user.postalCode = userData.postalCode || "";
-    user.profilePicture = userData.profilePicture || "";
-    user.bio = userData.bio || "";
-    user.role = userData.role || "";
-    user.activeUnactive = userData.activeUnactive ?? true;
-  } catch (error) {
-    console.error("Error fetching user profile:", error);
-  }
-};
-
-// Fetch partner data (if applicable)
-const fetchPartnerData = async () => {
-  try {
-    const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const partner = response.data?.data?.partner || {};
-    partnerPackage.value = partner.package || "No package available";
-  } catch (error) {
-    console.error("Error fetching partner data:", error);
-    partnerPackage.value = "Error loading partner data";
-  }
-};
-
-// Fetch initial data on mount
-onMounted(async () => {
-  await fetchUserProfile();
-  await fetchPartnerData();
-});
-
-// Provide the user data to all components (including Navigation)
-provide("user", user); // Makes user data available to child components like Navigation
-
-// Haal de producten op vanuit de API
-const fetchData = async () => {
-  try {
-    const token = localStorage.getItem("jwtToken"); // Use the correct variable name
-    const response = await fetch(`${baseURL}/products`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
-    const userCompanyId = getUserCompanyId(token); // Pass the correct token here
-
-    data.value = result.data.products.filter(
-      (product) => product.partnerId === userCompanyId
-    );
-  } catch (error) {
-    console.error("Error fetching data:", error);
-  }
-};
-
-// Array om de configuraties op te slaan
-const partnerConfigurations = ref([]);
-
-// Declare selectedConfigurations as a ref or reactive object
-const selectedConfigurations = ref([]); // Use ref if you're not using a complex structure
-
-// Or, if you want to make it more complex, you could use reactive
-// const selectedConfigurations = reactive([]);
-
-const fetchPartnerConfigurations = async () => {
-  if (!partnerId) {
-    console.warn("No partnerId provided.");
-    return;
-  }
-
-  try {
-    const response = await axios.get(`${baseURL}/configurations`, {
-      headers: { Authorization: `Bearer ${token}` },
-      params: { partnerId }, // Assuming the API supports filtering by partnerId
-    });
-
-    const configs = response.data?.data || [];
-    if (configs.length === 0) {
-      console.warn("No configurations found for the given partnerId.");
-    }
-
-    // Filter configurations based on the partnerId
-    partnerConfigurations.value = configs.filter(
-      (config) => config.partnerId === partnerId
-    );
-
-    // Load selected configurations state from localStorage
-    const savedSelectedState =
-      JSON.parse(localStorage.getItem("selectedConfigurations")) || {};
-
-    // Mark configurations as selected based on localStorage or default to true
-    selectedConfigurations.value = partnerConfigurations.value.map(
-      (config) => ({
-        ...config,
-        checked: savedSelectedState[config._id] ?? true, // Default to true if no saved state
-      })
-    );
-  } catch (error) {
-    console.error("Error fetching partner configurations:", error);
-  }
-};
-
-// Initialiseer component en haal data op
-onMounted(fetchData);
-onMounted(fetchPartnerConfigurations);
-
-// Definities van refs en computed properties
-const selectedTypeFilter = ref("All");
-const data = ref([]);
-const searchTerm = ref("");
-const selectedProducts = ref([]);
-const isDeleteButtonVisible = computed(() => selectedProducts.value.length > 0);
-const isPopupVisible = ref(false);
-
-// Haal companyId uit het JWT token
-const getUserCompanyId = (token) => {
-  if (!token) return null;
-  const decoded = JSON.parse(atob(token.split(".")[1]));
-  return decoded.companyId;
-};
-
-// Selecteer of deselecteer een product
-const toggleSelection = (productId) => {
-  const index = selectedProducts.value.indexOf(productId);
-  if (index === -1) {
-    selectedProducts.value.push(productId);
-  } else {
-    selectedProducts.value.splice(index, 1);
-  }
-};
-
-// Selecteer of deselecteer alle producten
-const toggleSelectAll = (event) => {
-  selectedProducts.value = event.target.checked
-    ? data.value.map((product) => product._id)
-    : [];
-};
-
-// Start het verwijderproces van geselecteerde producten
-const deleteSelectedProducts = () => {
-  if (selectedProducts.value.length === 0) return;
-  showPopup();
-};
-
-// Bevestig het verwijderen van geselecteerde producten
-const confirmDelete = async () => {
-  await deleteProducts();
-  hidePopup();
-};
-
-// Functie om de public_id uit de URL van Cloudinary te extraheren
-const extractPublicId = (imageUrl) => {
-  try {
-    const parts = imageUrl.split("/image/upload/");
-    if (parts.length < 2) {
-      console.error("Ongeldige URL-structuur:", imageUrl);
-      return null;
-    }
-
-    let publicIdWithVersion = parts[1]; // Deel na "/image/upload/"
-    const publicIdParts = publicIdWithVersion.split("/"); // Split om de versie eruit te halen
-
-    // Als de eerste component begint met "v" gevolgd door een nummer, negeer die
-    if (
-      publicIdParts[0].startsWith("v") &&
-      !isNaN(Number(publicIdParts[0].slice(1)))
-    ) {
-      publicIdParts.shift(); // Verwijder de versie
-    }
-
-    const publicIdWithoutExtension = publicIdParts.join("/").split(".")[0]; // Combineer en verwijder bestandsextensie
-    return publicIdWithoutExtension;
-  } catch (error) {
-    console.error("Fout bij het extraheren van public_id:", error);
-    return null;
-  }
-};
-
-// Functie om een afbeelding van Cloudinary te verwijderen
-const deleteImageFromCloudinary = async (imageUrl) => {
-  const publicId = extractPublicId(imageUrl);
-  if (!publicId) {
-    console.error("Geen geldige public_id gevonden voor afbeelding:", imageUrl);
-    return;
-  }
-
-  try {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const signature = generateSignature(timestamp, publicId); // Gebruik alleen de public_id
-
-    const response = await fetch(
-      "https://api.cloudinary.com/v1_1/dzempjvto/image/destroy",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          public_id: publicId,
-          api_key: "496836855294519",
-          timestamp: timestamp,
-          signature: signature,
-        }),
-      }
-    );
-
-    const result = await response.json();
-
-    if (result.result !== "ok") {
-      throw new Error("Cloudinary delete failed: " + result.result);
-    }
-  } catch (error) {
-    console.error("Error deleting image from Cloudinary:", error);
-  }
-};
-
-// Verwijder geselecteerde producten, inclusief hun afbeeldingen
-const deleteProducts = async () => {
-  try {
-    for (const id of selectedProducts.value) {
-      const product = data.value.find((product) => product._id === id);
-      if (product && product.images && product.images.length > 0) {
-        for (const imageUrl of product.images) {
-          await deleteImageFromCloudinary(imageUrl);
-        }
-      }
-
-      const response = await fetch(`${baseURL}/products/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`, // Use the correct token variable
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-    }
-
-    await fetchData(); // Reload the product list
-    selectedProducts.value = []; // Reset selected products
-  } catch (error) {
-    console.error("Error deleting products:", error);
-    alert("Er is een fout opgetreden bij het verwijderen van de producten.");
-  }
-};
-
-// Functie om de handtekening voor Cloudinary te genereren
-// Functie om de handtekening voor Cloudinary te genereren
-const generateSignature = (timestamp, imageId) => {
-  const apiSecret = "g3uD4zo94Nn1l7S20LW_Y8wPKKY"; // Cloudinary API Secret
-  const signatureString = `public_id=${imageId}&timestamp=${timestamp}${apiSecret}`;
-  return sha1(signatureString);
-};
-
-// Toon de popup voor bevestiging
-const showPopup = () => {
-  isPopupVisible.value = true;
-};
-
-// Verberg de popup
-const hidePopup = () => {
-  isPopupVisible.value = false;
-};
-
-// Haal gegevens op bij het laden van de component
-onMounted(() => {
-  fetchData();
-});
-
-const dynamicColumns = computed(() => {
-  const baseColumns = 7; // Dit zijn de vaste kolommen zoals Product Code, Name, etc.
-  const dynamicConfigColumns = partnerConfigurations.value.length; // Aantal dynamische kolommen gebaseerd op configuraties
-  return baseColumns + dynamicConfigColumns;
-});
-
-// Filter de producten op basis van zoekterm en producttype
-const filteredProducts = computed(() => {
-  if (!data.value) return [];
-
-  const filteredBySearch = data.value.filter((product) => {
-    return Object.values(product).some((value) =>
-      String(value).toLowerCase().includes(searchTerm.value.toLowerCase())
-    );
-  });
-
-  const filteredByType = filteredBySearch.filter(
-    (product) =>
-      selectedTypeFilter.value === "All" ||
-      product.typeOfProduct === selectedTypeFilter.value
-  );
-
-  return filteredByType;
-});
-
-const showSaveButton = ref(false);
-
-const onConfigurationChange = () => {
-  showSaveButton.value = true; // Maak de "Save"-knop zichtbaar
-};
-
-if (!userId) {
-  router.push("/login");
-}
-
-// Reactive refs and data
+// Reactive variables for configurations and options
 const configurations = ref([]);
+const selectedConfigurations = ref([]);
+const allOptions = ref([]); // To hold all options (ID -> name mapping)
+const searchTerm = ref("");
 
+// Fetch configurations data
 const fetchConfigurations = async () => {
   try {
     const response = await axios.get(`${baseURL}/configurations`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    console.log(response.data); // Log the data to check its structure
     configurations.value = response.data?.data || [];
+    fetchOptions();
   } catch (error) {
     console.error("Error fetching configurations:", error);
   }
 };
 
-const deleteConfigurations = async () => {
+// Fetch options data (used to map option IDs to option names)
+const fetchOptions = async () => {
   try {
-    for (const id of selectedConfigurations.value) {
-      await axios.delete(`${baseURL}/configurations/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    }
-    selectedConfigurations.value = [];
-    await fetchConfigurations();
+    const response = await axios.get(`${baseURL}/options`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    allOptions.value = response.data?.data || [];
   } catch (error) {
-    console.error("Error deleting configurations:", error);
+    console.error("Error fetching options:", error);
   }
 };
 
+// Filtering configurations based on the search term
 const filteredConfigurations = computed(() => {
   const lowerSearchTerm = searchTerm.value.toLowerCase();
   return configurations.value.filter((config) =>
@@ -425,34 +59,47 @@ const filteredConfigurations = computed(() => {
   );
 });
 
-let fetchInterval;
+// Toggle selection logic for individual configurations
+const toggleSelection = (configId) => {
+  const index = selectedConfigurations.value.indexOf(configId);
+  if (index > -1) {
+    selectedConfigurations.value.splice(index, 1);
+  } else {
+    selectedConfigurations.value.push(configId);
+  }
+};
 
+// Toggle select all logic
+const toggleSelectAll = () => {
+  if (selectedConfigurations.value.length === configurations.value.length) {
+    selectedConfigurations.value = [];
+  } else {
+    selectedConfigurations.value = configurations.value.map(
+      (config) => config._id
+    );
+  }
+};
+
+const getOptionName = (optionId) => {
+  const option = allOptions.value.find((opt) => opt._id === optionId);
+  return option ? option.name : "Unknown"; // Return the name or "Unknown" if not found
+};
+
+// Fetch data on component mount
 onMounted(() => {
   fetchConfigurations();
-  fetchInterval = setInterval(fetchConfigurations, 10000);
 });
 </script>
 
 <template>
   <DynamicStyle />
   <Navigation />
-  <div class="overlay" v-if="isPopupVisible"></div>
-  <div class="content">
-    <!-- Delete confirmation popup -->
-    <div class="popup" v-if="isPopupVisible">
-      <h2>Are you sure?</h2>
-      <p>Do you really want to delete the selected item(s)?</p>
-      <div class="popup-buttons">
-        <button @click="hidePopup">Cancel</button>
-        <button @click="confirmDelete" class="btn active">Delete</button>
-      </div>
-    </div>
 
-    <!-- Actions menu -->
+  <div class="content">
     <div class="menu">
       <div class="btns">
-        <router-link to="/admin/add-new-configuration" class="btn active"
-          >Add New <img src="../../assets/icons/add.svg" alt="icon" />
+        <router-link to="/admin/add-new-configuration" class="btn active">
+          Add New <img src="../../assets/icons/add.svg" alt="icon" />
         </router-link>
         <div
           class="btn display"
@@ -462,22 +109,21 @@ onMounted(() => {
           <p>Delete item(s)</p>
         </div>
       </div>
-
       <div class="search">
         <img src="../../assets/icons/search.svg" alt="icon" />
         <input placeholder="Search" v-model="searchTerm" />
       </div>
     </div>
 
-    <!-- Configurations table -->
+    <!-- Configurations Table -->
     <div class="configurations">
       <div class="top">
         <input
           type="checkbox"
           @change="toggleSelectAll"
           :checked="
-            selectedConfigurations.length === configurations.length &&
-            configurations.length > 0
+            selectedConfigurations.length ===
+            (configurations.value?.length || 0)
           "
         />
         <p>Field Name</p>
@@ -506,12 +152,19 @@ onMounted(() => {
           >
             <p>{{ config.fieldName }}</p>
             <p>{{ config.fieldType }}</p>
-            <p>{{ (config.options || []).join(", ") }}</p>
+            <p>
+              {{
+                config.options && Array.isArray(config.options)
+                  ? config.options.map(getOptionName).join(", ")
+                  : ""
+              }}
+            </p>
             <p>{{ config.partnerId || "None" }}</p>
           </router-link>
         </div>
       </div>
 
+      <!-- No configurations message -->
       <div v-if="!filteredConfigurations.length" class="no-data">
         No configurations found.
       </div>
