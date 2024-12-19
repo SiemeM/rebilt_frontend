@@ -87,15 +87,13 @@ const fetchConfigurations = async () => {
   }
 };
 
-// Ophalen van partner-specifieke configuraties
-// Ophalen van partner-specifieke configuraties
 const fetchPartnerConfigurations = async () => {
   if (!partnerId) return;
 
   try {
     const response = await axios.get(`${baseURL}/configurations`, {
       headers: { Authorization: `Bearer ${token}` },
-      params: { partnerId }, // Voeg partnerId expliciet toe
+      params: { partnerId },
     });
 
     const configs = response.data?.data || [];
@@ -109,17 +107,20 @@ const fetchPartnerConfigurations = async () => {
       partnerConfigurations.value.map((config) => config._id)
     );
 
+    // Haal de opgeslagen geselecteerde configuraties op
     const savedSelectedState = JSON.parse(
       localStorage.getItem("selectedConfigurations")
     );
 
-    selectedConfigurations.value = allConfigurations.value.map((config) => ({
-      ...config,
-      checked:
-        savedSelectedState?.[config._id] ?? partnerConfigIds.has(config._id),
-      originalChecked:
-        savedSelectedState?.[config._id] ?? partnerConfigIds.has(config._id),
-    }));
+    selectedConfigurations.value = allConfigurations.value.map((config) => {
+      const isChecked =
+        savedSelectedState?.[config._id] ?? partnerConfigIds.has(config._id);
+      return {
+        ...config,
+        checked: isChecked,
+        originalChecked: isChecked,
+      };
+    });
 
     console.log(selectedConfigurations.value);
   } catch (error) {
@@ -129,41 +130,74 @@ const fetchPartnerConfigurations = async () => {
 
 const saveUpdatedConfigurations = async () => {
   try {
-    for (const config of selectedConfigurations.value) {
+    const promises = selectedConfigurations.value.map(async (config) => {
       const payload = {
         partnerId: partnerId,
-        configurationId: config._id,
-        options: config.options || {}, // Adjust based on the actual structure of the options
+        configurationId: config._id, // Gebruik config._id als configurationId
+        options: config.options || {}, // Zorg ervoor dat de juiste structuur is
       };
 
-      // If checked is true, we create a new partner configuration (POST)
-      if (config.checked && !config.partnerId) {
-        // POST request to create a new configuration
-        await axios.post(`${baseURL}/partnerConfigurations`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } else if (!config.checked && config.partnerId) {
-        // PUT request to remove the configuration (remove the partnerId)
-        await axios.put(
-          `${baseURL}/partnerConfigurations/${config._id}`,
-          {
-            ...payload,
-            partnerId: null,
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+      // Controleer of de partnerId gelijk is aan configurationId
+      if (partnerId === config._id) {
+        alert("PartnerId en ConfigurationId kunnen niet hetzelfde zijn!");
+        return; // Stop de uitvoering hier als de waarden gelijk zijn
       }
-    }
+
+      // Controleer of de configuratie al bestaat voor deze partner
+      const existingConfig = partnerConfigurations.value.find(
+        (pc) => pc.configurationId === config._id && pc.partnerId === partnerId
+      );
+
+      if (config.checked) {
+        // Als de configuratie nog niet bestaat voor deze partner, voeg deze toe
+        if (!existingConfig) {
+          return axios
+            .post(`${baseURL}/partnerConfigurations`, payload, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+            .then((response) => {
+              console.log("Config toegevoegd:", response.data);
+            })
+            .catch((error) => {
+              console.error(
+                "Fout bij toevoegen configuratie:",
+                error.response ? error.response.data : error
+              );
+            });
+        }
+      } else {
+        // Verwijder de configuratie als de checkbox is uitgeschakeld
+        if (existingConfig) {
+          return axios
+            .delete(`${baseURL}/partnerConfigurations/${existingConfig._id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+            .then((response) => {
+              console.log("Config verwijderd:", response.data);
+            })
+            .catch((error) => {
+              console.error(
+                "Fout bij verwijderen configuratie:",
+                error.response ? error.response.data : error
+              );
+            });
+        }
+      }
+    });
+
+    // Wacht op alle beloftes
+    await Promise.all(promises);
 
     alert("Configuraties zijn succesvol opgeslagen!");
     showSaveButton.value = false;
 
-    // Reset original status after successful save
+    // Reset originele status na succesvolle opslag
     selectedConfigurations.value.forEach((config) => {
       config.originalChecked = config.checked;
     });
+
+    // Partnerconfiguraties opnieuw ophalen om duplicaten te voorkomen
+    await fetchPartnerConfigurations();
   } catch (error) {
     console.error("Error saving updated configurations:", error);
     alert("Er is een fout opgetreden bij het opslaan van de configuraties.");
@@ -391,7 +425,7 @@ watch(
 watch(
   selectedConfigurations,
   (newConfigurations) => {
-    // Save the checked state of each configuration to localStorage
+    // Sla de geselecteerde staat op in localStorage
     const checkedState = newConfigurations.reduce((acc, config) => {
       acc[config._id] = config.checked;
       return acc;
@@ -402,7 +436,7 @@ watch(
       JSON.stringify(checkedState)
     );
 
-    // Show or hide the save button based on changes
+    // Controleer of er wijzigingen zijn in de geselecteerde configuraties
     const hasChanges = newConfigurations.some(
       (newConfig, index) =>
         newConfig.checked !== selectedConfigurations.value[index]?.checked
@@ -563,6 +597,7 @@ watch(
             }}</label>
           </div>
         </div>
+
         <div class="frameBtn">
           <button
             v-if="showSaveButton"

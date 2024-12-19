@@ -173,6 +173,8 @@ onMounted(async () => {
 provide("user", user);
 
 // Search and product selection logic
+const data = ref([]);
+
 const selectedProducts = ref([]);
 const isDeleteButtonVisible = computed(() => selectedProducts.value.length > 0);
 const isPopupVisible = ref(false);
@@ -197,6 +199,110 @@ const toggleSelectAll = (event) => {
 };
 
 // Handle delete confirmation
+
+// Handle product deletion
+const deleteSelectedProducts = () => {
+  if (selectedProducts.value.length === 0) return;
+  showPopup();
+};
+
+const confirmDelete = async () => {
+  await deletePartnerConfigurations();
+  hidePopup();
+};
+
+// Cloudinary image deletion helpers
+const extractPublicId = (imageUrl) => {
+  try {
+    const parts = imageUrl.split("/image/upload/");
+    if (parts.length < 2) return null;
+
+    let publicIdWithVersion = parts[1];
+    const publicIdParts = publicIdWithVersion.split("/");
+
+    if (
+      publicIdParts[0].startsWith("v") &&
+      !isNaN(Number(publicIdParts[0].slice(1)))
+    ) {
+      publicIdParts.shift();
+    }
+
+    return publicIdParts.join("/").split(".")[0];
+  } catch (error) {
+    console.error("Error extracting public_id:", error);
+    return null;
+  }
+};
+
+const deleteImageFromCloudinary = async (imageUrl) => {
+  const publicId = extractPublicId(imageUrl);
+  if (!publicId) return;
+
+  try {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const signature = generateSignature(timestamp, publicId);
+
+    const response = await fetch(
+      "https://api.cloudinary.com/v1_1/dzempjvto/image/destroy",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          public_id: publicId,
+          api_key: "496836855294519",
+          timestamp: timestamp,
+          signature: signature,
+        }),
+      }
+    );
+
+    const result = await response.json();
+    if (result.result !== "ok") {
+      throw new Error("Cloudinary delete failed: " + result.result);
+    }
+  } catch (error) {
+    console.error("Error deleting image from Cloudinary:", error);
+  }
+};
+
+const deletePartnerConfigurations = async () => {
+  try {
+    for (const id of selectedProducts.value) {
+      const product = data.value.find((product) => product._id === id);
+      if (product && product.images && product.images.length > 0) {
+        for (const imageUrl of product.images) {
+          await deleteImageFromCloudinary(imageUrl);
+        }
+      }
+
+      // Verwijder het product van de server
+      const response = await fetch(`${baseURL}/partnerConfigurations/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+    }
+
+    // Directe bijwerking van de local data zonder herladen van de pagina
+    configurations.value = configurations.value.filter(
+      (config) => !selectedProducts.value.includes(config._id)
+    );
+
+    // Werk de partnerConfigurations ook bij
+    partnerConfigurations.value = partnerConfigurations.value.filter(
+      (config) => !selectedProducts.value.includes(config._id)
+    );
+
+    // Leeg de geselecteerde producten lijst
+    selectedProducts.value = [];
+  } catch (error) {
+    console.error("Error deleting products:", error);
+  }
+};
+
 const showPopup = () => {
   isPopupVisible.value = true;
 };
@@ -253,10 +359,7 @@ console.log(optionsMap); // Controleer de opties
         </router-link>
         <div
           class="btn display"
-          :style="{
-            visibility:
-              selectedConfigurations.length > 0 ? 'visible' : 'hidden',
-          }"
+          :style="{ visibility: isDeleteButtonVisible ? 'visible' : 'hidden' }"
           @click="showPopup"
         >
           <p>Delete item(s)</p>
