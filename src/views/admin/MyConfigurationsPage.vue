@@ -288,7 +288,13 @@ console.log(optionsMap); // Controleer de opties
             :checked="selectedConfigurations.includes(config._id)"
             @change="toggleSelection(config._id)"
           />
-          <router-link :to="'/admin/settings/' + config._id" class="name">
+          <router-link
+            :to="{
+              name: 'EditConfiguration',
+              params: { id: config.configurationId },
+              query: { partnerId: config.partnerId },
+            }"
+          >
             <p>{{ getFullConfiguration(config)?.fieldName || "No name" }}</p>
           </router-link>
           <p>{{ getFullConfiguration(config)?.fieldType || "No type" }}</p>
