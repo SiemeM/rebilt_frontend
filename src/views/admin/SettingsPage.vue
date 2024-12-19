@@ -103,6 +103,8 @@ const fetchPartnerConfigurations = async () => {
       (config) => config.partnerId === partnerId
     );
 
+    console.log(partnerConfigurations.value);
+
     const partnerConfigIds = new Set(
       partnerConfigurations.value.map((config) => config._id)
     );
@@ -118,6 +120,8 @@ const fetchPartnerConfigurations = async () => {
       originalChecked:
         savedSelectedState?.[config._id] ?? partnerConfigIds.has(config._id),
     }));
+
+    console.log(selectedConfigurations.value);
   } catch (error) {
     console.error("Error fetching partner configurations:", error);
   }
@@ -126,27 +130,37 @@ const fetchPartnerConfigurations = async () => {
 const saveUpdatedConfigurations = async () => {
   try {
     for (const config of selectedConfigurations.value) {
-      if (config.checked !== config.originalChecked) {
-        const payload = { ...config };
+      const payload = {
+        partnerId: partnerId,
+        configurationId: config._id,
+        options: config.options || {}, // Adjust based on the actual structure of the options
+      };
 
-        // Voeg partnerId toe als de checkbox actief is
-        if (config.checked) {
-          payload.partnerId = partnerId; // partnerId komt van je gebruikerscontext of API-token
-        } else {
-          payload.partnerId = null; // Verwijder partnerId als de checkbox niet actief is
-        }
-
-        // Verstuur update naar de backend
-        await axios.put(`${baseURL}/configurations/${config._id}`, payload, {
+      // If checked is true, we create a new partner configuration (POST)
+      if (config.checked && !config.partnerId) {
+        // POST request to create a new configuration
+        await axios.post(`${baseURL}/partnerConfigurations`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
+      } else if (!config.checked && config.partnerId) {
+        // PUT request to remove the configuration (remove the partnerId)
+        await axios.put(
+          `${baseURL}/partnerConfigurations/${config._id}`,
+          {
+            ...payload,
+            partnerId: null,
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
       }
     }
 
     alert("Configuraties zijn succesvol opgeslagen!");
     showSaveButton.value = false;
 
-    // Reset originele status na succesvolle opslag
+    // Reset original status after successful save
     selectedConfigurations.value.forEach((config) => {
       config.originalChecked = config.checked;
     });
