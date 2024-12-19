@@ -8,7 +8,7 @@ import DynamicStyle from "../../components/DynamicStyle.vue";
 // Router setup
 const router = useRouter();
 
-// Reactive user object to store user details (gebruik reactive voor betere reactiviteit)
+// Reactive user object to store user details
 const user = reactive({
   firstName: "",
   lastName: "",
@@ -53,8 +53,7 @@ const parseJwt = (token) => {
 
 const tokenPayload = parseJwt(token);
 const userId = tokenPayload?.userId;
-const partnerId = tokenPayload?.companyId || null;
-console.log(partnerId);
+const partnerId = tokenPayload?.companyId;
 if (!userId) {
   router.push("/login");
 }
@@ -76,7 +75,6 @@ const fetchUserProfile = async () => {
     });
 
     const userData = response.data?.data?.user || {};
-    // Update the user object
     user.firstName = userData.firstname || "";
     user.lastName = userData.lastname || "";
     user.email = userData.email || "";
@@ -114,13 +112,13 @@ onMounted(async () => {
   await fetchPartnerData();
 });
 
-// Provide the user data to all components (including Navigation)
+// Provide the user data to all components
 provide("user", user); // Makes user data available to child components like Navigation
 
-// Haal de producten op vanuit de API
+// Fetch products data
 const fetchData = async () => {
   try {
-    const token = localStorage.getItem("jwtToken"); // Use the correct variable name
+    const token = localStorage.getItem("jwtToken");
     const response = await fetch(`${baseURL}/products`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -131,7 +129,7 @@ const fetchData = async () => {
     }
 
     const result = await response.json();
-    const userCompanyId = getUserCompanyId(token); // Pass the correct token here
+    const userCompanyId = getUserCompanyId(token);
 
     data.value = result.data.products.filter(
       (product) => product.partnerId === userCompanyId
@@ -141,15 +139,27 @@ const fetchData = async () => {
   }
 };
 
-// Array om de configuraties op te slaan
+// Arrays to store configurations
 const partnerConfigurations = ref([]);
+const selectedConfigurations = ref([]);
 
-// Declare selectedConfigurations as a ref or reactive object
-const selectedConfigurations = ref([]); // Use ref if you're not using a complex structure
+// Nieuwe API-aanroep om configuraties op te halen
+const fetchConfigurations = async () => {
+  try {
+    const response = await axios.get(`${baseURL}/configurations`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-// Or, if you want to make it more complex, you could use reactive
-// const selectedConfigurations = reactive([]);
+    const configurations = response.data?.data || [];
+    return configurations;
+  } catch (error) {
+    console.error("Error fetching configurations:", error);
+    return [];
+  }
+};
 
+// Fetch partner configurations
+// Haal de partnerconfiguraties en configuraties op en koppel ze
 const fetchPartnerConfigurations = async () => {
   if (!partnerId) {
     console.warn("No partnerId provided.");
@@ -157,42 +167,44 @@ const fetchPartnerConfigurations = async () => {
   }
 
   try {
-    const response = await axios.get(`${baseURL}/configurations`, {
-      headers: { Authorization: `Bearer ${token}` },
-      params: { partnerId }, // Assuming the API supports filtering by partnerId
+    // Haal de partnerconfiguraties op
+    const partnerResponse = await axios.get(
+      `${baseURL}/partnerConfigurations`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { partnerId },
+      }
+    );
+
+    const partnerConfigs = partnerResponse.data?.data || [];
+    partnerConfigurations.value = partnerConfigs.filter(
+      (config) => String(config.partnerId) === String(partnerId)
+    );
+
+    // Haal de algemene configuraties op
+    const configurations = await fetchConfigurations();
+
+    // Koppel de configuraties aan de partnerconfiguraties
+    partnerConfigurations.value.forEach((partnerConfig) => {
+      const matchingConfig = configurations.find(
+        (config) => config._id === partnerConfig.configurationId
+      );
+      if (matchingConfig) {
+        partnerConfig.fieldName = matchingConfig.fieldName; // Voeg het fieldName toe
+      }
     });
 
-    const configs = response.data?.data || [];
-    if (configs.length === 0) {
-      console.warn("No configurations found for the given partnerId.");
-    }
-
-    // Filter configurations based on the partnerId
-    partnerConfigurations.value = configs.filter(
-      (config) => config.partnerId === partnerId
-    );
-
-    // Load selected configurations state from localStorage
-    const savedSelectedState =
-      JSON.parse(localStorage.getItem("selectedConfigurations")) || {};
-
-    // Mark configurations as selected based on localStorage or default to true
-    selectedConfigurations.value = partnerConfigurations.value.map(
-      (config) => ({
-        ...config,
-        checked: savedSelectedState[config._id] ?? true, // Default to true if no saved state
-      })
-    );
+    console.log(partnerConfigurations.value);
   } catch (error) {
     console.error("Error fetching partner configurations:", error);
   }
 };
 
-// Initialiseer component en haal data op
+// Initial data fetch
 onMounted(fetchData);
 onMounted(fetchPartnerConfigurations);
 
-// Definities van refs en computed properties
+// Computed properties
 const selectedTypeFilter = ref("All");
 const data = ref([]);
 const searchTerm = ref("");
@@ -200,14 +212,14 @@ const selectedProducts = ref([]);
 const isDeleteButtonVisible = computed(() => selectedProducts.value.length > 0);
 const isPopupVisible = ref(false);
 
-// Haal companyId uit het JWT token
+// Get user company ID from JWT token
 const getUserCompanyId = (token) => {
   if (!token) return null;
   const decoded = JSON.parse(atob(token.split(".")[1]));
   return decoded.companyId;
 };
 
-// Selecteer of deselecteer een product
+// Select or deselect a product
 const toggleSelection = (productId) => {
   const index = selectedProducts.value.indexOf(productId);
   if (index === -1) {
@@ -217,64 +229,63 @@ const toggleSelection = (productId) => {
   }
 };
 
-// Selecteer of deselecteer alle producten
+// Select or deselect all products
 const toggleSelectAll = (event) => {
   selectedProducts.value = event.target.checked
     ? data.value.map((product) => product._id)
     : [];
 };
 
-// Start het verwijderproces van geselecteerde producten
+// Start the delete process for selected products
 const deleteSelectedProducts = () => {
   if (selectedProducts.value.length === 0) return;
   showPopup();
 };
 
-// Bevestig het verwijderen van geselecteerde producten
+// Confirm the deletion of selected products
 const confirmDelete = async () => {
   await deleteProducts();
   hidePopup();
 };
 
-// Functie om de public_id uit de URL van Cloudinary te extraheren
+// Extract public_id from Cloudinary URL
 const extractPublicId = (imageUrl) => {
   try {
     const parts = imageUrl.split("/image/upload/");
     if (parts.length < 2) {
-      console.error("Ongeldige URL-structuur:", imageUrl);
+      console.error("Invalid URL structure:", imageUrl);
       return null;
     }
 
-    let publicIdWithVersion = parts[1]; // Deel na "/image/upload/"
-    const publicIdParts = publicIdWithVersion.split("/"); // Split om de versie eruit te halen
+    let publicIdWithVersion = parts[1];
+    const publicIdParts = publicIdWithVersion.split("/");
 
-    // Als de eerste component begint met "v" gevolgd door een nummer, negeer die
     if (
       publicIdParts[0].startsWith("v") &&
       !isNaN(Number(publicIdParts[0].slice(1)))
     ) {
-      publicIdParts.shift(); // Verwijder de versie
+      publicIdParts.shift();
     }
 
-    const publicIdWithoutExtension = publicIdParts.join("/").split(".")[0]; // Combineer en verwijder bestandsextensie
+    const publicIdWithoutExtension = publicIdParts.join("/").split(".")[0];
     return publicIdWithoutExtension;
   } catch (error) {
-    console.error("Fout bij het extraheren van public_id:", error);
+    console.error("Error extracting public_id:", error);
     return null;
   }
 };
 
-// Functie om een afbeelding van Cloudinary te verwijderen
+// Delete image from Cloudinary
 const deleteImageFromCloudinary = async (imageUrl) => {
   const publicId = extractPublicId(imageUrl);
   if (!publicId) {
-    console.error("Geen geldige public_id gevonden voor afbeelding:", imageUrl);
+    console.error("No valid public_id found for image:", imageUrl);
     return;
   }
 
   try {
     const timestamp = Math.floor(Date.now() / 1000);
-    const signature = generateSignature(timestamp, publicId); // Gebruik alleen de public_id
+    const signature = generateSignature(timestamp, publicId);
 
     const response = await fetch(
       "https://api.cloudinary.com/v1_1/dzempjvto/image/destroy",
@@ -291,7 +302,6 @@ const deleteImageFromCloudinary = async (imageUrl) => {
     );
 
     const result = await response.json();
-
     if (result.result !== "ok") {
       throw new Error("Cloudinary delete failed: " + result.result);
     }
@@ -300,7 +310,7 @@ const deleteImageFromCloudinary = async (imageUrl) => {
   }
 };
 
-// Verwijder geselecteerde producten, inclusief hun afbeeldingen
+// Delete products
 const deleteProducts = async () => {
   try {
     for (const id of selectedProducts.value) {
@@ -314,70 +324,44 @@ const deleteProducts = async () => {
       const response = await fetch(`${baseURL}/products/${id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${token}`, // Use the correct token variable
+          Authorization: `Bearer ${token}`,
         },
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(`Error deleting product with id ${id}`);
+      }
     }
 
-    await fetchData(); // Reload the product list
-    selectedProducts.value = []; // Reset selected products
+    selectedProducts.value = [];
+    await fetchData(); // Refresh the data list
   } catch (error) {
     console.error("Error deleting products:", error);
-    alert("Er is een fout opgetreden bij het verwijderen van de producten.");
   }
 };
 
-// Functie om de handtekening voor Cloudinary te genereren
-// Functie om de handtekening voor Cloudinary te genereren
-const generateSignature = (timestamp, imageId) => {
-  const apiSecret = "g3uD4zo94Nn1l7S20LW_Y8wPKKY"; // Cloudinary API Secret
-  const signatureString = `public_id=${imageId}&timestamp=${timestamp}${apiSecret}`;
-  return sha1(signatureString);
-};
-
-// Toon de popup voor bevestiging
+// Show popup
 const showPopup = () => {
   isPopupVisible.value = true;
 };
 
-// Verberg de popup
+// Hide popup
 const hidePopup = () => {
   isPopupVisible.value = false;
 };
 
-// Haal gegevens op bij het laden van de component
-onMounted(() => {
-  fetchData();
-});
-
-const dynamicColumns = computed(() => {
-  const baseColumns = 7; // Dit zijn de vaste kolommen zoals Product Code, Name, etc.
-  const dynamicConfigColumns = partnerConfigurations.value.length; // Aantal dynamische kolommen gebaseerd op configuraties
-  return baseColumns + dynamicConfigColumns;
-});
-
-// Filter de producten op basis van zoekterm en producttype
-const filteredProducts = computed(() => {
-  if (!data.value) return [];
-
-  const filteredBySearch = data.value.filter((product) => {
-    return Object.values(product).some((value) =>
-      String(value).toLowerCase().includes(searchTerm.value.toLowerCase())
-    );
-  });
-
-  const filteredByType = filteredBySearch.filter(
-    (product) =>
-      selectedTypeFilter.value === "All" ||
-      product.typeOfProduct === selectedTypeFilter.value
+// Generate signature for Cloudinary deletion
+const generateSignature = (timestamp, publicId) => {
+  const secret = "adA9j34J6UeMpoZwMcHzKNfuWoY";
+  return md5(
+    `public_id=${publicId}&timestamp=${timestamp}&api_secret=${secret}`
   );
-
-  return filteredByType;
-});
+};
 </script>
 
 <template>
@@ -423,31 +407,28 @@ const filteredProducts = computed(() => {
       </select>
     </div>
     <div class="products">
-      <div
-        class="top"
-        :style="{ gridTemplateColumns: `repeat(${dynamicColumns.value}, 1fr)` }"
-      >
-        <input
+      <div class="top">
+        <!-- <input
           type="checkbox"
           @change="toggleSelectAll"
           :checked="
-            selectedProducts.length === filteredProducts.length &&
-            filteredProducts.length > 0
+            selectedProducts.length === selectedProducts.length &&
+            selectedProducts.length > 0
           "
-        />
+        /> -->
         <p>Product Code</p>
         <p>Product name</p>
         <p>Type of product</p>
         <p>Brand</p>
         <p>Description</p>
         <p>Status</p>
-        <div v-for="config in partnerConfigurations" :key="config._id">
-          <p>{{ config.fieldName }}</p>
-        </div>
+        <p v-for="config in partnerConfigurations" :key="config._id">
+          {{ config.fieldName || "N/A" }}
+        </p>
       </div>
 
-      <ul v-if="filteredProducts.length" class="list">
-        <li v-for="product in filteredProducts" :key="product._id">
+      <ul v-if="selectedProducts.length" class="list">
+        <li v-for="product in selectedProducts" :key="product._id">
           <input
             type="checkbox"
             @change="toggleSelection(product._id)"
