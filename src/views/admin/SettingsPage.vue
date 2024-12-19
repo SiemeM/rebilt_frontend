@@ -48,8 +48,7 @@ const parseJwt = (token) => {
 
 const tokenPayload = parseJwt(token); // Gebruik hier het token dat je hebt
 const userId = tokenPayload?.userId;
-const partnerId = tokenPayload?.companyId || "defaultPartnerId";
-sessionStorage.setItem("partnerId", partnerId);
+const partnerId = tokenPayload?.companyId;
 const showSaveButton = ref(false);
 
 const onConfigurationChange = () => {
@@ -71,16 +70,20 @@ const allConfigurations = ref([]); // Correcte initialisatie van ref
 const partnerConfigurations = ref([]);
 const selectedConfigurations = ref([]);
 
+const isConfigurationSelected = (configurationId) => {
+  const partnerConfigIds = new Set(
+    partnerConfigurations.value.map((config) => config._id)
+  );
+  return partnerConfigIds.has(configurationId);
+};
+
 // Ophalen van alle configuraties
 const fetchConfigurations = async () => {
   try {
     const response = await axios.get(`${baseURL}/configurations`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-
-    // Alle configuraties ophalen en opslaan
     allConfigurations.value = response.data?.data || [];
-    // Na het ophalen van alle configuraties, de partner-specifieke configuraties ophalen
     await fetchPartnerConfigurations();
   } catch (error) {
     console.error("Error fetching all configurations:", error);
@@ -89,40 +92,27 @@ const fetchConfigurations = async () => {
 
 const fetchPartnerConfigurations = async () => {
   if (!partnerId) return;
-
   try {
-    const response = await axios.get(`${baseURL}/configurations`, {
+    const response = await axios.get(`${baseURL}/partnerConfigurations`, {
       headers: { Authorization: `Bearer ${token}` },
       params: { partnerId },
     });
 
-    const configs = response.data?.data || [];
-    partnerConfigurations.value = configs.filter(
-      (config) => config.partnerId === partnerId
-    );
+    partnerConfigurations.value = response.data?.data || [];
 
-    console.log(partnerConfigurations.value);
-
+    // Maak een set van partnerconfiguraties
     const partnerConfigIds = new Set(
-      partnerConfigurations.value.map((config) => config._id)
-    );
-
-    // Haal de opgeslagen geselecteerde configuraties op
-    const savedSelectedState = JSON.parse(
-      localStorage.getItem("selectedConfigurations")
+      partnerConfigurations.value.map((config) => config.configurationId)
     );
 
     selectedConfigurations.value = allConfigurations.value.map((config) => {
-      const isChecked =
-        savedSelectedState?.[config._id] ?? partnerConfigIds.has(config._id);
+      const isChecked = partnerConfigIds.has(config._id);
       return {
         ...config,
         checked: isChecked,
-        originalChecked: isChecked,
+        disabled: !partnerConfigIds.has(config._id),
       };
     });
-
-    console.log(selectedConfigurations.value);
   } catch (error) {
     console.error("Error fetching partner configurations:", error);
   }
@@ -591,6 +581,7 @@ watch(
               v-model="config.checked"
               :id="'config-' + config._id"
               @change="onConfigurationChange"
+              :checked="isConfigurationSelected(config._id)"
             />
             <label :for="'config-' + config._id">{{
               config.fieldName || "Naam niet beschikbaar"
