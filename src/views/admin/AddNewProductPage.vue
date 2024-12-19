@@ -8,7 +8,7 @@ import axios from "axios";
 // Router en JWT-token ophalen
 const router = useRouter();
 const jwtToken = localStorage.getItem("jwtToken");
-
+console.log(jwtToken);
 const errorMessage = ref("");
 
 // Basis-URL bepalen afhankelijk van de omgeving
@@ -26,12 +26,12 @@ const checkToken = () => {
 
 // Functie om partnergegevens op te halen en partnernaam dynamisch in te stellen
 const partnerName = ref("");
+const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1])); // Decode token
+const partnerId = tokenPayload.companyId;
+
 // Functie om partnergegevens op te halen en partnernaam dynamisch in te stellen
 const fetchPartnerData = async () => {
   try {
-    const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1])); // Decode token
-    const partnerId = tokenPayload.companyId;
-
     if (!partnerId) {
       console.error("Partner ID (companyId) is not available in the token.");
       router.push("/login");
@@ -60,35 +60,201 @@ const fetchPartnerData = async () => {
 };
 
 const fetchPartnerConfigurations = async () => {
+  if (!partnerId) {
+    console.warn("No partnerId provided.");
+    return;
+  }
+
   try {
-    const response = await axios.get(`${baseURL}/configurations`, {
+    // Haal de partnerconfiguraties op
+    const partnerResponse = await axios.get(
+      `${baseURL}/partnerConfigurations`,
+      {
+        headers: { Authorization: `Bearer ${jwtToken}` },
+        params: { partnerId },
+      }
+    );
+
+    const partnerConfigs = partnerResponse.data?.data || [];
+    const configurationsResponse = await axios.get(
+      `${baseURL}/configurations`,
+      {
+        headers: { Authorization: `Bearer ${jwtToken}` },
+      }
+    );
+
+    const configurations = configurationsResponse.data?.data || [];
+
+    partnerConfigurations.value = await Promise.all(
+      partnerConfigs.map(async (partnerConfig) => {
+        const matchingConfig = configurations.find(
+          (config) => config._id === partnerConfig.configurationId
+        );
+
+        const options = matchingConfig?.options
+          ? await fetchOptionNames(matchingConfig.options)
+          : [];
+
+        return {
+          ...partnerConfig,
+          fieldName: matchingConfig?.fieldName || "Unknown",
+          fieldType: matchingConfig?.fieldType || "Text",
+          options, // Ingevulde opties
+          value: "",
+        };
+      })
+    );
+
+    console.log("Partner Configurations:", partnerConfigurations.value);
+  } catch (error) {
+    console.error("Error fetching partner configurations:", error);
+  }
+};
+
+const fetchOptionNames = async (optionIds) => {
+  try {
+    const responses = await Promise.all(
+      optionIds.map((id) =>
+        axios.get(`${baseURL}/options/${id}`, {
+          headers: { Authorization: `Bearer ${jwtToken}` },
+        })
+      )
+    );
+
+    return responses.map((res) => res.data?.data || "Unknown"); // Zorg ervoor dat we een object met een _id terugkrijgen
+  } catch (error) {
+    console.error("Error fetching option names:", error);
+    return optionIds.map(() => "Unknown");
+  }
+};
+
+import mongoose from "mongoose";
+
+const addProduct = async () => {
+  // Validate required fields
+  if (
+    !productCode.value ||
+    !productName.value ||
+    !productPrice.value ||
+    !description.value ||
+    !brand.value
+  ) {
+    errorMessage.value = "Please fill in all required fields.";
+    return;
+  }
+
+  // Check JWT token
+  if (!jwtToken) {
+    console.error("JWT Token is missing!");
+    errorMessage.value = "Authorization token is missing.";
+    return;
+  }
+
+  let userCompanyId = null;
+  try {
+    const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1])); // Decode token
+    userCompanyId = tokenPayload.companyId;
+  } catch (error) {
+    console.error("Error decoding token", error);
+    errorMessage.value = "Invalid token.";
+    return;
+  }
+
+  // Prepare selected configurations
+  const selectedConfigurations = partnerConfigurations.value
+    .map((config) => {
+      const configurationId = config.configurationId;
+
+      // Ensure the configurationId is a valid ObjectId
+      if (!mongoose.Types.ObjectId.isValid(configurationId)) {
+        console.error("Invalid ObjectId:", configurationId);
+        errorMessage.value = `Invalid configurationId: ${configurationId}`;
+        return null;
+      }
+
+      return {
+        configurationId: configurationId, // Ensure this is a valid ObjectId
+        value: config.value || "", // The selected value (which is now an _id)
+      };
+    })
+    .filter((config) => config !== null); // Filter out invalid configurations
+
+  // Prepare custom configurations with ObjectIds
+  const customConfigurations = partnerConfigurations.value
+    .map((config) => {
+      if (config.value) {
+        // Ensure selectedOption is a valid ObjectId (it will now store the _id)
+        const selectedOption = config.value;
+
+        // Ensure selectedOption is a valid ObjectId
+        if (!mongoose.Types.ObjectId.isValid(selectedOption)) {
+          console.error("Invalid selectedOption:", selectedOption);
+          errorMessage.value = `Invalid selectedOption: ${selectedOption}`;
+          return null;
+        }
+
+        return {
+          fieldName: config.fieldName, // Field name (e.g., 'Size', 'Color')
+          fieldType: config.fieldType, // Field type (e.g., 'Select', 'Text')
+          selectedOption: selectedOption, // Now this is the valid ObjectId
+        };
+      }
+      return null;
+    })
+    .filter((config) => config !== null); // Filter out invalid custom configurations
+
+  const productData = {
+    productCode: productCode.value,
+    productName: productName.value,
+    productPrice: productPrice.value,
+    productType: productType.value,
+    description: description.value,
+    brand: brand.value,
+    images:
+      images.value.length > 0
+        ? await Promise.all(
+            images.value.map((file) =>
+              uploadImageToCloudinary(file, productName.value)
+            )
+          )
+        : [],
+    partnerId: userCompanyId,
+    configurations: selectedConfigurations.map(
+      (config) => config.configurationId // Now this will be the correct configurationId
+    ),
+    customConfigurations: customConfigurations, // Ensure custom configurations use ObjectIds
+  };
+
+  try {
+    const response = await axios.post(`${baseURL}/products`, productData, {
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${jwtToken}`,
+        "Content-Type": "application/json",
       },
     });
 
-    // Decodeer het JWT-token om de partnerId eruit te halen
-    const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1])); // Decodeer token
-    const partnerId = tokenPayload.companyId;
+    console.log("Response from server:", response.data);
 
-    if (!response.data || !response.data.data) {
-      throw new Error("Geen configuraties gevonden.");
-    }
-
-    // Filter de configuraties op basis van de partnerId
-    const partnerConfigurationsFiltered = response.data.data.filter(
-      (config) => config.partnerId === partnerId
-    );
-
-    // Sla de gefilterde configuraties op in de lokale staat
-    partnerConfigurations.value = partnerConfigurationsFiltered;
-
-    if (partnerConfigurationsFiltered.length === 0) {
-      console.log("Geen configuraties gevonden voor deze partner.");
+    if (response.status === 201) {
+      router.push("/admin");
+    } else {
+      console.error("Failed to add product. Status:", response.status);
+      errorMessage.value = "Failed to add product.";
     }
   } catch (error) {
-    console.error("Fout bij het ophalen van partnerconfiguraties:", error);
+    console.error("Error adding product:", error);
+    if (error.response) {
+      console.error("Server response error:", error.response.data);
+      errorMessage.value = `Error: ${
+        error.response.data.message || "Unknown error"
+      }`;
+    } else if (error.request) {
+      console.error("No response received:", error.request);
+      errorMessage.value = "No response from server.";
+    } else {
+      console.error("Error during request:", error.message);
+      errorMessage.value = "Error during request.";
+    }
   }
 };
 
@@ -100,14 +266,15 @@ onMounted(() => {
 
 // Product-informatie refs
 const productCode = ref("");
-const typeOfProduct = ref("sneaker");
+const productType = ref("sneaker");
 const productName = ref("");
 const brand = ref("");
 const productPrice = ref("");
 const description = ref("");
-const colors = ref([]); // Herschrijven naar een array voor kleurselectie
 const newColor = ref(""); // Dit wordt gebruikt voor het kleurinvoerveld
-const images = ref([]); // Geüploade afbeeldingen
+const images = ref([]);
+const image = ref(""); // Dit moet initialisatie zijn
+
 const partnerConfigurations = ref([]);
 
 // Functie voor het uploaden van afbeeldingen naar Cloudinary
@@ -163,104 +330,33 @@ const parseInputToArray = (input) => {
     .filter(Boolean);
 };
 
-const parseColorInput = (input, colorArray) => {
-  const newColors = input
-    .split(",")
-    .map((color) => color.trim())
-    .filter(Boolean);
+const dropdownOpen = ref(false);
+const dropdownStates = ref({});
 
-  // Voeg de nieuwe kleuren toe aan de colors array, zonder duplicaten
-  newColors.forEach((color) => {
-    if (!colorArray.includes(color)) {
-      colorArray.push(color);
+const toggleDropdown = (fieldName) => {
+  // Sluit alle dropdowns door de status op false te zetten
+  for (const key in dropdownStates.value) {
+    if (key !== fieldName) {
+      dropdownStates.value[key] = false;
     }
-  });
+  }
+  // Toggle de status van de geselecteerde dropdown
+  dropdownStates.value[fieldName] = !dropdownStates.value[fieldName];
 };
 
-// Functie om een nieuw product toe te voegen
-const addProduct = async () => {
-  // Controleer of de vereiste velden ingevuld zijn
-  if (
-    !productCode.value ||
-    !productName.value ||
-    !productPrice.value ||
-    !description.value ||
-    !brand.value
-  ) {
-    errorMessage.value = "Please fill in all required fields.";
-    return;
+const selectColor = (option, fieldName) => {
+  // Zoek de configuratie object op op basis van het fieldName
+  const selectedConfig = partnerConfigurations.value.find(
+    (config) => config.fieldName === fieldName
+  );
+
+  if (selectedConfig) {
+    // Stel de selectedOption in op het ID van de geselecteerde optie
+    selectedConfig.value = option._id; // Alleen het _id wordt opgeslagen
   }
 
-  if (!partnerName.value) {
-    errorMessage.value = "Partner data is not available.";
-    return;
-  }
-
-  // Controleer of er kleuren en maatopties zijn
-  const colorsArray = colors.value;
-
-  if (colorsArray.length === 0) {
-    errorMessage.value = "Please provide at least one color.";
-    return;
-  }
-
-  const userCompanyId = jwtToken
-    ? JSON.parse(atob(jwtToken.split(".")[1])).companyId
-    : null;
-
-  // Create product data with dynamic partner configurations
-  const productData = {
-    productCode: productCode.value,
-    productName: productName.value,
-    productPrice: productPrice.value,
-    typeOfProduct: typeOfProduct.value,
-    description: description.value,
-    brand: brand.value,
-    colors: colorsArray,
-    images: [],
-    partnerId: userCompanyId,
-    partnerConfigurations: partnerConfigurations.map((config) => ({
-      fieldName: config.fieldName,
-      value: config.value || "", // Add dynamic configurations
-    })),
-  };
-
-  try {
-    if (images.value.length === 0) {
-      errorMessage.value = "Please upload at least one image.";
-      return;
-    }
-
-    productData.images = await Promise.all(
-      images.value.map((file) =>
-        uploadImageToCloudinary(file, productName.value)
-      )
-    );
-  } catch (error) {
-    errorMessage.value = "An error occurred while uploading images.";
-    return;
-  }
-
-  try {
-    const response = await fetch(`${baseURL}/products`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${jwtToken}`,
-      },
-      body: JSON.stringify(productData),
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.message || "Unknown error occurred.");
-    }
-
-    router.push("/admin");
-  } catch (error) {
-    console.error("Error adding product:", error);
-    errorMessage.value = "An error occurred while adding the product.";
-  }
+  // Sluit de dropdown na het selecteren van de kleur
+  dropdownStates.value[fieldName] = false;
 };
 </script>
 
@@ -283,8 +379,8 @@ const addProduct = async () => {
 
       <div class="row">
         <div class="column">
-          <label for="typeOfProduct">Type Of Product:</label>
-          <select v-model="typeOfProduct" id="typeOfProduct">
+          <label for="productType">Type Of Product:</label>
+          <select v-model="productType" id="productType">
             <option value="sneaker">Sneaker</option>
             <option value="boot">Boot</option>
             <option value="sandals">Sandals</option>
@@ -315,7 +411,6 @@ const addProduct = async () => {
       </div>
 
       <!-- Dynamically render partner configurations -->
-      <!-- Dynamisch renderen van partner configuraties op basis van fieldType -->
       <div
         v-for="config in partnerConfigurations"
         :key="config._id"
@@ -323,7 +418,6 @@ const addProduct = async () => {
       >
         <div class="column">
           <label :for="config.fieldName">{{ config.fieldName }}:</label>
-          <!-- Renderen van inputvelden op basis van fieldType -->
           <template v-if="config.fieldType === 'Text'">
             <input v-model="config.value" :id="config.fieldName" type="text" />
           </template>
@@ -333,43 +427,67 @@ const addProduct = async () => {
               <option
                 v-for="(option, index) in config.options"
                 :key="index"
-                :value="option"
+                :value="option._id"
               >
-                {{ option }}
+                {{ option.name }}
               </option>
             </select>
           </template>
 
-          <template v-else-if="config.fieldType === 'Number'">
-            <input
-              v-model="config.value"
-              :id="config.fieldName"
-              type="number"
-            />
+          <template v-else-if="config.fieldType === 'Color'">
+            <div class="color-dropdown">
+              <div class="dropdown">
+                <div
+                  class="dropdown-selected"
+                  @click="toggleDropdown(config.fieldName)"
+                >
+                  <span
+                    class="color-bullet"
+                    :style="{
+                      backgroundColor: config.value
+                        ? config.options.find(
+                            (option) => option._id === config.value
+                          )?.backgroundColor
+                        : 'transparent',
+                    }"
+                  ></span>
+                  <p>
+                    {{
+                      config.options.find(
+                        (option) => option._id === config.value
+                      )?.name || "Select color"
+                    }}
+                  </p>
+                  <!-- Toon de naam -->
+                </div>
+                <div
+                  v-if="dropdownStates[config.fieldName]"
+                  class="dropdown-options"
+                >
+                  <div
+                    v-for="(option, index) in config.options"
+                    :key="index"
+                    class="dropdown-option"
+                    @click="selectColor(option, config.fieldName)"
+                  >
+                    <span
+                      class="color-bullet"
+                      :style="{
+                        backgroundColor:
+                          option.backgroundColor || 'transparent',
+                      }"
+                    ></span>
+                    <p>{{ option.name || "Unnamed Color" }}</p>
+                    <!-- Toon de naam van de kleur -->
+                  </div>
+                </div>
+              </div>
+            </div>
           </template>
-
-          <!-- Voeg andere fieldTypes toe indien nodig -->
-          <!-- Bijvoorbeeld een checkbox, radio button of andere formaten -->
         </div>
       </div>
 
       <div class="row">
-        <div class="column">
-          <label for="colors">Colors:</label>
-          <input
-            v-model="newColor"
-            type="color"
-            @change="colors.push(newColor)"
-          />
-          <div class="color-preview">
-            <span
-              v-for="(color, index) in colors"
-              :key="index"
-              :style="{ backgroundColor: color }"
-              class="color-box"
-            ></span>
-          </div>
-        </div>
         <div class="column">
           <label for="images">Upload Images:</label>
           <input type="file" id="images" multiple @change="handleImageUpload" />
@@ -477,5 +595,65 @@ button {
 .error-message {
   color: #d34848;
   margin-top: 20px;
+}
+
+.color-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.dropdown-selected {
+  padding: 8px;
+  background-color: #333;
+  color: white;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  width: 100%;
+}
+
+.color-bullet {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  margin-right: 8px;
+  background-color: transparent;
+}
+
+.dropdown-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #333;
+  border-radius: 4px;
+  width: 100%;
+  z-index: 10;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.dropdown-option {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  color: white;
+  cursor: pointer;
+}
+
+.dropdown-option:hover {
+  background-color: #555;
+}
+
+.dropdown-option:active {
+  background-color: #444;
 }
 </style>

@@ -116,6 +116,7 @@ onMounted(async () => {
 provide("user", user); // Makes user data available to child components like Navigation
 
 // Fetch products data
+// Fetch products data
 const fetchData = async () => {
   try {
     const token = localStorage.getItem("jwtToken");
@@ -124,6 +125,7 @@ const fetchData = async () => {
         Authorization: `Bearer ${token}`,
       },
     });
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -131,8 +133,9 @@ const fetchData = async () => {
     const result = await response.json();
     const userCompanyId = getUserCompanyId(token);
 
+    // Filter products based on the partnerId (companyId in the token payload)
     data.value = result.data.products.filter(
-      (product) => product.partnerId === userCompanyId
+      (product) => product.partnerId === partnerId
     );
   } catch (error) {
     console.error("Error fetching data:", error);
@@ -427,8 +430,8 @@ const generateSignature = (timestamp, publicId) => {
         </p>
       </div>
 
-      <ul v-if="selectedProducts.length" class="list">
-        <li v-for="product in selectedProducts" :key="product._id">
+      <ul v-if="data.length" class="list">
+        <li v-for="product in data" :key="product._id">
           <input
             type="checkbox"
             @change="toggleSelection(product._id)"
@@ -438,21 +441,16 @@ const generateSignature = (timestamp, publicId) => {
             :to="{ name: 'EditProduct', params: { id: product._id } }"
           >
             <p>{{ product.productCode }}</p>
-            <p>{{ product.typeOfProduct }}</p>
-            <p>{{ product.brand }}</p>
             <p>{{ product.productName }}</p>
-            <p>{{ product.colors }}</p>
+            <p>{{ product.productType }}</p>
+            <p>{{ product.brand }}</p>
             <p>{{ product.description }}</p>
-            <p>{{ product.activeUnactive }}</p>
+            <p>{{ product.activeUnactive ? "Active" : "Inactive" }}</p>
 
             <!-- Render dynamic configuration values -->
-            <div class="configurations">
-              <p v-for="config in partnerConfigurations" :key="config._id">
-                {{ product[config.fieldName] || "N/A" }}
-              </p>
-            </div>
-
-            <p>{{ product.glassColor }}</p>
+            <p v-for="config in partnerConfigurations" :key="config._id">
+              {{ product[config.fieldName] || "N/A" }}
+            </p>
           </router-link>
         </li>
       </ul>
@@ -587,18 +585,18 @@ select {
 }
 
 .products .top {
-  display: flex; /* Gebruik flexbox voor een enkele rij */
-  gap: 20px; /* Pas de ruimte tussen de items aan */
+  display: flex; /* Keep the flexbox layout */
+  gap: 20px; /* Space between items */
   border-radius: 8px 8px 0 0;
-  padding: 4px 16px;
+  padding: 16px;
   background-color: var(--secondary-color);
-  width: 100%; /* Zorg ervoor dat de breedte van de container 100% is */
-  overflow-x: auto; /* Hiermee kan horizontaal gescrold worden */
-  -webkit-overflow-scrolling: touch; /* Zorg voor een vloeiende scroll op mobiele apparaten */
+  width: 100%;
+  overflow-x: auto; /* Allow horizontal scrolling */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on mobile */
 }
 
 .products .top::-webkit-scrollbar {
-  display: none; /* Verberg de scrollbalk */
+  display: none; /* Hide scrollbar */
 }
 
 .products .list {
@@ -606,29 +604,49 @@ select {
   flex-direction: column;
   padding: 16px;
   gap: 16px;
-  overflow-x: auto; /* Alleen voor verticale scroll indien nodig */
+  overflow-x: auto;
 }
 
 .products .list li {
   display: flex;
-  flex-direction: row;
+  flex-direction: row; /* Align items in a row */
   align-items: center;
+  gap: 20px; /* Space between columns */
+  padding: 16px;
 }
 
 .products .list li:nth-child(even) {
-  background-color: rgb(var(--primary-color), 0.1);
+  background-color: rgb(
+    var(--primary-color),
+    0.1
+  ); /* Alternate background color */
 }
 
-.products .top input {
-  width: 20px;
+.products .top p,
+.products .list li p {
+  color: var(--text-color);
+  min-width: 150px; /* Minimum width for each column */
+  box-sizing: border-box; /* Include padding/border in width calculation */
+}
+
+.products .top p {
+  flex-grow: 1; /* Allow flexibility in top items */
+}
+
+.products .list li p {
+  flex-grow: 1; /* Allow each product property to grow and fill space */
 }
 
 .products .list li a {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 80px;
-  padding-left: 80px;
+  display: flex; /* Ensure the entire item is aligned in a row */
+  gap: 20px; /* Space out the child items */
+  width: 100%;
 }
+
+.products .list li a:hover {
+  text-decoration: underline; /* Hover effect */
+}
+
 .products .list li p {
   color: var(--text-color);
 }
