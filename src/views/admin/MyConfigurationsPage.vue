@@ -71,6 +71,7 @@ const configurations = ref([]);
 const partnerConfigurations = ref([]);
 const loadingConfigurations = ref(false);
 const optionsMap = reactive({});
+const isDataLoaded = ref(false); // Loading status flag
 
 // Fetch user profile data
 const fetchUserProfile = async () => {
@@ -117,8 +118,8 @@ const fetchConfigurations = async () => {
     const response = await axios.get(`${baseURL}/configurations`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    console.log("Configurations response:", response); // Voeg logging toe
     configurations.value = response.data?.data || [];
+    console.log("All configurations loaded:", configurations.value); // Log all configurations
   } catch (error) {
     console.error("Error fetching configurations:", error);
     configurations.value = [];
@@ -138,9 +139,6 @@ const fetchPartnerConfigurations = async () => {
         headers: { Authorization: `Bearer ${token}` },
       }),
     ]);
-    console.log("Partner Configurations response:", configResponse); // Voeg logging toe
-    console.log("Options response:", optionsResponse); // Voeg logging toe
-
     const configs = configResponse.data?.data || [];
     const options = optionsResponse.data?.data || [];
 
@@ -153,6 +151,7 @@ const fetchPartnerConfigurations = async () => {
     partnerConfigurations.value = configs.filter(
       (config) => config.partnerId === partnerId
     );
+    console.log("Partner configurations loaded:", partnerConfigurations.value); // Log partner configurations
   } catch (error) {
     console.error("Error fetching partner configurations or options:", error);
     partnerConfigurations.value = [];
@@ -167,173 +166,135 @@ onMounted(async () => {
   await fetchPartnerData();
   await fetchPartnerConfigurations();
   await fetchConfigurations();
+  isDataLoaded.value = true; // Data is fully loaded now
 });
 
 // Provide user data globally
 provide("user", user);
 
-// Search and product selection logic
-const data = ref([]);
-
-const selectedProducts = ref([]);
-const isDeleteButtonVisible = computed(() => selectedProducts.value.length > 0);
-const isPopupVisible = ref(false);
+// Reactive data for product selection and deletion logic
 const selectedConfigurations = ref([]);
 const searchTerm = ref(""); // Add this line in your setup() function
 
-// Handle product selection
-const toggleSelection = (productId) => {
-  const index = selectedProducts.value.indexOf(productId);
+// Select all configurations
+const selectAllPartnerConfigurations = (isSelected) => {
+  selectedConfigurations.value = isSelected
+    ? partnerConfigurations.value.map((config) => config._id)
+    : []; // If selected, set to all partner configuration IDs, else empty array
+};
+
+// Function to toggle the selection of individual partner configuration
+const toggleSelection = (configId) => {
+  const index = selectedConfigurations.value.indexOf(configId);
   if (index === -1) {
-    selectedProducts.value.push(productId);
+    selectedConfigurations.value.push(configId); // Add to selection
   } else {
-    selectedProducts.value.splice(index, 1);
+    selectedConfigurations.value.splice(index, 1); // Remove from selection
   }
 };
 
-// Handle select/deselect all products
-const toggleSelectAll = (event) => {
-  selectedProducts.value = event.target.checked
-    ? configurations.value.map((product) => product._id)
-    : [];
-};
-
-// Handle delete confirmation
-
-// Handle product deletion
-const deleteSelectedProducts = () => {
-  if (selectedProducts.value.length === 0) return;
-  showPopup();
-};
-
-const confirmDelete = async () => {
-  await deletePartnerConfigurations();
-  hidePopup();
-};
-
-// Cloudinary image deletion helpers
-const extractPublicId = (imageUrl) => {
-  try {
-    const parts = imageUrl.split("/image/upload/");
-    if (parts.length < 2) return null;
-
-    let publicIdWithVersion = parts[1];
-    const publicIdParts = publicIdWithVersion.split("/");
-
-    if (
-      publicIdParts[0].startsWith("v") &&
-      !isNaN(Number(publicIdParts[0].slice(1)))
-    ) {
-      publicIdParts.shift();
-    }
-
-    return publicIdParts.join("/").split(".")[0];
-  } catch (error) {
-    console.error("Error extracting public_id:", error);
-    return null;
-  }
-};
-
-const deleteImageFromCloudinary = async (imageUrl) => {
-  const publicId = extractPublicId(imageUrl);
-  if (!publicId) return;
-
-  try {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const signature = generateSignature(timestamp, publicId);
-
-    const response = await fetch(
-      "https://api.cloudinary.com/v1_1/dzempjvto/image/destroy",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          public_id: publicId,
-          api_key: "496836855294519",
-          timestamp: timestamp,
-          signature: signature,
-        }),
-      }
-    );
-
-    const result = await response.json();
-    if (result.result !== "ok") {
-      throw new Error("Cloudinary delete failed: " + result.result);
-    }
-  } catch (error) {
-    console.error("Error deleting image from Cloudinary:", error);
-  }
-};
-
-const deletePartnerConfigurations = async () => {
-  try {
-    for (const id of selectedProducts.value) {
-      const product = data.value.find((product) => product._id === id);
-      if (product && product.images && product.images.length > 0) {
-        for (const imageUrl of product.images) {
-          await deleteImageFromCloudinary(imageUrl);
-        }
-      }
-
-      // Verwijder het product van de server
-      const response = await fetch(`${baseURL}/partnerConfigurations/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-    }
-
-    // Directe bijwerking van de local data zonder herladen van de pagina
-    configurations.value = configurations.value.filter(
-      (config) => !selectedProducts.value.includes(config._id)
-    );
-
-    // Werk de partnerConfigurations ook bij
-    partnerConfigurations.value = partnerConfigurations.value.filter(
-      (config) => !selectedProducts.value.includes(config._id)
-    );
-
-    // Leeg de geselecteerde producten lijst
-    selectedProducts.value = [];
-  } catch (error) {
-    console.error("Error deleting products:", error);
-  }
-};
-
+// Show confirmation popup
+const isPopupVisible = ref(false);
 const showPopup = () => {
   isPopupVisible.value = true;
 };
 
+// Hide confirmation popup
 const hidePopup = () => {
   isPopupVisible.value = false;
 };
 
-const getOptionsNames = (optionIds) => {
-  if (!Array.isArray(optionIds) || optionIds.length === 0) {
-    return "No options"; // Geef "No options" terug als er geen opties zijn
+const confirmDelete = async () => {
+  if (!isDataLoaded.value) {
+    console.error("Data is still loading. Please try again later.");
+    return;
   }
-  return optionIds
-    .map((optionId) => optionsMap[optionId]?.name)
-    .filter(Boolean)
-    .join(", ");
+
+  try {
+    const productsToDelete =
+      selectedConfigurations.value.length > 0
+        ? selectedConfigurations.value
+        : partnerConfigurations.value.map((config) => config._id);
+
+    console.log("Products to delete:", productsToDelete);
+
+    // Debugging: Log partner configurations before attempting delete
+    console.log("Current partner configurations:", partnerConfigurations.value);
+
+    // Start the deletion process
+    for (const id of productsToDelete) {
+      console.log("Attempting to delete configuration with ID:", id);
+
+      // Zoek naar de configuratie in de partner-configuraties
+      const existingConfig = partnerConfigurations.value.find(
+        (config) => config._id === id
+      );
+
+      if (!existingConfig) {
+        console.error(
+          `Configuration with ID ${id} not found in partner configurations.`
+        );
+        continue; // Skip this ID if it's not found
+      }
+
+      const response = await axios.delete(
+        `${baseURL}/partnerConfigurations/${id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      // Debugging: Log the response from the server
+      console.log("Delete response:", response);
+
+      if (response.status === 200) {
+        // Adjusted to 200 OK
+        // Verwijder de configuratie uit de partner configuraties
+        partnerConfigurations.value = partnerConfigurations.value.filter(
+          (config) => config._id !== id
+        );
+        console.log(
+          `Configuration with ID ${id} deleted from partner configurations.`
+        );
+
+        // Optionally, also remove from all configurations
+        configurations.value = configurations.value.filter(
+          (config) => config._id !== id
+        );
+        console.log(
+          `Configuration with ID ${id} deleted from all configurations.`
+        );
+      } else {
+        throw new Error(`Failed to delete configuration with ID ${id}`);
+      }
+    }
+
+    // Reset de geselecteerde configuraties
+    selectedConfigurations.value = [];
+    hidePopup(); // Verberg de popup na succesvol verwijderen
+  } catch (error) {
+    console.error("Error deleting configurations:", error);
+    alert("An error occurred while trying to delete configurations.");
+  }
 };
 
-// Get full configuration data for partner's configurations
 const getFullConfiguration = (partnerConfig) => {
-  // Find the full configuration in the 'configurations' array using 'configurationId'
   return (
     configurations.value.find(
       (config) => config._id === partnerConfig.configurationId
-    ) || {}
-  ); // Return an empty object if no matching configuration is found
+    ) || {} // Return an empty object if no matching configuration is found
+  );
 };
 
-console.log(configurations.value); // Controleer of configuraties goed geladen zijn
-console.log(partnerConfigurations.value); // Controleer de partnerconfiguraties
-console.log(optionsMap); // Controleer de opties
+// Define the getOptionsNames function
+const getOptionsNames = (optionIds) => {
+  if (!Array.isArray(optionIds) || optionIds.length === 0) {
+    return "No options"; // Return a default string if there are no options
+  }
+  return optionIds
+    .map((id) => optionsMap[id]?.name || "Unknown option")
+    .join(", ");
+};
 </script>
 
 <template>
@@ -359,7 +320,10 @@ console.log(optionsMap); // Controleer de opties
         </router-link>
         <div
           class="btn display"
-          :style="{ visibility: isDeleteButtonVisible ? 'visible' : 'hidden' }"
+          :style="{
+            visibility:
+              selectedConfigurations.length > 0 ? 'visible' : 'hidden',
+          }"
           @click="showPopup"
         >
           <p>Delete item(s)</p>
@@ -375,6 +339,10 @@ console.log(optionsMap); // Controleer de opties
     <!-- Configurations table -->
     <div class="configurations">
       <div class="top">
+        <input
+          type="checkbox"
+          @change="selectAllPartnerConfigurations($event.target.checked)"
+        />
         <p>Field Name</p>
         <p>Type</p>
         <p>Options</p>
