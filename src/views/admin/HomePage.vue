@@ -314,35 +314,19 @@ const deleteImageFromCloudinary = async (imageUrl) => {
 };
 
 // Delete products
+// Delete products
 const deleteProducts = async () => {
   try {
     for (const id of selectedProducts.value) {
-      const product = data.value.find((product) => product._id === id);
-      if (product && product.images && product.images.length > 0) {
-        for (const imageUrl of product.images) {
-          await deleteImageFromCloudinary(imageUrl);
-        }
-      }
-
       const response = await fetch(`${baseURL}/products/${id}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(`Error deleting product with id ${id}`);
-      }
     }
-
+    await fetchData();
     selectedProducts.value = [];
-    await fetchData(); // Refresh the data list
   } catch (error) {
     console.error("Error deleting products:", error);
   }
