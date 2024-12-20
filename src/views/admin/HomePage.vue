@@ -355,12 +355,13 @@ const optionNames = ref({});
 
 // Aangepaste fetchOptionNames functie die optienamen bijwerkt
 async function fetchOptionNames(product) {
-  if (!product || !product.customConfigurations) {
-    console.warn("Product of customConfigurations ontbreekt");
+  console.log(product);
+  if (!product || !product.configurations) {
+    console.warn("Product of configurations ontbreekt");
     return;
   }
 
-  const customConfigs = product.customConfigurations;
+  const customConfigs = product.configurations;
 
   if (customConfigs.length === 0) {
     console.log("Geen custom configuraties beschikbaar voor dit product");
@@ -489,7 +490,7 @@ onMounted(async () => {
             <p>{{ product.activeUnactive ? "Active" : "Inactive" }}</p>
 
             <p
-              v-for="customConfig in product.customConfigurations"
+              v-for="customConfig in product.configurations"
               :key="customConfig._id"
             >
               {{ optionNames[customConfig._id] || "Geen naam gevonden" }}

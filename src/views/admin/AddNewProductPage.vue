@@ -1,9 +1,9 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
-import axios from "axios";
 
 // Router en JWT-token ophalen
 const router = useRouter();
@@ -160,7 +160,7 @@ const addProduct = async () => {
     return;
   }
 
-  // Prepare selected configurations
+  // Prepare selected configurations and validate selectedOption
   const selectedConfigurations = partnerConfigurations.value
     .map((config) => {
       const configurationId = config.configurationId;
@@ -172,9 +172,18 @@ const addProduct = async () => {
         return null;
       }
 
+      // Ensure that selectedOption is a valid ObjectId or set to null if empty
+      const selectedOption = config.value;
+      if (!selectedOption || !mongoose.Types.ObjectId.isValid(selectedOption)) {
+        console.warn(
+          `Invalid or missing selectedOption for ${config.fieldName}`
+        );
+        return null; // Do not include invalid configurations
+      }
+
       return {
-        configurationId: configurationId, // Ensure this is a valid ObjectId
-        value: config.value || "", // The selected value (which is now an _id)
+        configurationId: configurationId,
+        selectedOption: selectedOption, // Ensure this is a valid ObjectId
       };
     })
     .filter((config) => config !== null); // Filter out invalid configurations
@@ -219,9 +228,7 @@ const addProduct = async () => {
           )
         : [],
     partnerId: userCompanyId,
-    configurations: selectedConfigurations.map(
-      (config) => config.configurationId // Now this will be the correct configurationId
-    ),
+    configurations: selectedConfigurations, // Send the valid configurations
     customConfigurations: customConfigurations, // Ensure custom configurations use ObjectIds
   };
 
