@@ -365,6 +365,63 @@ const generateSignature = (timestamp, publicId) => {
     `public_id=${publicId}&timestamp=${timestamp}&api_secret=${secret}`
   );
 };
+
+// Verander deze regel van 'reactive' naar 'ref' voor de optie-namen
+const optionNames = ref({});
+
+// Aangepaste fetchOptionNames functie die optienamen bijwerkt
+async function fetchOptionNames(product) {
+  if (!product || !product.customConfigurations) {
+    console.warn("Product of customConfigurations ontbreekt");
+    return;
+  }
+
+  const customConfigs = product.customConfigurations;
+
+  if (customConfigs.length === 0) {
+    console.log("Geen custom configuraties beschikbaar voor dit product");
+    return;
+  }
+
+  try {
+    // Gebruik Promise.all voor het ophalen van alle namen parallel
+    await Promise.all(
+      customConfigs.map(async (config) => {
+        if (config.selectedOption) {
+          try {
+            // API-call om optie naam op te halen
+            const response = await axios.get(
+              `${baseURL}/options/${config.selectedOption}`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            optionNames.value[config._id] = response.data.data.name;
+          } catch (error) {
+            console.error(
+              `Fout bij ophalen van optie met ID ${config.selectedOption}:`,
+              error
+            );
+            optionNames.value[config._id] = "Error bij ophalen van optie";
+          }
+        } else {
+          optionNames.value[config._id] = "Geen optie geselecteerd";
+        }
+      })
+    );
+  } catch (error) {
+    console.error("Fout bij ophalen van opties:", error);
+  }
+}
+
+// Pas de fetchProductLogica aan zodat de opties correct worden geladen
+onMounted(async () => {
+  await fetchData();
+  await fetchPartnerConfigurations();
+
+  // Laad optienamen voor elk product na data-fetch
+  data.value.forEach((product) => {
+    fetchOptionNames(product); // Hier wordt het product doorgegeven
+  });
+});
 </script>
 
 <template>
@@ -411,14 +468,14 @@ const generateSignature = (timestamp, publicId) => {
     </div>
     <div class="products">
       <div class="top">
-        <!-- <input
+        <input
           type="checkbox"
           @change="toggleSelectAll"
           :checked="
             selectedProducts.length === selectedProducts.length &&
             selectedProducts.length > 0
           "
-        /> -->
+        />
         <p>Product Code</p>
         <p>Product name</p>
         <p>Type of product</p>
@@ -447,9 +504,11 @@ const generateSignature = (timestamp, publicId) => {
             <p>{{ product.description }}</p>
             <p>{{ product.activeUnactive ? "Active" : "Inactive" }}</p>
 
-            <!-- Render dynamic configuration values -->
-            <p v-for="config in partnerConfigurations" :key="config._id">
-              {{ product[config.fieldName] || "N/A" }}
+            <p
+              v-for="customConfig in product.customConfigurations"
+              :key="customConfig._id"
+            >
+              {{ optionNames[customConfig._id] || "Geen naam gevonden" }}
             </p>
           </router-link>
         </li>
