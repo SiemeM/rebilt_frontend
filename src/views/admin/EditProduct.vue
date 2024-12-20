@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
@@ -24,26 +24,31 @@ const productId = ref(""); // Opslaan van de product ID
 const productCode = ref("");
 const productName = ref("");
 const productPrice = ref(null);
-const typeOfProduct = ref("sneaker");
+const productType = ref("sneaker");
 const description = ref("");
 const brand = ref("");
-const colors = ref("");
-const sizeOptions = ref([]);
-const images = ref([]); // Voeg images toe
-const lacesColor = ref([]);
-const soleColor = ref([]);
-const insideColor = ref([]);
-const outsideColor = ref([]);
-const partnerName = ref(""); // Partnernaam (kan dynamisch worden ingesteld)
+const images = ref([]);
 
-let productData = []; // Productgegevens
+let partnerConfigurations = ref([]); // Initializing partner configurations
+let dropdownStates = ref({}); // Manage dropdown visibility
 
-// Functie om partnergegevens op te halen
+const partnerName = ref("");
+const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1])); // Decode token
+const partnerId = tokenPayload.companyId;
+
+const productData = ref({
+  productCode: "",
+  productName: "",
+  productPrice: null,
+  productType: "sneaker",
+  description: "",
+  brand: "",
+  images: [],
+  customConfigurations: [],
+});
+
 const fetchPartnerData = async () => {
   try {
-    const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1])); // Decodeer JWT-token
-    const partnerId = tokenPayload.companyId;
-
     if (!partnerId) {
       console.error("Partner ID (companyId) is not available in the token.");
       router.push("/login");
@@ -52,6 +57,7 @@ const fetchPartnerData = async () => {
 
     const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
       headers: {
+        "Content-Type": "application/json",
         Authorization: `Bearer ${jwtToken}`,
       },
     });
@@ -59,6 +65,7 @@ const fetchPartnerData = async () => {
     const partner = response.data?.data?.partner;
     if (partner) {
       partnerName.value = partner.name || "Default"; // Dynamische partnernaam
+      await fetchPartnerConfigurations(partnerId); // Fetch partner configurations
     } else {
       console.error("Partner data not found in response");
       partnerName.value = "Default";
@@ -69,56 +76,164 @@ const fetchPartnerData = async () => {
   }
 };
 
-// Haal productgegevens op
+const fetchOptionNames = async (optionIds) => {
+  try {
+    const responses = await Promise.all(
+      optionIds.map((id) =>
+        axios.get(`${baseURL}/options/${id}`, {
+          headers: { Authorization: `Bearer ${jwtToken}` },
+        })
+      )
+    );
+
+    return responses.map((res) => res.data?.data?.name || "Onbekende optie"); // Zorg ervoor dat we de naam van de optie ophalen
+  } catch (error) {
+    console.error("Error fetching option names:", error);
+    return optionIds.map(() => "Onbekende optie");
+  }
+};
+
+const selectedOptionName = computed(() => {
+  // Zoek de geselecteerde optie voor de juiste configuratie op basis van fieldName
+  const config = productData.value.customConfigurations.find(
+    (customConfig) =>
+      customConfig.selectedOption && customConfig.selectedOption._id
+  );
+
+  // Als een geselecteerde optie is gevonden, geef de naam terug
+  if (config && config.selectedOption) {
+    return config.selectedOption.name || "Selecteer kleur"; // Return de naam of een default waarde
+  }
+
+  return "Selecteer kleur"; // Default als er geen geselecteerde optie is
+});
+
 const fetchProductData = async () => {
   const id = route.params.id;
   productId.value = id;
-
   try {
     const response = await fetch(`${baseURL}/products/${id}`);
     if (!response.ok) {
-      console.error(`HTTP error! status: ${response.status}`);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
-    productData = data.data.product;
+    const fetchedProductData = data?.data?.product;
 
-    if (productData) {
-      productCode.value = productData.productCode;
-      productName.value = productData.productName;
-      productPrice.value = productData.productPrice;
-      typeOfProduct.value = productData.typeOfProduct;
-      description.value = productData.description;
-      brand.value = productData.brand;
-      colors.value = productData.colors;
-      sizeOptions.value = productData.sizeOptions;
-      images.value = productData.images;
-      lacesColor.value = productData.lacesColor;
-      soleColor.value = productData.soleColor;
-      insideColor.value = productData.insideColor;
-      outsideColor.value = productData.outsideColor;
+    console.log("Fetched Product Data:", fetchedProductData); // Log the fetched product data
+
+    if (fetchedProductData) {
+      // Populate product data from the response
+      productCode.value = fetchedProductData.productCode;
+      productName.value = fetchedProductData.productName;
+      productPrice.value = fetchedProductData.productPrice;
+      productType.value = fetchedProductData.productType;
+      description.value = fetchedProductData.description;
+      brand.value = fetchedProductData.brand;
+      images.value = fetchedProductData.images;
+
+      // Ensure customConfigurations is initialized and populated correctly
+      productData.value.customConfigurations =
+        fetchedProductData.customConfigurations || [];
     }
   } catch (error) {
     console.error("Error fetching product data:", error);
-    alert("Er is een fout opgetreden bij het ophalen van de productgegevens.");
   }
 };
 
-// Functie om de geselecteerde afbeeldingen op te slaan
+const fetchPartnerConfigurations = async () => {
+  if (!partnerId) {
+    console.warn("No partnerId provided.");
+    return;
+  }
+
+  try {
+    // Fetch partner configurations
+    const partnerResponse = await axios.get(
+      `${baseURL}/partnerConfigurations`,
+      {
+        headers: { Authorization: `Bearer ${jwtToken}` },
+        params: { partnerId },
+      }
+    );
+
+    const partnerConfigs = partnerResponse.data?.data || [];
+
+    // Fetch product configurations to avoid overwriting custom configurations
+    const productResponse = await axios.get(
+      `${baseURL}/products/${productId.value}`,
+      {
+        headers: { Authorization: `Bearer ${jwtToken}` },
+      }
+    );
+
+    const productData = productResponse.data?.data?.product || {};
+    const productConfigurations = productData.configurations || [];
+
+    // Merge partner configurations with selected options from product configurations
+    partnerConfigurations.value = await Promise.all(
+      partnerConfigs.map(async (partnerConfig) => {
+        const matchingConfig = productConfigurations.find(
+          (config) => config._id === partnerConfig.configurationId
+        );
+
+        const options = matchingConfig?.options
+          ? await fetchOptionNames(matchingConfig.options)
+          : [];
+
+        const selectedOption = partnerConfig.selectedOption
+          ? partnerConfig.selectedOption._id
+          : matchingConfig?.selectedOption?._id || null;
+
+        return {
+          ...partnerConfig,
+          fieldName: matchingConfig?.fieldName || "Unknown",
+          fieldType: matchingConfig?.fieldType || "Text",
+          options,
+          value: selectedOption,
+        };
+      })
+    );
+  } catch (error) {
+    console.error("Error fetching partner configurations:", error);
+  }
+};
+
+// Dropdown toggle function
+const toggleDropdown = (fieldName) => {
+  dropdownStates.value[fieldName] = !dropdownStates.value[fieldName];
+};
+
+// Select a color from the dropdown
+// Selecteer een kleur uit de dropdown
+const selectColor = (option, fieldName) => {
+  const selectedColor = option._id;
+
+  // Vind de juiste configuratie en update de geselecteerde kleur
+  const colorField = partnerConfigurations.value.find(
+    (config) => config.fieldName === fieldName
+  );
+
+  if (colorField) {
+    colorField.value = selectedColor; // Update the selected color ID
+  }
+
+  // Sluit de dropdown na selectie
+  dropdownStates.value[fieldName] = false;
+};
+
+// Handle file change for images
 const handleFileChange = (event) => {
   images.value = Array.from(event.target.files);
 };
 
-// Gebruik je eigen uploadfunctie voor Cloudinary
+// Upload image to Cloudinary
 const uploadImageToCloudinary = async (file) => {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("upload_preset", "ycy4zvmj");
   formData.append("cloud_name", "dzempjvto");
-
-  const folderName = partnerName.value;
-  formData.append("folder", folderName);
+  formData.append("folder", partnerName.value);
 
   try {
     const response = await fetch(
@@ -146,7 +261,7 @@ const uploadImageToCloudinary = async (file) => {
   }
 };
 
-// Functie om de nieuwe afbeeldingen te uploaden
+// Upload new images to Cloudinary
 const uploadNewImages = async () => {
   const uploadedImages = [];
 
@@ -163,116 +278,43 @@ const uploadNewImages = async () => {
   return uploadedImages;
 };
 
-const generateSignature = (timestamp, imageId) => {
-  const apiSecret = "g3uD4zo94Nn1l7S20LW_Y8wPKKY"; // Gebruik je Cloudinary api_secret hier
-  const signatureString = `public_id=${imageId}&timestamp=${timestamp}${apiSecret}`;
-
-  // Gebruik js-sha1 om de string te hashen
-  const signature = sha1(signatureString);
-  return signature;
-};
-
-// Functie om oude afbeeldingen te verwijderen
-// Functie om oude afbeeldingen te verwijderen
-const deleteOldImages = async () => {
-  try {
-    if (!productData.images || productData.images.length === 0) {
-      return;
-    }
-
-    for (const imageUrl of productData.images) {
-      // Stap 1: Haal alles na "/image/upload/" en verwijder de versie (bijv. v1732454523)
-      let imageId = imageUrl.split("/image/upload/")[1]; // Haalt alles na "/image/upload/"
-
-      // Stap 2: Verwijder de versie (v<version_number>)
-      imageId = imageId.split("/").slice(1).join("/"); // Dit verwijdert de versie en pakt de rest
-
-      // Stap 3: Verwijder bestandsextensie (bijv. .webp, .jpg, .png)
-      imageId = imageId.split(".")[0]; // Verwijder alles na de punt
-
-      const timestamp = Math.floor(Date.now() / 1000);
-      const signature = generateSignature(timestamp, imageId); // Maak een handtekening op basis van je Cloudinary secret
-
-      const deleteResponse = await fetch(
-        `https://api.cloudinary.com/v1_1/dzempjvto/image/destroy`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            public_id: imageId,
-            api_key: "496836855294519", // Voeg je API-key hier in
-            timestamp: timestamp,
-            signature: signature, // Voeg de handtekening toe
-          }),
-        }
-      );
-
-      const deleteData = await deleteResponse.json();
-
-      if (!deleteResponse.ok || deleteData.result !== "ok") {
-        throw new Error(
-          `Fout bij verwijderen van oude afbeelding: ${
-            deleteData.message || deleteData.result
-          }`
-        );
-      }
-    }
-  } catch (error) {
-    console.error("Error deleting old images:", error);
-  }
-};
-
-// Functie om het product bij te werken
+// Update product
 const updateProduct = async () => {
   if (
     !productCode.value ||
     !productName.value ||
     !productPrice.value ||
+    !productType.value ||
     !description.value ||
-    !brand.value ||
-    !colors.value ||
-    !sizeOptions.value ||
-    !lacesColor.value ||
-    !soleColor.value ||
-    !insideColor.value ||
-    !outsideColor.value
+    !brand.value
   ) {
     alert("Vul alstublieft alle vereiste velden in.");
     return;
   }
 
+  // Maak het object dat naar de backend gestuurd wordt
   const productDataToSend = {
     productCode: productCode.value,
     productName: productName.value,
     productPrice: productPrice.value,
-    typeOfProduct: typeOfProduct.value,
+    productType: productType.value,
     description: description.value,
     brand: brand.value,
-    colors: colors.value,
-    sizeOptions: sizeOptions.value,
-    images: images.value.length > 0 ? images.value : productData.images, // Als er geen nieuwe afbeeldingen zijn, gebruik dan de oude
-    lacesColor: lacesColor.value,
-    soleColor: soleColor.value,
-    insideColor: insideColor.value,
-    outsideColor: outsideColor.value,
+    images: images.value.length > 0 ? images.value : productData.images,
+    configurations: partnerConfigurations.value, // Voeg configuraties toe
+    customConfigurations: partnerConfigurations.value.filter(
+      (config) => config.custom // Filter op de custom configuraties
+    ), // Voeg custom configuraties toe
   };
 
   try {
-    // Eerst de oude afbeeldingen verwijderen (indien nodig)
-    if (images.value.length > 0) {
-      await deleteOldImages();
-    }
-
-    // Als er nieuwe afbeeldingen zijn, upload ze dan
     let uploadedImages = [];
     if (images.value.length > 0) {
       uploadedImages = await uploadNewImages();
       productDataToSend.images = uploadedImages;
     }
 
-    // Stuur de bijgewerkte productgegevens naar de backend
+    // PUT request naar de backend om het product bij te werken
     const response = await fetch(`${baseURL}/products/${productId.value}`, {
       method: "PUT",
       headers: {
@@ -283,21 +325,38 @@ const updateProduct = async () => {
 
     if (!response.ok) {
       console.error(`HTTP error! status: ${response.status}`);
+      const result = await response.json();
+      console.error("Response error:", result); // Log de fout respons van de backend
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const result = await response.json();
 
+    // Redirect naar de admin pagina bij succes
     router.push("/admin");
   } catch (error) {
     console.error("Error updating product:", error);
     alert("Er is een fout opgetreden bij het bijwerken van het product.");
   }
 };
+const updateConfigurations = () => {
+  partnerConfigurations.value = partnerConfigurations.value.map((config) => {
+    const selectedOption = config.selectedOption
+      ? config.selectedOption._id
+      : null;
 
+    return {
+      ...config,
+      value: selectedOption || config.value, // Gebruik de geselecteerde optie als de waarde
+    };
+  });
+};
+
+// On component mount, fetch data
 onMounted(() => {
   fetchPartnerData();
   fetchProductData();
+  updateConfigurations();
 });
 </script>
 
@@ -310,63 +369,144 @@ onMounted(() => {
       <div class="row">
         <div class="column">
           <label for="productCode">Product Code:</label>
-          <input v-model="productCode" id="productCode" type="text" required />
+          <input
+            v-model="productCode"
+            id="productCode"
+            type="text"
+            placeholder="Voer de productcode in"
+            required
+          />
         </div>
         <div class="column">
           <label for="productName">Productnaam:</label>
-          <input v-model="productName" id="productName" type="text" required />
+          <input
+            v-model="productName"
+            id="productName"
+            type="text"
+            placeholder="Voer de productnaam in"
+            required
+          />
         </div>
       </div>
-      <div class="column">
-        <label for="productPrice">Prijs:</label>
-        <input
-          v-model="productPrice"
-          id="productPrice"
-          type="number"
-          required
-        />
+      <div class="row">
+        <div class="column">
+          <label for="productPrice">Prijs:</label>
+          <input
+            v-model="productPrice"
+            id="productPrice"
+            type="number"
+            placeholder="Voer de prijs in"
+            required
+          />
+        </div>
+        <div class="column">
+          <label for="productType">Type:</label>
+          <input
+            v-model="productType"
+            id="productType"
+            type="text"
+            placeholder="Voer het producttype in"
+          />
+        </div>
       </div>
-      <div class="column">
-        <label for="typeOfProduct">Type:</label>
-        <input v-model="typeOfProduct" id="typeOfProduct" type="text" />
+      <div class="row">
+        <div class="column">
+          <label for="description">Beschrijving:</label>
+          <input
+            v-model="description"
+            id="description"
+            type="text"
+            placeholder="Voer een productbeschrijving in"
+            required
+          />
+        </div>
+        <div class="column">
+          <label for="brand">Merk:</label>
+          <input
+            v-model="brand"
+            id="brand"
+            type="text"
+            placeholder="Voer het merk in"
+            required
+          />
+        </div>
       </div>
-      <div class="column">
-        <label for="description">Beschrijving:</label>
-        <input v-model="description" id="description" type="text" required />
+
+      <div
+        v-for="config in partnerConfigurations"
+        :key="config._id"
+        class="row"
+      >
+        <div class="column">
+          <label :for="config.fieldName">{{ config.fieldName }}:</label>
+          <template v-if="config.fieldType === 'Text'">
+            <input v-model="config.value" :id="config.fieldName" type="text" />
+          </template>
+
+          <template v-else-if="config.fieldType === 'Color'">
+            <div class="color-dropdown">
+              <div class="dropdown">
+                <div
+                  class="dropdown-selected"
+                  @click="toggleDropdown(config.fieldName)"
+                >
+                  <span
+                    class="color-bullet"
+                    :style="{
+                      backgroundColor: config.value
+                        ? config.options.find(
+                            (option) => option._id === config.value
+                          )?.backgroundColor || 'transparent'
+                        : 'transparent',
+                    }"
+                  ></span>
+                  <p>{{ selectedOptionName }}</p>
+                </div>
+                <div
+                  v-if="dropdownStates[config.fieldName]"
+                  class="dropdown-options"
+                >
+                  <div
+                    v-for="(option, index) in config.options"
+                    :key="index"
+                    class="dropdown-option"
+                    @click="selectColor(option, config.fieldName)"
+                  >
+                    <span
+                      class="color-bullet"
+                      :style="{
+                        backgroundColor:
+                          option.backgroundColor || 'transparent',
+                      }"
+                    ></span>
+                    <p>{{ option.name || "Unnamed Color" }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template v-else-if="config.fieldType === 'Dropdown'">
+            <select v-model="config.value" :id="config.fieldName">
+              <option
+                v-for="(option, index) in config.options"
+                :key="index"
+                :value="option._id"
+              >
+                {{ option.name }}
+              </option>
+            </select>
+          </template>
+        </div>
       </div>
-      <div class="column">
-        <label for="brand">Merk:</label>
-        <input v-model="brand" id="brand" type="text" required />
-      </div>
-      <div class="column">
-        <label for="colors">Kleur:</label>
-        <input v-model="colors" id="colors" type="text" />
-      </div>
-      <div class="column">
-        <label for="sizeOptions">Maatopties:</label>
-        <input v-model="sizeOptions" id="sizeOptions" type="text" />
-      </div>
-      <div class="column">
-        <label for="lacesColor">Kleur Veters:</label>
-        <input v-model="lacesColor" id="lacesColor" type="text" />
-      </div>
-      <div class="column">
-        <label for="soleColor">Kleur Zool:</label>
-        <input v-model="soleColor" id="soleColor" type="text" />
-      </div>
-      <div class="column">
-        <label for="insideColor">Kleur Binnenkant:</label>
-        <input v-model="insideColor" id="insideColor" type="text" />
-      </div>
-      <div class="column">
-        <label for="outsideColor">Kleur Buitenkant:</label>
-        <input v-model="outsideColor" id="outsideColor" type="text" />
-      </div>
+
       <div class="column">
         <label for="images">Afbeeldingen:</label>
         <input @change="handleFileChange" id="images" type="file" multiple />
       </div>
-      <button type="submit" class="btn active">Bewerk Product</button>
+      <div class="column">
+        <button type="submit" class="btn active">Bewerk Product</button>
+      </div>
     </form>
   </div>
 </template>
@@ -414,5 +554,65 @@ select {
 button {
   color: white;
   cursor: pointer;
+}
+
+.color-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.dropdown-selected {
+  padding: 8px;
+  background-color: #333;
+  color: white;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  width: 100%;
+}
+
+.color-bullet {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  margin-right: 8px;
+  background-color: transparent;
+}
+
+.dropdown-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #333;
+  border-radius: 4px;
+  width: 100%;
+  z-index: 10;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.dropdown-option {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  color: white;
+  cursor: pointer;
+}
+
+.dropdown-option:hover {
+  background-color: #555;
+}
+
+.dropdown-option:active {
+  background-color: #444;
 }
 </style>
