@@ -1,52 +1,36 @@
 <script setup>
-import { ref, onMounted, computed } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { ref, onMounted } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
-import sha1 from "js-sha1";
 
-// Basis-URL bepalen op basis van de omgeving
+// Router en JWT-token ophalen
+const router = useRouter();
+const route = useRoute();
+
+const jwtToken = localStorage.getItem("jwtToken");
+const errorMessage = ref("");
+
+// Basis-URL bepalen afhankelijk van de omgeving
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
-const router = useRouter();
-const jwtToken = localStorage.getItem("jwtToken");
+// Functie om te controleren of de gebruiker is ingelogd
+const checkToken = () => {
+  if (!jwtToken) {
+    router.push("/login");
+  }
+};
 
-if (!jwtToken) {
-  router.push("/login");
-}
-
-const route = useRoute();
-const productId = ref(""); // Opslaan van de product ID
-const productCode = ref("");
-const productName = ref("");
-const productPrice = ref(null);
-const productType = ref("sneaker");
-const description = ref("");
-const brand = ref("");
-const images = ref([]);
-
-let partnerConfigurations = ref([]); // Initializing partner configurations
-let dropdownStates = ref({}); // Manage dropdown visibility
-
+// Functie om partnergegevens op te halen en partnernaam dynamisch in te stellen
 const partnerName = ref("");
 const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1])); // Decode token
 const partnerId = tokenPayload.companyId;
 
-const productData = ref({
-  productCode: "",
-  productName: "",
-  productPrice: null,
-  productType: "sneaker",
-  description: "",
-  brand: "",
-  images: [],
-  customConfigurations: [],
-});
-
+// Functie om partnergegevens op te halen en partnernaam dynamisch in te stellen
 const fetchPartnerData = async () => {
   try {
     if (!partnerId) {
@@ -76,70 +60,46 @@ const fetchPartnerData = async () => {
   }
 };
 
-const fetchOptionNames = async (optionIds) => {
-  try {
-    console.log("Fetching option names for IDs:", optionIds);
-    const responses = await Promise.all(
-      optionIds.map((id) =>
-        axios.get(`${baseURL}/options/${id}`, {
-          headers: { Authorization: `Bearer ${jwtToken}` },
-        })
-      )
-    );
-
-    const optionNames = responses.map((res) => {
-      const option = res.data?.data;
-      console.log("Option fetched:", option); // Log the fetched option
-      if (!option || !option.name) {
-        console.warn(`Option with ID ${optionIds} is missing a name.`);
-        return "Onbekende optie"; // Fallback value
-      }
-      return option.name; // Zorg ervoor dat de naam wordt geretourneerd
-    });
-
-    return optionNames;
-  } catch (error) {
-    console.error("Error fetching option names:", error);
-    return optionIds.map(() => "Onbekende optie"); // Fallback value in case of error
-  }
-};
-
-const selectedOptionName = computed(() => {
-  return partnerConfigurations.value.map((config) => {
-    const selectedOption = config.value; // Dit is de geselecteerde waarde (ID van de optie)
-    if (selectedOption) {
-      const option = config.options.find((opt) => opt._id === selectedOption);
-      return option ? option.name : "Onbekende optie";
-    }
-    return "Select an option"; // Fallback tekst voor dropdown
-  });
-});
+const productId = ref(route.params.id);
+const savedOptions = ref({});
 
 const fetchProductData = async () => {
-  const id = route.params.id;
-  productId.value = id;
   try {
-    const response = await fetch(`${baseURL}/products/${id}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    const response = await axios.get(`${baseURL}/products/${productId.value}`, {
+      headers: {
+        Authorization: `Bearer ${jwtToken}`,
+      },
+    });
 
-    const data = await response.json();
-    const fetchedProductData = data?.data?.product;
+    const productData = response.data?.data?.product;
+    console.log("Product data:", productData);
 
-    console.log("Fetched Product Data:", fetchedProductData);
+    if (productData) {
+      // Vul de andere productinformatie in
+      productCode.value = productData.productCode;
+      productName.value = productData.productName;
+      productType.value = productData.productType;
+      brand.value = productData.brand;
+      productPrice.value = productData.productPrice;
+      description.value = productData.description;
+      images.value = productData.images || []; // Vul de afbeeldingen in
 
-    if (fetchedProductData) {
-      productCode.value = fetchedProductData.productCode;
-      productName.value = fetchedProductData.productName;
-      productPrice.value = fetchedProductData.productPrice;
-      productType.value = fetchedProductData.productType;
-      description.value = fetchedProductData.description;
-      brand.value = fetchedProductData.brand;
-      images.value = fetchedProductData.images;
+      // Vul partnerConfigurations in met productconfiguraties
+      partnerConfigurations.value = productData.configurations.map((config) => {
+        // Wijzig de waarde van de savedOption ref
+        savedOption.value = config.selectedOption
+          ? config.selectedOption.name
+          : "";
+        console.log(savedOption.value);
 
-      productData.value.customConfigurations =
-        fetchedProductData.customConfigurations || [];
+        // Zorg ervoor dat we de geselecteerde optie gebruiken
+        return {
+          ...config,
+          value: savedOption.value ? config.selectedOption._id : "", // Zorg ervoor dat _id is ingevuld
+        };
+      });
+
+      console.log("Partner configurations:", partnerConfigurations.value);
     }
   } catch (error) {
     console.error("Error fetching product data:", error);
@@ -153,6 +113,7 @@ const fetchPartnerConfigurations = async () => {
   }
 
   try {
+    // Haal de partnerconfiguraties op
     const partnerResponse = await axios.get(
       `${baseURL}/partnerConfigurations`,
       {
@@ -162,108 +123,221 @@ const fetchPartnerConfigurations = async () => {
     );
 
     const partnerConfigs = partnerResponse.data?.data || [];
-
-    const productResponse = await axios.get(
-      `${baseURL}/products/${productId.value}`,
+    const configurationsResponse = await axios.get(
+      `${baseURL}/configurations`,
       {
         headers: { Authorization: `Bearer ${jwtToken}` },
       }
     );
 
-    const productData = productResponse.data?.data?.product || {};
-    const productConfigurations = productData.configurations || [];
+    const configurations = configurationsResponse.data?.data || [];
 
-    const partnerConfigsWithNames = await Promise.all(
+    partnerConfigurations.value = await Promise.all(
       partnerConfigs.map(async (partnerConfig) => {
-        const matchingConfig = productConfigurations.find(
-          (config) =>
-            config.configurationId._id === partnerConfig.configurationId
+        const matchingConfig = configurations.find(
+          (config) => config._id === partnerConfig.configurationId
         );
 
-        const options = matchingConfig?.options || [];
-
-        // Haal de geselecteerde optie-ID op
-        const selectedOption = partnerConfig.selectedOption
-          ? partnerConfig.selectedOption._id
-          : matchingConfig?.selectedOption?._id || null;
-
-        let selectedOptionName = null;
-
-        // Als een geselecteerde optie bestaat, haal dan de naam op
-        if (selectedOption) {
-          selectedOptionName = await fetchOptionNames([selectedOption]);
+        if (!matchingConfig) {
+          console.warn(
+            `No matching configuration found for ${partnerConfig.configurationId}`
+          );
         }
 
-        // Zorg ervoor dat de naam correct wordt ingesteld (gebruik de naam als deze beschikbaar is, anders een fallback)
-        const optionName =
-          selectedOptionName && selectedOptionName[0]
-            ? selectedOptionName[0]
-            : "Onbekende optie";
+        const options = matchingConfig?.options
+          ? await fetchOptionNames(matchingConfig.options)
+          : [];
 
         return {
           ...partnerConfig,
-          fieldName: matchingConfig?.configurationId?.fieldName || "Unknown",
-          fieldType: matchingConfig?.configurationId?.fieldType || "Text",
-          options,
-          value: selectedOption,
-          selectedOptionName: optionName, // De naam van de geselecteerde optie
+          fieldName: matchingConfig?.fieldName || "Unknown",
+          fieldType: matchingConfig?.fieldType || "Text",
+          options, // Ingevulde opties
+          value: "",
         };
       })
     );
-
-    partnerConfigurations.value = partnerConfigsWithNames;
   } catch (error) {
     console.error("Error fetching partner configurations:", error);
   }
 };
 
-// Dropdown toggle function
-const toggleDropdown = (fieldName) => {
-  dropdownStates.value = {
-    ...dropdownStates.value,
-    [fieldName]: !dropdownStates.value[fieldName], // Toggle de staat voor de dropdown
-  };
+const fetchOptionNames = async (optionIds) => {
+  try {
+    const responses = await Promise.all(
+      optionIds.map((id) =>
+        axios.get(`${baseURL}/options/${id}`, {
+          headers: { Authorization: `Bearer ${jwtToken}` },
+        })
+      )
+    );
+
+    return responses.map((res) => res.data?.data || "Unknown"); // Zorg ervoor dat we een object met een _id terugkrijgen
+  } catch (error) {
+    console.error("Error fetching option names:", error);
+    return optionIds.map(() => "Unknown");
+  }
 };
 
-// Select a color from the dropdown
-// Selecteer een kleur uit de dropdown
-const selectColor = (option, fieldName) => {
-  const selectedColor = option._id;
+import mongoose from "mongoose";
 
-  // Find the correct configuration and update the selected color
-  const colorField = partnerConfigurations.value.find(
-    (config) => config.fieldName === fieldName
-  );
-
-  if (colorField) {
-    colorField.value = selectedColor; // Update the selected color ID
-    colorField.selectedOptionName = option.name; // Ensure name is updated for display
+const editProduct = async () => {
+  // Validate required fields
+  if (
+    !productCode.value ||
+    !productName.value ||
+    !productPrice.value ||
+    !description.value ||
+    !brand.value
+  ) {
+    errorMessage.value = "Please fill in all required fields.";
+    return;
   }
 
-  // Close the dropdown after selection
-  dropdownStates.value[fieldName] = false;
+  // Check JWT token
+  if (!jwtToken) {
+    console.error("JWT Token is missing!");
+    errorMessage.value = "Authorization token is missing.";
+    return;
+  }
+
+  let userCompanyId = null;
+  try {
+    const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1])); // Decode token
+    userCompanyId = tokenPayload.companyId;
+  } catch (error) {
+    console.error("Error decoding token", error);
+    errorMessage.value = "Invalid token.";
+    return;
+  }
+
+  // Prepare selected configurations and validate selectedOption
+  const selectedConfigurations = partnerConfigurations.value
+    .map((config) => {
+      const configurationId = config.configurationId;
+
+      // Ensure the configurationId is a valid ObjectId
+      if (!mongoose.Types.ObjectId.isValid(configurationId)) {
+        console.error("Invalid ObjectId:", configurationId);
+        errorMessage.value = `Invalid configurationId: ${configurationId}`;
+        return null;
+      }
+
+      // Ensure that selectedOption is a valid ObjectId or set to null if empty
+      const selectedOption =
+        config.selectedOption ||
+        config.options?.find((option) => option._id === config.value);
+
+      console.log("Selected option:", selectedOption);
+      if (
+        !selectedOption ||
+        !mongoose.Types.ObjectId.isValid(selectedOption._id)
+      ) {
+        console.warn(
+          `Invalid or missing selectedOption for ${config.fieldName}`
+        );
+        return null; // Do not include invalid configurations
+      }
+
+      return {
+        configurationId: configurationId,
+        selectedOption: selectedOption._id, // Ensure this is a valid ObjectId
+      };
+    })
+    .filter((config) => config !== null); // Filter out invalid configurations
+
+  console.log("Selected configurations:", selectedConfigurations);
+
+  // Prepare product data with configurations
+  const productData = {
+    productCode: productCode.value,
+    productName: productName.value,
+    productPrice: productPrice.value,
+    productType: productType.value,
+    description: description.value,
+    brand: brand.value,
+    images:
+      images.value.length > 0
+        ? await Promise.all(
+            images.value.map((file) =>
+              uploadImageToCloudinary(file, productName.value)
+            )
+          )
+        : [],
+    partnerId: userCompanyId,
+    configurations: selectedConfigurations, // Send the valid configurations
+  };
+
+  try {
+    const response = await axios.put(
+      `${baseURL}/products/${productId.value}`,
+      productData,
+      {
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (response.status === 200) {
+      router.push("/admin");
+    } else {
+      console.error("Failed to edit product. Status:", response.status);
+      errorMessage.value = "Failed to edit product.";
+    }
+  } catch (error) {
+    console.error("Error editing product:", error);
+    if (error.response) {
+      console.error("Server response error:", error.response.data);
+      errorMessage.value = `Error: ${
+        error.response.data.message || "Unknown error"
+      }`;
+    } else if (error.request) {
+      console.error("No response received:", error.request);
+      errorMessage.value = "No response from server.";
+    } else {
+      console.error("Error during request:", error.message);
+      errorMessage.value = "Error during request.";
+    }
+  }
 };
 
-// Handle file change for images
-const handleFileChange = (event) => {
-  images.value = Array.from(event.target.files);
-};
+// Lifecycle hook voor het ophalen van partnergegevens
+onMounted(() => {
+  checkToken();
+  fetchPartnerData(); // Haal partnergegevens op zodra de component gemonteerd is
+});
 
-// Upload image to Cloudinary
-const uploadImageToCloudinary = async (file) => {
+// Product-informatie refs
+const productCode = ref("");
+const productType = ref("sneaker");
+const productName = ref("");
+const brand = ref("");
+const productPrice = ref("");
+const description = ref("");
+const newColor = ref(""); // Dit wordt gebruikt voor het kleurinvoerveld
+const images = ref([]);
+const image = ref(""); // Dit moet initialisatie zijn
+
+const partnerConfigurations = ref([]);
+
+// Functie voor het uploaden van afbeeldingen naar Cloudinary
+const uploadImageToCloudinary = async (file, productName) => {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("upload_preset", "ycy4zvmj");
   formData.append("cloud_name", "dzempjvto");
-  formData.append("folder", partnerName.value);
+
+  const folderName = `${
+    partnerName.value || "DefaultFolder"
+  }/Products/${productName}`;
+  formData.append("folder", folderName);
 
   try {
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/dzempjvto/image/upload`,
-      {
-        method: "POST",
-        body: formData,
-      }
+      { method: "POST", body: formData }
     );
 
     if (!response.ok) {
@@ -283,104 +357,70 @@ const uploadImageToCloudinary = async (file) => {
   }
 };
 
-// Upload new images to Cloudinary
-const uploadNewImages = async () => {
-  const uploadedImages = [];
-
-  for (const file of images.value) {
-    try {
-      const imageUrl = await uploadImageToCloudinary(file);
-      uploadedImages.push(imageUrl);
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      alert("Fout bij het uploaden van de afbeeldingen.");
-    }
-  }
-
-  return uploadedImages;
-};
-
-// Update product
-const updateProduct = async () => {
-  if (
-    !productCode.value ||
-    !productName.value ||
-    !productPrice.value ||
-    !productType.value ||
-    !description.value ||
-    !brand.value
-  ) {
-    alert("Vul alstublieft alle vereiste velden in.");
-    return;
-  }
-
-  // Maak het object dat naar de backend gestuurd wordt
-  const productDataToSend = {
-    productCode: productCode.value,
-    productName: productName.value,
-    productPrice: productPrice.value,
-    productType: productType.value,
-    description: description.value,
-    brand: brand.value,
-    images: images.value.length > 0 ? images.value : productData.images,
-    configurations: partnerConfigurations.value, // Voeg configuraties toe
-    customConfigurations: partnerConfigurations.value.filter(
-      (config) => config.custom // Filter op de custom configuraties
-    ), // Voeg custom configuraties toe
-  };
-
-  try {
-    let uploadedImages = [];
-    if (images.value.length > 0) {
-      uploadedImages = await uploadNewImages();
-      productDataToSend.images = uploadedImages;
-    }
-
-    // PUT request naar de backend om het product bij te werken
-    const response = await fetch(`${baseURL}/products/${productId.value}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ product: productDataToSend }),
-    });
-
-    if (!response.ok) {
-      console.error(`HTTP error! status: ${response.status}`);
-      const result = await response.json();
-      console.error("Response error:", result); // Log de fout respons van de backend
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
-
-    // Redirect naar de admin pagina bij succes
-    router.push("/admin");
-  } catch (error) {
-    console.error("Error updating product:", error);
-    alert("Er is een fout opgetreden bij het bijwerken van het product.");
+// Functie om geselecteerde afbeeldingen op te slaan
+const handleImageUpload = (event) => {
+  if (event.target.files && event.target.files.length > 0) {
+    // Controleer of de bestanden geldig zijn
+    images.value = Array.from(event.target.files).filter(
+      (file) => file instanceof File
+    );
   }
 };
-const updateConfigurations = () => {
-  partnerConfigurations.value = partnerConfigurations.value.map((config) => {
-    const selectedOption = config.selectedOption
-      ? config.selectedOption._id
-      : null;
 
-    console.log("Selected Option:", selectedOption);
+// Functie om kleurvelden en maatopties als arrays te verwerken
+const parseInputToArray = (input) => {
+  return input
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
 
-    return {
-      ...config,
-      value: selectedOption || config.value, // Gebruik de geselecteerde optie als de waarde
-    };
+const dropdownOpen = ref(false);
+const dropdownStates = ref({});
+
+const toggleDropdown = (fieldName) => {
+  // Sluit alle dropdowns door de status op false te zetten
+  for (const key in dropdownStates.value) {
+    if (key !== fieldName) {
+      dropdownStates.value[key] = false;
+    }
+  }
+  // Toggle de status van de geselecteerde dropdown
+  dropdownStates.value[fieldName] = !dropdownStates.value[fieldName];
+};
+
+// Functie voor het selecteren van kleuren
+const selectColor = (option, fieldName) => {
+  const selectedConfig = partnerConfigurations.value.find(
+    (config) => config.fieldName === fieldName
+  );
+
+  if (selectedConfig) {
+    selectedConfig.value = option._id; // Sla alleen de _id op van de geselecteerde optie
+    savedOptions.value[fieldName] = option._id; // Sla de geselecteerde optie op in savedOptions
+    localStorage.setItem(`selectedOption_${fieldName}`, option._id); // Sla op in localStorage
+  }
+
+  dropdownStates.value[fieldName] = false; // Sluit de dropdown
+};
+
+// Functie voor het herstellen van geselecteerde opties
+const restoreSelectedOption = () => {
+  partnerConfigurations.value.forEach((config) => {
+    const saved = localStorage.getItem(`selectedOption_${config.fieldName}`);
+    if (saved) {
+      savedOptions.value[config.fieldName] = saved; // Zet de waarde uit localStorage in savedOptions
+      config.value = saved; // Herstel de waarde van de configuratie
+    }
   });
 };
 
-// On component mount, fetch data
+// Call restoreSelectedOption on mounted to ensure the data is restored
 onMounted(() => {
-  fetchPartnerData();
-  fetchProductData();
-  updateConfigurations();
+  checkToken();
+  fetchPartnerData(); // Fetch partner data
+  fetchProductData(); // Fetch product data
+  restoreSelectedOption(); // Restore selected options
 });
 </script>
 
@@ -388,90 +428,83 @@ onMounted(() => {
   <DynamicStyle />
   <Navigation />
   <div class="content">
-    <h1>Product Bewerken</h1>
-    <form v-if="productData" @submit.prevent="updateProduct">
+    <h1>Edit Product</h1>
+    <form @submit.prevent="editProduct">
       <div class="row">
         <div class="column">
           <label for="productCode">Product Code:</label>
-          <input
-            v-model="productCode"
-            id="productCode"
-            type="text"
-            placeholder="Voer de productcode in"
-            required
-          />
+          <input v-model="productCode" id="productCode" type="text" required />
         </div>
         <div class="column">
-          <label for="productName">Productnaam:</label>
-          <input
-            v-model="productName"
-            id="productName"
-            type="text"
-            placeholder="Voer de productnaam in"
-            required
-          />
+          <label for="productName">Product Name:</label>
+          <input v-model="productName" id="productName" type="text" required />
         </div>
       </div>
+
       <div class="row">
         <div class="column">
-          <label for="productPrice">Prijs:</label>
+          <label for="productType">Type Of Product:</label>
+          <select v-model="productType" id="productType">
+            <option value="sneaker">Sneaker</option>
+            <option value="boot">Boot</option>
+            <option value="sandals">Sandals</option>
+            <option value="formal">Formal</option>
+            <option value="slippers">Slippers</option>
+          </select>
+        </div>
+        <div class="column">
+          <label for="brand">Brand:</label>
+          <input v-model="brand" id="brand" type="text" required />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="column">
+          <label for="productPrice">Price:</label>
           <input
             v-model="productPrice"
             id="productPrice"
             type="number"
-            placeholder="Voer de prijs in"
             required
           />
         </div>
         <div class="column">
-          <label for="productType">Type:</label>
-          <input
-            v-model="productType"
-            id="productType"
-            type="text"
-            placeholder="Voer het producttype in"
-          />
-        </div>
-      </div>
-      <div class="row">
-        <div class="column">
-          <label for="description">Beschrijving:</label>
-          <input
-            v-model="description"
-            id="description"
-            type="text"
-            placeholder="Voer een productbeschrijving in"
-            required
-          />
-        </div>
-        <div class="column">
-          <label for="brand">Merk:</label>
-          <input
-            v-model="brand"
-            id="brand"
-            type="text"
-            placeholder="Voer het merk in"
-            required
-          />
+          <label for="description">Description:</label>
+          <textarea v-model="description" id="description" required></textarea>
         </div>
       </div>
 
+      <!-- Dynamically render partner configurations -->
+      <!-- Dynamically render partner configurations -->
+
       <div
-        v-for="(config, index) in partnerConfigurations"
+        v-for="config in partnerConfigurations"
         :key="config._id"
         class="row"
       >
         <div class="column">
           <label :for="config.fieldName">{{ config.fieldName }}:</label>
-
-          <!-- Text Input Field -->
           <template v-if="config.fieldType === 'Text'">
             <input v-model="config.value" :id="config.fieldName" type="text" />
           </template>
 
-          <!-- Color Input Field -->
-          <!-- Color Dropdown -->
-          <template v-if="config.fieldType === 'Color'">
+          <template v-else-if="config.fieldType === 'Dropdown'">
+            <select v-model="config.value" :id="config.fieldName">
+              <!-- Display a default option if no selectedOption is set -->
+              <option disabled value="">
+                {{ savedOption }}
+              </option>
+              <option
+                v-for="(option, index) in config.options || []"
+                :key="index"
+                :value="option._id"
+              >
+                {{ option.name || "Unnamed Option" }}
+              </option>
+            </select>
+          </template>
+
+          <template v-else-if="config.fieldType === 'Color'">
             <div class="color-dropdown">
               <div class="dropdown">
                 <div
@@ -481,15 +514,15 @@ onMounted(() => {
                   <span
                     class="color-bullet"
                     :style="{
-                      backgroundColor: config.value
+                      backgroundColor: savedOption
                         ? config.options.find(
-                            (option) => option._id === config.value
-                          )?.backgroundColor || 'transparent'
+                            (option) => option._id === savedOption
+                          )?.backgroundColor
                         : 'transparent',
                     }"
                   ></span>
                   <p>
-                    {{ config.selectedOptionName || "Selecteer een kleur" }}
+                    {{ savedOption || "Select color" }}
                   </p>
                 </div>
                 <div
@@ -515,35 +548,32 @@ onMounted(() => {
               </div>
             </div>
           </template>
-
-          <!-- Dropdown voor andere velden -->
-          <template v-if="config.fieldType === 'Dropdown'">
-            <select v-model="config.value" :id="config.fieldName">
-              <!-- Placeholder if no value is selected -->
-              <option value="" disabled v-if="!config.value">
-                {{ config.selectedOptionName || "Selecteer een optie" }}
-              </option>
-              <!-- Loop through the available options -->
-              <option
-                v-for="(option, index) in config.options"
-                :key="index"
-                :value="option._id"
-              >
-                {{ option.name || "Onbekende optie" }}
-              </option>
-            </select>
-          </template>
         </div>
       </div>
 
-      <div class="column">
-        <label for="images">Afbeeldingen:</label>
-        <input @change="handleFileChange" id="images" type="file" multiple />
+      <div class="row">
+        <div class="column">
+          <label for="images">Upload Images:</label>
+          <input type="file" id="images" multiple @change="handleImageUpload" />
+          <div class="image-preview">
+            <img
+              v-for="(image, index) in images"
+              :key="index"
+              v-if="image && image instanceof File"
+              :src="URL.createObjectURL(image)"
+              alt="preview"
+              class="preview-image"
+            />
+          </div>
+        </div>
       </div>
-      <div class="column">
-        <button type="submit" class="btn active">Bewerk Product</button>
-      </div>
+
+      <button type="submit" class="btn active">Add Product</button>
     </form>
+
+    <div v-if="errorMessage" class="error-message">
+      {{ errorMessage }}
+    </div>
   </div>
 </template>
 
@@ -566,7 +596,7 @@ form .row {
   flex-direction: row;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 120px;
+  gap: 20px;
   width: 100%;
 }
 
@@ -578,18 +608,57 @@ form .column {
 }
 
 input,
-select {
+select,
+textarea {
   padding: 8px;
-  margin-bottom: 16px;
   border-radius: 4px;
   border: 1px solid #333;
   background-color: #333;
   color: white;
+  width: 100%;
 }
 
 button {
   color: white;
   cursor: pointer;
+}
+
+.colorpicker {
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  background-color: transparent;
+  border: none;
+}
+
+.error {
+  color: #d34848;
+}
+
+.color-box {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  margin: 5px;
+  border-radius: 4px;
+}
+
+.image-preview {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.preview-image {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.error-message {
+  color: #d34848;
+  margin-top: 20px;
 }
 
 .color-dropdown {
@@ -630,7 +699,7 @@ button {
   background-color: #333;
   border-radius: 4px;
   width: 100%;
-  z-index: 999; /* Ensure this has a higher value than other elements */
+  z-index: 10;
   max-height: 200px;
   overflow-y: auto;
   margin-top: 4px;
