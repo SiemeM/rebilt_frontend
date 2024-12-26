@@ -72,7 +72,7 @@ const huisstijlData = reactive({
   primaryColor: "#d4af37",
   secondaryColor: "#f0edea",
   backgroundColor: "#ffffff",
-  textColor: "#000000",
+  textColor: "#ffffff",
   fontFamilyBodyText: "Work Sans",
   fontFamilyTitles: "Libre Barcode 128",
   logo_url: "../../src/assets/images/REBILT-logo-white.svg",

@@ -109,7 +109,6 @@ const login = () => {
 </template>
 
 <style scoped>
-/* Je bestaande CSS-stijlen hier */
 .container {
   position: relative;
   background-image: url("../assets/images/background.jpg");
@@ -129,23 +128,21 @@ const login = () => {
 .elements {
   position: absolute;
   top: 50%;
-  right: 0;
-  transform: translateY(-50%);
-  width: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   background-color: rgba(0, 0, 0, 0.32);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 48px;
-  padding: 48px;
-  border-radius: 8px;
-  margin: 48px;
+  gap: 1.5rem;
+  border-radius: 1rem;
+  padding: 2rem;
 }
 
 form {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 1.5rem;
   width: 100%;
 }
 
@@ -187,7 +184,7 @@ input {
 input {
   border: 1px solid rgba(255, 255, 255, 0.4);
   background-color: transparent;
-  padding: 4px 16px;
+  padding: 0.25rem 1rem;
   border-radius: 8px;
   width: 100%;
 }
@@ -205,7 +202,20 @@ button {
   background-color: #403754;
   color: var(--text-color);
   border: none;
-  border-radius: 4px;
+  border-radius: 0.25rem;
   padding: 8px;
+}
+
+@media (min-width: 800px) {
+  .elements {
+    position: absolute;
+    top: 50%;
+    left: auto;
+    right: 0;
+    transform: translateY(-50%);
+    width: 50%;
+    padding: 3rem;
+    margin: 3rem;
+  }
 }
 </style>

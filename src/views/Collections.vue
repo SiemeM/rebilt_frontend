@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import router from "../router";
+import DynamicStyle from "../components/DynamicStyle.vue";
 
 const products = ref([]); // All products
 const loading = ref(false); // Loading state
@@ -66,7 +67,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="collection-page">
+  <DynamicStyle />
+  <div class="content">
     <div class="top">
       <h1>Collections</h1>
       <nav class="collection-nav">
@@ -130,25 +132,22 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.collection-page {
-  padding: 80px 24px 24px 24px;
-  display: flex;
-  flex-direction: column;
+.content {
   align-items: center;
-  gap: 48px;
-  width: 100%;
 }
 
-.collection-page .top {
+.content .top {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
+  gap: 16px;
 }
 
 .collection-nav {
   display: flex;
-  gap: 80px;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
 .collection-nav p {
@@ -159,7 +158,7 @@ onMounted(() => {
 .collection-nav .active {
   color: var(--text-color);
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--white);
+  border-bottom: 1px solid var(--text-color);
 }
 
 .products {
@@ -168,7 +167,6 @@ onMounted(() => {
   justify-content: center;
   gap: 24px;
   width: 100%;
-  padding: 0 200px;
 }
 
 .products .row {
@@ -188,7 +186,7 @@ onMounted(() => {
 }
 
 .product-card {
-  background: #222;
+  background: var(--secondary-color);
   border-radius: 10px;
   box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.5);
   overflow: hidden;
@@ -207,7 +205,7 @@ onMounted(() => {
   position: relative;
   width: 100%;
   height: 200px;
-  background: #333;
+  background: var(--secondary-color);
   padding: 20px;
 }
 
@@ -217,7 +215,7 @@ onMounted(() => {
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
-  border-bottom: 1px solid #444;
+  border-bottom: 1px solid var(--secondary-color);
 }
 
 .product-info {
@@ -229,16 +227,26 @@ onMounted(() => {
 }
 
 .product-price {
-  color: #aa91de;
+  color: var(--primary-color);
 }
 
 @media (min-width: 800px) {
   .products .product-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .collection-nav {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 3rem;
+  }
 }
 
 @media (min-width: 1200px) {
+  .content {
+    padding: 108px 1.5rem 1.5rem 1.5rem;
+  }
   .products {
     padding: 0 200px;
   }

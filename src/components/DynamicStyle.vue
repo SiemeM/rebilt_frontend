@@ -5,11 +5,7 @@ import { useRouter } from "vue-router";
 
 // Router en JWT-token ophalen
 const router = useRouter();
-const token = localStorage.getItem("jwtToken");
-
-if (!token) {
-  router.push("/login");
-}
+const token = localStorage.getItem("jwtToken") || null;
 
 // Definieer fallback stijlen
 const fallbackStyle = {
@@ -19,23 +15,38 @@ const fallbackStyle = {
   titles_color: "rgb(0, 113, 227)", // Correcte RGB-notatie
   background_color: "rgb(0, 0, 0)", // Correcte RGB-notatie
   logo_url: "../assets/images/REBILT-logo-white.svg",
-  fontFamilyTitles: "Arial, sans-serif",
-  fontFamilyBodyText: "Arial, sans-serif",
+  fontFamilyTitles: "Syne, serif",
+  fontFamilyBodyText: "DM Sans, sans-serif",
 };
 
 // Functie om de huisstijl op te halen, inclusief fonts
 const getHouseStyleFromDatabase = async (partnerId) => {
   try {
-    const response = await axios.get(
-      `http://localhost:3000/api/v1/partners/${partnerId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    let response;
+
+    // Controleren of het token aanwezig is en API-aanroep doen
+    if (token !== null) {
+      console.log("Token aanwezig, API-aanroep met token...");
+      response = await axios.get(
+        `http://localhost:3000/api/v1/partners/${partnerId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+    } else {
+      console.log("Geen token, API-aanroep zonder token...");
+      response = await axios.get(
+        `http://localhost:3000/api/v1/partners/${partnerId}`
+      );
+    }
+
+    // Log de API-respons om te controleren
+    console.log("API Response:", response.data);
 
     const huisstijlData = response.data.data.partner || fallbackStyle;
+
     console.log("Huisstijl data:", huisstijlData); // Log de huisstijl data
 
     // Stel de root CSS-variabelen in op basis van de opgehaalde huisstijl
@@ -115,6 +126,7 @@ const addFontToDocument = (fontUrl) => {
 
 // Functie om de fallback stijlen toe te passen
 const applyFallbackStyles = () => {
+  console.log("Fallback stijlen worden toegepast."); // Debug log
   document.documentElement.style.setProperty(
     "--primary-color",
     fallbackStyle.primary_color
@@ -151,49 +163,25 @@ const applyFallbackStyles = () => {
 };
 
 // Haal de partnerId uit de JWT-token (verander userId naar partnerId)
-const tokenPayload = JSON.parse(atob(token.split(".")[1]));
-const partnerId = tokenPayload?.companyId || null;
+let partnerId = null;
+if (token !== null) {
+  const tokenPayload = JSON.parse(atob(token.split(".")[1]));
+  partnerId = tokenPayload?.companyId || null;
+  console.log("PartnerId uit token:", partnerId); // Log de partnerId
+}
 
+// Functie die wordt uitgevoerd bij het laden van de component
 onMounted(() => {
   if (partnerId) {
+    console.log("PartnerId is beschikbaar, huisstijl wordt opgehaald...");
     getHouseStyleFromDatabase(partnerId); // Gebruik partnerId hier
   } else {
+    console.log("Geen partnerId, fallback stijlen toepassen...");
     applyFallbackStyles(); // Pas fallback stijl toe als geen partnerId beschikbaar is
   }
 });
 </script>
 
 <template>
-  <!-- Deze component is verantwoordelijk voor het dynamisch instellen van de root CSS-variabelen -->
   <div></div>
-  <!-- Deze component doet verder niets visueel -->
 </template>
-
-<style scoped>
-:root {
-  --primary-color: #9747ff;
-  --secondary-color: #111111;
-  --text-color: #ffffff;
-  --titles-color: #0071e3;
-  --background-image: url("/path/to/your/image.jpg");
-  --background-color: #000000;
-  --body-font: "Arial", sans-serif; /* Standaard body font */
-  --title-font: "Arial", sans-serif; /* Standaard title font */
-}
-
-body {
-  font-family: var(--body-font);
-  color: var(--text-color);
-  background-color: var(--background-color);
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--title-font);
-  color: var(--titles-color);
-}
-</style>
