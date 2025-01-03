@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import router from "../router";
 import DynamicStyle from "../components/DynamicStyle.vue";
 
@@ -7,6 +7,7 @@ const products = ref([]); // All products
 const loading = ref(false); // Loading state
 const error = ref(null); // Error state
 const activeFilter = ref("All"); // Active filter state
+const partnerName = ref(""); // Store the partner name from query params
 
 // Determine base URL based on environment
 const isProduction = window.location.hostname !== "localhost";
@@ -19,7 +20,11 @@ const fetchProducts = async () => {
   try {
     loading.value = true;
 
-    const response = await fetch(`${baseURL}/products/`, {
+    // Construct the URL with the partner filter if it's set
+    const partnerQuery = partnerName.value
+      ? `?partnerName=${partnerName.value}`
+      : "";
+    const response = await fetch(`${baseURL}/products/${partnerQuery}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -61,8 +66,26 @@ const setActiveFilter = (filter) => {
   activeFilter.value = filter;
 };
 
+// Watch for changes in the query parameter and fetch products accordingly
+watch(
+  () => window.location.search,
+  () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const rawPartnerName = urlParams.get("partner"); // Get the partner query param
+    partnerName.value = rawPartnerName
+      ? rawPartnerName.replace(/\s+/g, "")
+      : ""; // Remove spaces
+    fetchProducts(); // Fetch products based on the new partner
+  },
+  { immediate: true }
+);
+
 onMounted(() => {
-  fetchProducts(); // Fetch products on component mount
+  // Check the URL on mount in case there is a partner query parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const rawPartnerName = urlParams.get("partner") || "";
+  partnerName.value = rawPartnerName.replace(/\s+/g, ""); // Remove spaces
+  fetchProducts(); // Fetch products when component is mounted
 });
 </script>
 
