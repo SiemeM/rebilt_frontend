@@ -151,9 +151,7 @@ async function fetchPartnerName(partnerId) {
     const response = await fetch(`${baseURL}/partners/${partnerId}`);
     if (!response.ok) throw new Error("Network response was not ok");
     const data = await response.json();
-    console.log(data);
     partnerName.value = data.data.partner.name || "";
-    console.log(partnerName.value);
   } catch (err) {
     console.error("Error fetching partner package:", err);
   }
@@ -164,9 +162,7 @@ async function fetchPartnerPackage(partnerId) {
     const response = await fetch(`${baseURL}/partners/${partnerId}`);
     if (!response.ok) throw new Error("Network response was not ok");
     const data = await response.json();
-    console.log(data);
     partnerPackage.value = data.data.partner.package || "";
-    console.log(partnerPackage.value);
   } catch (err) {
     console.error("Error fetching partner package:", err);
   }
@@ -182,12 +178,51 @@ async function fetchNumberOfPartnerConfigurations(partnerId) {
       (config) => config.partnerId === partnerId
     ).length;
 
-    console.log(
-      `Partner ${partnerId} appears ${count} times in partnerConfigurations.`
-    );
-
     partnerConfigurationsCount.value = count;
     return count;
+  } catch (err) {
+    console.error("Error fetching partner configurations:", err);
+  }
+}
+
+const partnerConfigurations = ref([]);
+const configurations = ref([]);
+
+async function fetchPartnerConfigurations(partnerId) {
+  try {
+    // Fetch all partner configurations
+    const response = await fetch(`${baseURL}/partnerConfigurations`);
+    if (!response.ok) throw new Error("Unable to fetch partner configurations");
+
+    const data = await response.json();
+
+    // Filter only the configurations that match the provided partnerId
+    const partnerConfigs = data.data.filter(
+      (config) => config.partnerId === partnerId
+    );
+
+    if (partnerConfigs.length === 0) {
+      return;
+    }
+    partnerConfigurations.value = partnerConfigs;
+    // Fetch and collect the field names of each relevant configuration
+    for (const partnerConfig of partnerConfigs) {
+      const configResponse = await fetch(
+        `${baseURL}/configurations/${partnerConfig.configurationId}`
+      );
+      if (!configResponse.ok)
+        throw new Error(
+          `Unable to fetch configuration details for ID: ${partnerConfig.configurationId}`
+        );
+
+      const configData = await configResponse.json();
+      const config = configData.data;
+
+      // Add field name to the configurations array only if it's not already present
+      if (!configurations.value.includes(config.fieldName)) {
+        configurations.value.push(config.fieldName);
+      }
+    }
   } catch (err) {
     console.error("Error fetching partner configurations:", err);
   }
@@ -216,11 +251,11 @@ async function fetchProductData(code) {
     setDefaultActiveColor();
 
     const partnerId = data.data.product.partnerId;
-    console.log(partnerId);
     if (partnerId) {
       await fetchPartnerName(partnerId);
       await fetchPartnerPackage(partnerId);
       await fetchNumberOfPartnerConfigurations(partnerId);
+      await fetchPartnerConfigurations(partnerId);
       await fetchLogoUrl(partnerId);
     } else {
       console.warn("No partner ID found in product data.");
@@ -497,8 +532,8 @@ async function fetchLogoUrl(partnerId) {
       <div class="overview" v-if="partnerConfigurationsCount > 1">
         <h2>Overview</h2>
         <ul>
-          <li v-for="(layer, index) in layers" :key="index">
-            {{ layer }}
+          <li v-for="(fieldName, index) in configurations" :key="index">
+            {{ fieldName }}
             <i class="fa fa-angle-right"></i>
           </li>
         </ul>
