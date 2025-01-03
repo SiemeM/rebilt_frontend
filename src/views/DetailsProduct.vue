@@ -7,6 +7,7 @@ import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 const sizes = ref([]);
 const materials = ref([]);
 const layers = ref([]);
+const partnerConfigurationsCount = ref(0);
 const layersColors = ref([]);
 const selectedThingsInLayers = ref([]);
 const colors = ref([]);
@@ -25,6 +26,7 @@ const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
+const partnerName = ref("");
 const partnerPackage = ref("");
 let scene, camera, renderer;
 const objLoader = new OBJLoader();
@@ -142,14 +144,50 @@ function selectColor(color, layerName) {
   applyColorToSpecificLayer(color, layerName);
 }
 
+async function fetchPartnerName(partnerId) {
+  try {
+    const response = await fetch(`${baseURL}/partners/${partnerId}`);
+    if (!response.ok) throw new Error("Network response was not ok");
+    const data = await response.json();
+    console.log(data);
+    partnerName.value = data.data.partner.name || "";
+    console.log(partnerName.value);
+  } catch (err) {
+    console.error("Error fetching partner package:", err);
+  }
+}
+
 async function fetchPartnerPackage(partnerId) {
   try {
     const response = await fetch(`${baseURL}/partners/${partnerId}`);
     if (!response.ok) throw new Error("Network response was not ok");
     const data = await response.json();
+    console.log(data);
     partnerPackage.value = data.data.partner.package || "";
+    console.log(partnerPackage.value);
   } catch (err) {
     console.error("Error fetching partner package:", err);
+  }
+}
+
+async function fetchNumberOfPartnerConfigurations(partnerId) {
+  try {
+    const response = await fetch(`${baseURL}/partnerConfigurations`);
+    if (!response.ok) throw new Error("Network response was not ok");
+    const data = await response.json();
+
+    const count = data.data.filter(
+      (config) => config.partnerId === partnerId
+    ).length;
+
+    console.log(
+      `Partner ${partnerId} appears ${count} times in partnerConfigurations.`
+    );
+
+    partnerConfigurationsCount.value = count;
+    return count;
+  } catch (err) {
+    console.error("Error fetching partner configurations:", err);
   }
 }
 
@@ -176,8 +214,11 @@ async function fetchProductData(code) {
     setDefaultActiveColor();
 
     const partnerId = data.data.product.partnerId;
+    console.log(partnerId);
     if (partnerId) {
+      await fetchPartnerName(partnerId);
       await fetchPartnerPackage(partnerId);
+      await fetchNumberOfPartnerConfigurations(partnerId);
     } else {
       console.warn("No partner ID found in product data.");
     }
@@ -211,9 +252,9 @@ function highlightSelectedItem(color, part) {
   }
 }
 
-function nextPage() {
+async function nextPage() {
   const overview = document.querySelector(".overview");
-  const backButton = document.querySelector(".backButton");
+  const summary = document.querySelector(".summary");
   const pages = document.querySelectorAll(".config-ui__page");
 
   if (!pages || pages.length === 0) {
@@ -224,31 +265,29 @@ function nextPage() {
   if (overview && overview.style.display !== "none") {
     overview.style.display = "none";
     currentPageIndex.value = 0;
-
     pages.forEach((page) => page.classList.remove("active"));
     pages[currentPageIndex.value].classList.add("active");
-
-    if (backButton) {
-      backButton.style.visibility = "visible";
-    }
-    return;
-  }
-
-  pages[currentPageIndex.value].classList.remove("active");
-
-  if (currentPageIndex.value < pages.length - 1) {
-    currentPageIndex.value++;
-    pages[currentPageIndex.value].classList.add("active");
   } else {
-    document.querySelector(".summary").style.display = "flex";
-    document.querySelector(".nextButton").style.visibility = "hidden";
+    pages[currentPageIndex.value].classList.remove("active");
+
+    if (currentPageIndex.value < pages.length - 1) {
+      currentPageIndex.value++;
+      pages[currentPageIndex.value].classList.add("active");
+    } else {
+      // Show the summary if there are multiple configurations
+      const count = await fetchNumberOfPartnerConfigurations(partnerId.value);
+      if (count > 1) {
+        summary.style.display = "flex";
+        document.querySelector(".nextButton").style.visibility = "hidden";
+      }
+    }
   }
 }
 
-function previousPage() {
+async function previousPage() {
   const pages = document.querySelectorAll(".config-ui__page");
   const overview = document.querySelector(".overview");
-  const backButton = document.querySelector(".backButton");
+  const summary = document.querySelector(".summary");
   const nextButton = document.querySelector(".nextButton");
 
   if (!pages || pages.length === 0) {
@@ -259,9 +298,6 @@ function previousPage() {
   if (currentPageIndex.value === 0) {
     if (overview) {
       overview.style.display = "flex";
-    }
-    if (backButton) {
-      backButton.style.visibility = "hidden";
     }
     if (nextButton) {
       nextButton.style.visibility = "visible";
@@ -275,9 +311,11 @@ function previousPage() {
   if (currentPageIndex.value > 0) {
     currentPageIndex.value--;
     pages[currentPageIndex.value].classList.add("active");
-    nextButton.style.visibility = "visible";
   }
-  document.querySelector(".summary").style.display = "none";
+
+  if (summary) {
+    summary.style.display = "none";
+  }
 }
 
 watch(
@@ -412,7 +450,7 @@ function onMouseUp() {
           <p>Home</p>
         </div>
       </router-link>
-      <div class="icon">
+      <div class="icon" v-if="partnerPackage === 'pro'">
         <div @click="generateQRCode" class="AR">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path
@@ -423,7 +461,7 @@ function onMouseUp() {
         <p>AR</p>
       </div>
     </div>
-    <div class="rotate-informer">
+    <div class="rotate-informer" v-if="partnerPackage === 'pro'">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="24"
@@ -438,7 +476,7 @@ function onMouseUp() {
       <p>Drag to rotate</p>
     </div>
     <div class="config-wrapper">
-      <div class="overview" v-if="layers.length > 0">
+      <div class="overview" v-if="partnerConfigurationsCount > 1">
         <h2>Overview</h2>
         <ul>
           <li v-for="(layer, index) in layers" :key="index">
@@ -467,7 +505,7 @@ function onMouseUp() {
         </div>
       </div>
 
-      <div class="summary display">
+      <div class="summary display" v-if="partnerConfigurationsCount > 1">
         <h2>Summary</h2>
         <div class="configurations">
           <div
