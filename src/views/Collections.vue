@@ -6,6 +6,7 @@ import DynamicStyle from "../components/DynamicStyle.vue";
 const products = ref([]); // All products
 const loading = ref(false); // Loading state
 const error = ref(null); // Error state
+const filters = ref(["All"]); // Dynamic filters with "All" as default
 const activeFilter = ref("All"); // Active filter state
 const partnerName = ref(""); // Store the partner name from query params
 
@@ -93,19 +94,64 @@ const fetchProducts = async () => {
   }
 };
 
+const fetchFilters = async () => {
+  try {
+    loading.value = true;
+
+    // Construct the URL with the partner filter
+    const partnerQuery = partnerName.value
+      ? `?partnerName=${partnerName.value}`
+      : "";
+    const response = await fetch(`${baseURL}/products/${partnerQuery}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // Extract unique product types for the current partner's products
+    const types = Array.from(
+      new Set(
+        result.data.products
+          .map((product) => product.productType || "Unknown")
+          .filter((type) => typeof type === "string" && type.trim() !== "")
+      )
+    );
+
+    filters.value = [
+      "All",
+      ...types.map((type) => type.charAt(0).toUpperCase() + type.slice(1)),
+    ];
+
+    error.value = null; // Reset error
+  } catch (err) {
+    console.error("Error fetching filters:", err.message);
+    error.value = "Er is een fout opgetreden bij het ophalen van de filters.";
+  } finally {
+    loading.value = false; // Stop loading indicator
+  }
+};
+
 // Filter products based on the active filter
 const filteredProducts = computed(() => {
   return activeFilter.value === "All"
     ? products.value // Return all products if "All" is selected
     : products.value.filter(
-        (product) => product.typeOfProduct === activeFilter.value.toLowerCase()
+        (product) => product.productType === activeFilter.value.toLowerCase()
       );
 });
 
-// Set active filter when a filter is clicked
 const setActiveFilter = (filter) => {
   activeFilter.value = filter;
 };
+
+onMounted(async () => {
+  await fetchFilters();
+});
 
 // Watch for changes in the query parameter and fetch products accordingly
 watch(
@@ -139,22 +185,12 @@ onMounted(() => {
       <h1>Collections</h1>
       <nav class="collection-nav">
         <p
-          :class="{ active: activeFilter === 'All' }"
-          @click="setActiveFilter('All')"
+          v-for="filter in filters"
+          :key="filter"
+          :class="{ active: activeFilter === filter }"
+          @click="setActiveFilter(filter)"
         >
-          All
-        </p>
-        <p
-          :class="{ active: activeFilter === 'Optical' }"
-          @click="setActiveFilter('Optical')"
-        >
-          Optical
-        </p>
-        <p
-          :class="{ active: activeFilter === 'Sun' }"
-          @click="setActiveFilter('Sun')"
-        >
-          Sun
+          {{ filter }}
         </p>
       </nav>
     </div>
@@ -177,7 +213,7 @@ onMounted(() => {
           v-for="product in filteredProducts"
           :key="product._id"
           :to="`/product/${product._id}`"
-          :class="['product-card', product.typeOfProduct]"
+          :class="['product-card', product.productType]"
         >
           <div class="product-image-container">
             <!-- Show product image if available -->
