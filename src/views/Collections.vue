@@ -15,6 +15,47 @@ const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
+const fetchPartnerID = async (partnerName) => {
+  try {
+    // Pas de partnerName aan door hoofdletters om te zetten naar spaties
+    const formattedPartnerName = partnerName.value
+      .replace(/([A-Z])/g, " $1")
+      .trim();
+
+    const partnerQuery = formattedPartnerName
+      ? `?partnerName=${formattedPartnerName}`
+      : "";
+
+    const response = await fetch(`${baseURL}/partners/${partnerQuery}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // Zoek de partner in de array die overeenkomt met de geformatteerde partnerName
+    const partner = result.data.partners.find(
+      (p) => p.name.toLowerCase() === formattedPartnerName.toLowerCase()
+    );
+
+    console.log(partner._id);
+    if (partner) {
+      return partner._id; // Geef de partner ID terug
+    } else {
+      throw new Error("Partner niet gevonden");
+    }
+  } catch (err) {
+    console.error("Fout bij het ophalen van de partner ID:", err.message);
+    error.value = "Er is een fout opgetreden bij het ophalen van de partner.";
+  }
+};
+
 // Fetch products from API
 const fetchProducts = async () => {
   try {
@@ -76,6 +117,7 @@ watch(
       ? rawPartnerName.replace(/\s+/g, "")
       : ""; // Remove spaces
     fetchProducts(); // Fetch products based on the new partner
+    fetchPartnerID(partnerName);
   },
   { immediate: true }
 );
@@ -86,6 +128,7 @@ onMounted(() => {
   const rawPartnerName = urlParams.get("partner") || "";
   partnerName.value = rawPartnerName.replace(/\s+/g, ""); // Remove spaces
   fetchProducts(); // Fetch products when component is mounted
+  fetchPartnerID(partnerName);
 });
 </script>
 
