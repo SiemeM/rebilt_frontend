@@ -21,6 +21,8 @@ const productId = ref(null);
 const productData = ref({ productName: "", productCode: "", productPrice: 0 });
 const isLoading = ref(true);
 const error = ref(null);
+const logoUrl = ref("");
+
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
@@ -219,6 +221,7 @@ async function fetchProductData(code) {
       await fetchPartnerName(partnerId);
       await fetchPartnerPackage(partnerId);
       await fetchNumberOfPartnerConfigurations(partnerId);
+      await fetchLogoUrl(partnerId);
     } else {
       console.warn("No partner ID found in product data.");
     }
@@ -417,11 +420,26 @@ function onMouseMove(event) {
 function onMouseUp() {
   isMouseDown = false;
 }
+
+async function fetchLogoUrl(partnerId) {
+  try {
+    const response = await fetch(`${baseURL}/partners/${partnerId}`);
+    if (!response.ok) throw new Error("Unable to fetch logo URL");
+    const data = await response.json();
+    if (data?.data?.partner) {
+      logoUrl.value = data.data.partner.logo_url;
+    } else {
+      console.warn("Partner not found in the response.");
+    }
+  } catch (err) {
+    console.error("Error fetching logo URL:", err);
+  }
+}
 </script>
 
 <template>
   <div class="container">
-    <div class="logo"></div>
+    <div class="logo" :style="{ backgroundImage: `url(${logoUrl})` }"></div>
     <div class="model">
       <div
         v-if="partnerPackage === 'standard'"
