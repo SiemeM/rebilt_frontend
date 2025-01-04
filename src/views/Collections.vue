@@ -220,7 +220,9 @@ onMounted(() => {
             <div
               v-if="product.images.length > 0"
               class="product-image"
-              :style="{ backgroundImage: 'url(' + product.images[0] + ')' }"
+              :style="{
+                backgroundImage: 'url(' + product.images[0]?.url + ')',
+              }"
             ></div>
           </div>
           <div class="product-info">

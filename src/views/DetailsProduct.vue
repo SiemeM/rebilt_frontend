@@ -290,17 +290,20 @@ async function fetchProductData(code) {
     if (!response.ok) throw new Error("Network response was not ok");
 
     const data = await response.json();
+    const images = data.data.product.images || [];
+    const firstImage = images[0]?.url || null;
+
     productData.value = {
       productName: data.data.product.productName,
       productCode: data.data.product.productCode,
       productPrice: data.data.product.productPrice,
-      productImages: data.data.product.images,
-      selectedImage: data.data.product.images[0],
+      productImages: images, // Bewaart de volledige array met image-objecten
+      selectedImage: firstImage, // Stelt de eerste afbeelding in als geselecteerde afbeelding
     };
 
-    colors.value = data.data.product.colors || [];
-    productImages.value = data.data.product.images;
-    selectedImage.value = data.data.product.images[0];
+    colors.value = images.map((image) => image.colors).flat() || []; // Verzamelt alle kleuren uit de afbeeldingen
+    productImages.value = images; // Slaat de volledige array van afbeeldingen op
+    selectedImage.value = firstImage; // Stelt de eerste afbeelding URL in als geselecteerde
     setDefaultActiveColor();
 
     const partnerId = data.data.product.partnerId;

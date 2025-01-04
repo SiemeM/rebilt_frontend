@@ -422,6 +422,7 @@ li svg {
 }
 
 .config-ui__page .row div {
+  min-width: 64px;
   width: auto;
   display: flex;
   flex-direction: column;
