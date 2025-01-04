@@ -188,16 +188,17 @@ async function fetchNumberOfPartnerConfigurations(partnerId) {
 
 const partnerConfigurations = ref([]);
 const configurations = ref([]);
+console.log(configurations.value);
 
 async function fetchPartnerConfigurations(partnerId) {
   try {
-    // Fetch all partner configurations
+    // Haal alle partnerconfiguraties op
     const response = await fetch(`${baseURL}/partnerConfigurations`);
     if (!response.ok) throw new Error("Unable to fetch partner configurations");
 
     const data = await response.json();
 
-    // Filter only the configurations that match the provided partnerId
+    // Filter de configuraties die overeenkomen met de opgegeven partnerId
     const partnerConfigs = data.data.filter(
       (config) => config.partnerId === partnerId
     );
@@ -206,7 +207,8 @@ async function fetchPartnerConfigurations(partnerId) {
       return;
     }
     partnerConfigurations.value = partnerConfigs;
-    // Fetch and collect the field names of each relevant configuration
+
+    // Haal de veldnamen en opties van elke relevante configuratie op
     for (const partnerConfig of partnerConfigs) {
       const configResponse = await fetch(
         `${baseURL}/configurations/${partnerConfig.configurationId}`
@@ -219,9 +221,18 @@ async function fetchPartnerConfigurations(partnerId) {
       const configData = await configResponse.json();
       const config = configData.data;
 
-      // Add field name to the configurations array only if it's not already present
-      if (!configurations.value.includes(config.fieldName)) {
-        configurations.value.push(config.fieldName);
+      // Controleer of de configuratie al bestaat voordat je deze toevoegt
+      const exists = configurations.value.some(
+        (existingConfig) => existingConfig.fieldName === config.fieldName
+      );
+
+      // Voeg de configuratie alleen toe als deze nog niet bestaat
+      if (!exists) {
+        configurations.value.push({
+          fieldName: config.fieldName,
+          fieldType: config.fieldType,
+          options: config.options,
+        });
       }
     }
   } catch (err) {
@@ -582,51 +593,54 @@ function showNextImage() {
       <div class="overview" v-if="partnerConfigurationsCount > 1">
         <h2>Overview</h2>
         <ul>
-          <li v-for="(fieldName, index) in configurations" :key="index">
-            {{ fieldName }}
+          <li v-for="(configuration, index) in configurations" :key="index">
+            {{ configuration.fieldName }}
             <i class="fa fa-angle-right"></i>
           </li>
         </ul>
       </div>
 
       <div
-        v-for="(layer, index) in layers"
+        v-for="(configuration, index) in configurations"
         :key="index"
         class="config-ui__page"
         v-show="currentPageIndex === index"
       >
-        <h2>Choose the color for {{ layer }}</h2>
+        <h2>
+          {{
+            configuration.fieldType === "Color"
+              ? "Choose the color for"
+              : "Choose an option for"
+          }}
+          {{ configuration.fieldName }}
+        </h2>
         <div class="row">
+          <!-- Kleurselectie voor Color veldtype -->
           <div
-            v-for="(color, colorIndex) in colors"
-            :key="colorIndex"
-            :class="{ active: selectedColor === color }"
-            :data-color="color"
-            :style="{ backgroundColor: color }"
-            @click="selectColor(color, layer)"
+            v-if="configuration.fieldType === 'Color'"
+            v-for="(option, optionIndex) in configuration.options"
+            :key="optionIndex"
+            :class="{ active: selectedOption === option }"
+            :data-color="option"
+            :style="{ backgroundColor: option }"
+            @click="selectOption(option, index)"
           ></div>
-        </div>
-      </div>
 
-      <div class="summary display" v-if="partnerConfigurationsCount > 1">
-        <h2>Summary</h2>
-        <div class="configurations">
-          <div
-            v-for="(color, index) in layersColors"
-            :key="index"
-            class="config-item"
+          <!-- Dropdown select voor Dropdown veldtype -->
+          <select
+            v-else-if="configuration.fieldType === 'Dropdown'"
+            v-model="selectedOption"
+            @change="selectOption(selectedOption, index)"
           >
-            <p>Color of {{ layers[index] }}</p>
-            <div v-if="selectedColor" class="row">
-              <p
-                :style="{
-                  backgroundColor: color || 'transparent',
-                }"
-              ></p>
-            </div>
-          </div>
+            <option
+              v-for="(option, optionIndex) in configuration.options"
+              :key="optionIndex"
+              :value="option"
+            >
+              {{ option }}
+            </option>
+          </select>
         </div>
-        <h3>Personal info</h3>
       </div>
       <div class="links">
         <a
