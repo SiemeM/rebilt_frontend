@@ -163,6 +163,7 @@ async function fetchPartnerPackage(partnerId) {
     if (!response.ok) throw new Error("Network response was not ok");
     const data = await response.json();
     partnerPackage.value = data.data.partner.package || "";
+    console.log(partnerPackage.value);
   } catch (err) {
     console.error("Error fetching partner package:", err);
   }
@@ -470,18 +471,67 @@ async function fetchLogoUrl(partnerId) {
     console.error("Error fetching logo URL:", err);
   }
 }
+
+function showPreviousImage() {
+  const currentIndex = productImages.value.indexOf(selectedImage.value);
+  if (currentIndex > 0) {
+    selectedImage.value = productImages.value[currentIndex - 1];
+  }
+}
+
+function showNextImage() {
+  const currentIndex = productImages.value.indexOf(selectedImage.value);
+  if (currentIndex < productImages.value.length - 1) {
+    selectedImage.value = productImages.value[currentIndex + 1];
+  }
+}
 </script>
 
 <template>
   <div class="container">
     <div class="logo" :style="{ backgroundImage: `url(${logoUrl})` }"></div>
-    <div class="model">
-      <div
-        v-if="partnerPackage === 'standard'"
-        class="image"
-        :style="{ backgroundImage: `url(${selectedImage})` }"
-      ></div>
+    <div class="carousel" v-if="partnerPackage === 'standard'">
+      <div class="top">
+        <div
+          class="icon"
+          :class="{ disabled: selectedImage === productImages[0] }"
+          @click="selectedImage !== productImages[0] && showPreviousImage()"
+        >
+          <i class="fa fa-angle-left"></i>
+        </div>
+        <div
+          class="image"
+          :style="{ backgroundImage: `url(${selectedImage})` }"
+        ></div>
+        <div
+          class="icon"
+          :class="{
+            disabled: selectedImage === productImages[productImages.length - 1],
+          }"
+          @click="
+            selectedImage !== productImages[productImages.length - 1] &&
+              showNextImage()
+          "
+        >
+          <i class="fa fa-angle-right"></i>
+        </div>
+      </div>
+      <div class="processbar">
+        <div class="long-bar"></div>
+        <div
+          class="short-bar"
+          :style="{
+            width: `${
+              ((productImages.indexOf(selectedImage) + 1) /
+                productImages.length) *
+              100
+            }%`,
+          }"
+        ></div>
+      </div>
     </div>
+
+    <div class="model" v-if="partnerPackage === 'pro'"></div>
     <div class="icons">
       <router-link :to="`/`">
         <div class="icon">
