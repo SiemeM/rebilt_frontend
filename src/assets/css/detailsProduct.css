@@ -196,6 +196,19 @@
   padding: 16px 52px 24px;
 }
 
+.color-box {
+  width: 50px;
+  height: 50px;
+  border: 2px solid transparent; /* standaard geen border */
+  border-radius: 50%; /* maakt het een cirkel, indien gewenst */
+  cursor: pointer;
+  transition: border 0.3s ease; /* voor een vloeiende overgang */
+}
+
+.color-box.selected {
+  border: 2px solid #000; /* zwarte border voor geselecteerde optie */
+}
+
 .config-wrapper .configurations,
 .config-wrapper form {
   display: flex;

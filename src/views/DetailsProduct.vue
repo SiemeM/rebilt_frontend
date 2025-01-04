@@ -34,6 +34,22 @@ let scene, camera, renderer;
 const objLoader = new OBJLoader();
 let isModelLoaded = false;
 let model = null;
+const selectedOption = ref(0);
+
+function setActiveOption(index) {
+  selectedOption.value = index;
+  // Verwijder de actieve klasse van alle opties
+  const options = document.querySelectorAll(".option");
+  options.forEach((option) => option.classList.remove("active"));
+
+  // Voeg de actieve klasse toe aan de geselecteerde optie
+  const selectedOptionElement = document.querySelector(
+    `.option[data-index="${index}"]`
+  );
+  if (selectedOptionElement) {
+    selectedOptionElement.classList.add("active");
+  }
+}
 
 function onWindowResize() {
   const container = document.querySelector(".model");
@@ -192,13 +208,11 @@ console.log(configurations.value);
 
 async function fetchPartnerConfigurations(partnerId) {
   try {
-    // Haal alle partnerconfiguraties op
     const response = await fetch(`${baseURL}/partnerConfigurations`);
     if (!response.ok) throw new Error("Unable to fetch partner configurations");
 
     const data = await response.json();
 
-    // Filter de configuraties die overeenkomen met de opgegeven partnerId
     const partnerConfigs = data.data.filter(
       (config) => config.partnerId === partnerId
     );
@@ -206,9 +220,8 @@ async function fetchPartnerConfigurations(partnerId) {
     if (partnerConfigs.length === 0) {
       return;
     }
-    partnerConfigurations.value = partnerConfigs;
 
-    // Haal de veldnamen en opties van elke relevante configuratie op
+    // Voor elke partnerconfiguratie
     for (const partnerConfig of partnerConfigs) {
       const configResponse = await fetch(
         `${baseURL}/configurations/${partnerConfig.configurationId}`
@@ -221,20 +234,47 @@ async function fetchPartnerConfigurations(partnerId) {
       const configData = await configResponse.json();
       const config = configData.data;
 
-      // Controleer of de configuratie al bestaat voordat je deze toevoegt
+      // Controleer of deze configuratie al in de lijst staat
       const exists = configurations.value.some(
-        (existingConfig) => existingConfig.fieldName === config.fieldName
+        (existingConfig) =>
+          existingConfig.fieldName === config.fieldName &&
+          existingConfig.fieldType === config.fieldType
       );
 
-      // Voeg de configuratie alleen toe als deze nog niet bestaat
+      // Voeg toe als deze nog niet bestaat
       if (!exists) {
+        const options = await Promise.all(
+          config.options.map(async (optionId) => {
+            const optionResponse = await fetch(
+              `${baseURL}/options/${optionId}`
+            );
+            if (!optionResponse.ok)
+              throw new Error(
+                `Unable to fetch option details for ID: ${optionId}`
+              );
+            const optionData = await optionResponse.json();
+            return optionData.data;
+          })
+        );
+
+        // Voeg de configuratie toe aan de lijst van configuraties
         configurations.value.push({
           fieldName: config.fieldName,
           fieldType: config.fieldType,
-          options: config.options,
+          options: options,
         });
       }
     }
+
+    // Verwijder dubbele configuraties op basis van fieldName en fieldType
+    configurations.value = configurations.value.filter(
+      (value, index, self) =>
+        index ===
+        self.findIndex(
+          (t) =>
+            t.fieldName === value.fieldName && t.fieldType === value.fieldType
+        )
+    );
   } catch (err) {
     console.error("Error fetching partner configurations:", err);
   }
@@ -496,6 +536,10 @@ function showNextImage() {
     selectedImage.value = productImages.value[currentIndex + 1];
   }
 }
+
+function selectOption(option, index) {
+  selectedThingsInLayers.value[index] = option;
+}
 </script>
 
 <template>
@@ -615,15 +659,18 @@ function showNextImage() {
           {{ configuration.fieldName }}
         </h2>
         <div class="row">
-          <!-- Kleurselectie voor Color veldtype -->
           <div
             v-if="configuration.fieldType === 'Color'"
             v-for="(option, optionIndex) in configuration.options"
             :key="optionIndex"
-            :class="{ active: selectedOption === option }"
-            :data-color="option"
-            :style="{ backgroundColor: option }"
-            @click="selectOption(option, index)"
+            :class="{ active: selectedOption === optionIndex }"
+            :data-color="option.name"
+            :style="{ backgroundColor: option.name }"
+            @click="setActiveOption(optionIndex)"
+            @keydown.enter="setActiveOption(optionIndex)"
+            @keydown.space="setActiveOption(optionIndex)"
+            tabindex="0"
+            role="button"
           ></div>
 
           <!-- Dropdown select voor Dropdown veldtype -->
