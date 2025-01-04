@@ -416,9 +416,27 @@ li svg {
   border: 3px solid var(--primary-color);
 }
 
-.config-ui__page .row div p {
-  display: none;
+.config-ui__page .row div.active {
+  background-color: var(--text-color);
+  width: auto;
 }
+
+.config-ui__page .row div {
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1em;
+}
+
+.config-ui__page .row div.active p {
+  color: var(--secondary-color);
+}
+
+/* .config-ui__page .row div p {
+  display: none;
+} */
 
 .config-wrapper .display {
   display: none;

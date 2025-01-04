@@ -46,6 +46,7 @@ function setActiveOption(index) {
   const selectedOptionElement = document.querySelector(
     `.option[data-index="${index}"]`
   );
+
   if (selectedOptionElement) {
     selectedOptionElement.classList.add("active");
   }
@@ -674,19 +675,19 @@ function selectOption(option, index) {
           ></div>
 
           <!-- Dropdown select voor Dropdown veldtype -->
-          <select
+          <div
             v-else-if="configuration.fieldType === 'Dropdown'"
-            v-model="selectedOption"
-            @change="selectOption(selectedOption, index)"
+            v-for="(option, optionIndex) in configuration.options"
+            class="option"
+            :class="{ active: selectedOption === optionIndex }"
+            :value="option.name"
+            @click="setActiveOption(optionIndex)"
+            @keydown.enter="setActiveOption(optionIndex)"
+            @keydown.space="setActiveOption(optionIndex)"
+            tabindex="0"
           >
-            <option
-              v-for="(option, optionIndex) in configuration.options"
-              :key="optionIndex"
-              :value="option"
-            >
-              {{ option }}
-            </option>
-          </select>
+            <p>{{ option.name }}</p>
+          </div>
         </div>
       </div>
       <div class="links">
