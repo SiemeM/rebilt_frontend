@@ -421,6 +421,7 @@ onMounted(async () => {
   <Navigation />
   <div class="overlay" v-if="isPopupVisible"></div>
   <div class="content">
+    <h2>Products</h2>
     <div class="popup" v-if="isPopupVisible">
       <img src="../../assets/icons/cross-circle.svg" alt="icon" />
       <div class="text">
@@ -441,7 +442,7 @@ onMounted(async () => {
         <div
           @click="deleteSelectedProducts"
           class="btn display"
-          :style="{ visibility: isDeleteButtonVisible ? 'visible' : 'hidden' }"
+          :style="{ display: isDeleteButtonVisible ? 'flex' : 'none' }"
         >
           <p>Delete item(s)</p>
         </div>
@@ -458,7 +459,41 @@ onMounted(async () => {
         <option value="sun">Sun</option>
       </select>
     </div>
-    <div class="products">
+
+    <div class="search">
+      <img src="../../assets/icons/search.svg" alt="icon" />
+      <input placeholder="Search" v-model="searchTerm" />
+    </div>
+
+    <div class="products mobile">
+      <div class="items">
+        <router-link
+          v-if="data.length"
+          v-for="product in data"
+          :key="product._id"
+          :to="{ name: 'EditPartner', params: { id: product._id } }"
+        >
+          <div
+            class="image"
+            :style="{
+              backgroundImage:
+                'url(http://localhost:5173/src/assets/images/Odette_lunettes.webp)',
+            }"
+          ></div>
+          <div class="elements">
+            <div class="text">
+              <p class="name">{{ product.productName }}</p>
+              <p>1 variant</p>
+            </div>
+            <p class="btn">
+              {{ product.activeUnactive ? "Active" : "Inactive" }}
+            </p>
+          </div>
+        </router-link>
+      </div>
+    </div>
+
+    <div class="products desktop">
       <div class="top">
         <input
           type="checkbox"
@@ -517,6 +552,11 @@ onMounted(async () => {
 .content {
   width: 100%;
   height: 100vh;
+}
+
+h2 {
+  text-align: center;
+  width: 100%;
 }
 
 .overlay {
@@ -592,7 +632,7 @@ onMounted(async () => {
 }
 
 .btn.display {
-  visibility: hidden;
+  display: none;
   border: 1px solid #d34848;
   background-color: rgba(211, 72, 72, 0.2);
   border-radius: 8px;
@@ -607,11 +647,16 @@ onMounted(async () => {
 select {
   padding: 4px 12px;
   border-radius: 8px;
-  border: none;
   border: 1px solid var(--secondary-color);
   background-color: var(--secondary-color);
   color: var(--text-color);
-  width: 320px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+.search {
+  width: 100%;
 }
 
 .no-products {
@@ -625,14 +670,6 @@ select {
   flex-direction: row;
   align-items: center;
   gap: 8px;
-}
-
-.products {
-  background-color: var(--secondary-color);
-  width: 100%;
-  border-radius: 8px;
-  overflow-x: auto; /* Enable horizontal scrolling */
-  white-space: nowrap; /* Prevent wrapping of items */
 }
 
 .products .top {
@@ -718,5 +755,107 @@ select {
 
 .search input {
   color: var(--text-color);
+}
+
+.menu .search {
+  display: none;
+}
+
+.products.desktop {
+  background-color: var(--secondary-color);
+  width: 100%;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.products.mobile {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.products.mobile .items {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.products.mobile a {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 1.5em;
+  padding-bottom: 1em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.products.mobile a .image {
+  width: 64px;
+  height: 64px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.products.mobile a .elements {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  gap: 1em;
+}
+
+.products.mobile a .elements .text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.products.mobile a p {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.products.mobile a p.name {
+  opacity: 1;
+}
+
+.products.desktop {
+  display: none;
+}
+
+@media (min-width: 1200px) {
+  h2,
+  .search,
+  .products.mobile {
+    display: none;
+  }
+
+  .menu .search {
+    display: flex;
+  }
+
+  .products {
+    background-color: var(--secondary-color);
+    width: 100%;
+    border-radius: 8px;
+    overflow-x: auto; /* Enable horizontal scrolling */
+    white-space: nowrap; /* Prevent wrapping of items */
+  }
+
+  .products.desktop {
+    display: block;
+  }
+  .search {
+    width: auto;
+  }
+
+  .menu .search,
+  select {
+    min-width: 320px;
+  }
 }
 </style>

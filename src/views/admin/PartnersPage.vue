@@ -313,13 +313,13 @@ onMounted(() => {
     </div>
 
     <div class="partners mobile">
-      <div
-        class="items"
-        v-if="filteredpartners.length"
-        v-for="partner in filteredpartners"
-        :key="partner._id"
-      >
-        <router-link :to="{ name: 'EditPartner', params: { id: partner._id } }">
+      <div class="items">
+        <router-link
+          v-if="filteredpartners.length"
+          v-for="partner in filteredpartners"
+          :key="partner._id"
+          :to="{ name: 'EditPartner', params: { id: partner._id } }"
+        >
           <div
             class="image"
             :style="{
@@ -513,6 +513,9 @@ select {
 
 .partners.mobile {
   width: 100%;
+}
+
+.partners.mobile .items {
   display: flex;
   flex-direction: column;
   gap: 1em;
