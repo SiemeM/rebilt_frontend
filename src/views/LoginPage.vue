@@ -40,14 +40,13 @@ const login = () => {
         localStorage.setItem("jwtToken", data.data.token);
         const decodedToken = JSON.parse(atob(data.data.token.split(".")[1]));
         const userRole = decodedToken.role;
-        if (
-          userRole === "partner_admin" ||
-          userRole === "partner_owner" ||
-          userRole === "platform_admin"
-        ) {
+        if (userRole === "partner_admin" || userRole === "partner_owner") {
           router.push("/admin");
         } else {
           errorMessage.value = "Geen toegang tot de admin sectie.";
+        }
+        if (userRole === "platform_admin") {
+          router.push("/admin/partners");
         }
       } else {
         errorMessage.value = data.message || "Inloggen mislukt.";

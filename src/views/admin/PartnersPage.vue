@@ -267,6 +267,7 @@ onMounted(() => {
   <Navigation />
   <div class="overlay" v-if="isPopupVisible"></div>
   <div class="content">
+    <h2>Partners</h2>
     <div class="popup" v-if="isPopupVisible">
       <img src="../../assets/icons/cross-circle.svg" alt="icon" />
       <div class="text">
@@ -287,7 +288,7 @@ onMounted(() => {
         </router-link>
         <div
           class="btn display"
-          :style="{ visibility: isDeleteButtonVisible ? 'visible' : 'hidden' }"
+          :style="{ display: isDeleteButtonVisible ? 'flex' : 'none' }"
           @click="showPopup"
         >
           <p>Delete item(s)</p>
@@ -306,7 +307,42 @@ onMounted(() => {
       </select>
     </div>
 
-    <div class="partners">
+    <div class="search">
+      <img src="../../assets/icons/search.svg" alt="icon" />
+      <input placeholder="Search" v-model="searchTerm" />
+    </div>
+
+    <div class="partners mobile">
+      <div
+        class="items"
+        v-if="filteredpartners.length"
+        v-for="partner in filteredpartners"
+        :key="partner._id"
+      >
+        <router-link :to="{ name: 'EditPartner', params: { id: partner._id } }">
+          <div
+            class="image"
+            :style="{
+              backgroundImage:
+                'url(http://localhost:5173/src/assets/images/Odette_lunettes.webp)',
+            }"
+          ></div>
+          <div class="elements">
+            <div class="text">
+              <p class="name">{{ partner.name }}</p>
+              <p>{{ partner.contact_email }}</p>
+              <p>{{ partner.contact_phone }}</p>
+              <p>{{ partner.package }}</p>
+            </div>
+            <div class="btn">
+              <p>Active</p>
+            </div>
+          </div>
+        </router-link>
+      </div>
+    </div>
+
+    <div class="partners desktop">
       <div class="top">
         <input
           type="checkbox"
@@ -346,10 +382,6 @@ onMounted(() => {
         <div v-else class="no-partners">
           <p>No partners found matching the selected filters.</p>
         </div>
-
-        <div v-else class="no-partners">
-          <p>No partners found matching the selected filters.</p>
-        </div>
       </div>
     </div>
   </div>
@@ -359,6 +391,11 @@ onMounted(() => {
 .content {
   width: 100%;
   height: 100vh;
+}
+
+h2 {
+  text-align: center;
+  width: 100%;
 }
 
 .overlay {
@@ -423,6 +460,7 @@ onMounted(() => {
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
+  gap: 80px;
   width: 100%;
 }
 
@@ -434,7 +472,7 @@ onMounted(() => {
 }
 
 .btn.display {
-  visibility: hidden;
+  display: none;
   border: 1px solid #d34848;
   background-color: rgba(211, 72, 72, 0.2);
   border-radius: 8px;
@@ -448,22 +486,82 @@ select {
   border: 1px solid var(--secondary-color);
   background-color: var(--secondary-color);
   color: var(--text-color);
-  width: 320px;
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 4px;
 }
 
+.search {
+  width: 100%;
+}
+
 .search input {
   color: var(--text-color);
 }
 
-.partners {
+.menu .search {
+  display: none;
+}
+
+.partners.desktop {
   background-color: var(--secondary-color);
   width: 100%;
   border-radius: 8px;
   overflow-x: auto;
+}
+
+.partners.mobile {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.partners.mobile a {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 1.5em;
+  padding-bottom: 1em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.partners.mobile a .image {
+  width: 64px;
+  height: 64px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.partners.mobile a .elements {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  gap: 1em;
+}
+
+.partners.mobile a .elements .text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.partners.mobile a p {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.partners.mobile a p.name {
+  opacity: 1;
+}
+
+.partners.desktop {
+  display: none;
 }
 
 .partners::-webkit-scrollbar {
@@ -546,5 +644,29 @@ select {
   padding: 16px;
   text-align: center;
   color: var(--text-color);
+}
+
+@media (min-width: 1200px) {
+  h2,
+  .search,
+  .partners.mobile {
+    display: none;
+  }
+
+  .menu .search {
+    display: flex;
+  }
+
+  .partners.desktop {
+    display: block;
+  }
+  .search {
+    width: auto;
+  }
+
+  .menu .search,
+  select {
+    min-width: 320px;
+  }
 }
 </style>

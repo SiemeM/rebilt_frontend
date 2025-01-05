@@ -331,6 +331,9 @@ nav .profile {
 }
 
 @media (min-width: 768px) {
+  .mobileNav {
+    display: none;
+  }
   .desktopNav {
     display: flex;
   }
