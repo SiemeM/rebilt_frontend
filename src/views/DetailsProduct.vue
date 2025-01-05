@@ -50,6 +50,11 @@ function setActiveOption(index) {
   if (selectedOptionElement) {
     selectedOptionElement.classList.add("active");
   }
+
+  // Stel de geselecteerde afbeelding in op basis van de index
+  if (productImages.value.length > 0 && productImages.value[index]) {
+    selectedImage.value = productImages.value[index].url; // Of gebruik een ander veld afhankelijk van jouw gegevensstructuur
+  }
 }
 
 function onWindowResize() {
@@ -539,10 +544,6 @@ function showNextImage() {
   if (currentIndex < productImages.value.length - 1) {
     selectedImage.value = productImages.value[currentIndex + 1];
   }
-}
-
-function selectOption(option, index) {
-  selectedThingsInLayers.value[index] = option;
 }
 </script>
 
