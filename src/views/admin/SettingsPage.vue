@@ -442,7 +442,11 @@ watch(
   <DynamicStyle />
   <Navigation />
   <div class="content">
-    <h1>Settings</h1>
+    <div class="top">
+      <h1>Settings</h1>
+      <font-awesome-icon icon="caret-right" />
+    </div>
+
     <div class="elements">
       <div class="menu">
         <p
@@ -477,7 +481,8 @@ watch(
 
       <div v-if="activeSection === 'My profile'" class="myProfile">
         <div class="row">
-          <h2 class="border">My profile</h2>
+          <h2 class="border" style="visibility: hidden">My profile</h2>
+
           <button @click="openEditPopup" class="btn">
             <img src="../../assets/icons/paintbrush.svg" alt="icon" />
             <p>Edit</p>
@@ -841,6 +846,23 @@ watch(
 </template>
 
 <style scoped>
+.content {
+  margin-bottom: 72px;
+}
+
+.top {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.top svg {
+  color: var(--titles-color);
+}
+
 .elements {
   background-color: var(--secondary-color);
   width: 100%;
@@ -854,7 +876,7 @@ watch(
 .elements .menu {
   padding-right: 24px;
   border-right: 1px solid rgba(255, 255, 255, 0.2);
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 16px;
   width: 200px;
@@ -934,8 +956,21 @@ watch(
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.myProfile .row .mobile {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.myProfile .row .mobile i {
+  color: var(--titles-color);
+}
+
+.myProfile .row .desktop {
+  display: none;
 }
 
 .configurations,
@@ -1044,7 +1079,13 @@ watch(
   color: #d34848;
 }
 
-.fields,
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
 .configurations .list {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1137,7 +1178,7 @@ textarea {
   background-color: white;
   padding: 20px;
   border-radius: 8px;
-  width: 400px;
+  width: 88%;
   position: relative;
   align-items: flex-end;
 }
@@ -1278,5 +1319,27 @@ button {
   width: 100%;
   display: flex;
   justify-content: flex-end;
+}
+
+@media (min-width: 768px) {
+  .content {
+    margin: 0;
+  }
+  .elements .menu {
+    display: flex;
+  }
+
+  .fields,
+  .configurations .list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    column-gap: 120px;
+    row-gap: 16px;
+  }
+}
+@media (min-width: 1200px) {
+  .popup-content {
+    width: 400px;
+  }
 }
 </style>
