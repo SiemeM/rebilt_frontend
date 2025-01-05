@@ -14,6 +14,7 @@ const colors = ref([]);
 const selectedColor = ref(null);
 const currentPageIndex = ref(0);
 const productImages = ref([]);
+console.log("productImages:", productImages.value);
 const selectedImage = ref(null);
 const route = useRoute();
 const router = useRouter();
@@ -309,7 +310,7 @@ const fetchProductData = async (productCode) => {
     isLoading.value = true;
     error.value = null;
 
-    // Stap 1: Haal productinformatie op via de API
+    // Fetch product data
     const response = await fetch(`${baseURL}/products/${productCode}`, {
       method: "GET",
       headers: {
@@ -324,7 +325,7 @@ const fetchProductData = async (productCode) => {
     const result = await response.json();
     const product = result.data.product;
 
-    // Stap 2: Haal configuraties op als die bestaan
+    // Fetch and enrich configurations
     const configurations = product.configurations || [];
     const enrichedConfigurations = await Promise.all(
       configurations.map(async (config) => {
@@ -349,12 +350,10 @@ const fetchProductData = async (productCode) => {
             const configResult = await configResponse.json();
             const options = configResult.data.options || [];
 
-            // Haal afbeeldingen uit de opties
+            // Collect images from options
             const configImages = options.flatMap(
               (option) => option.images?.map((img) => img.url) || []
             );
-
-            console.log("Afbeeldingen uit configuraties:", configImages); // Debugging
 
             selectedImage.value = configImages[0];
 
@@ -367,19 +366,17 @@ const fetchProductData = async (productCode) => {
               `Error fetching configuration for ID ${config.configurationId._id}:`,
               err.message
             );
-            return { ...config, images: [] }; // Fallback met lege array
+            return { ...config, images: [] };
           }
         }
-        return { ...config, images: [] }; // Geen configuratie-ID
+        return { ...config, images: [] };
       })
     );
 
-    // Stap 3: Voeg configuratieafbeeldingen toe aan het product
+    // Add all images to productImages
     const configImages = enrichedConfigurations.flatMap(
       (config) => config.images
     );
-
-    // console.log("Alle configuratieafbeeldingen:", configImages); // Debugging: Controleer alle verzamelde afbeeldingen
 
     productData.value = {
       productName: product.productName,
@@ -391,7 +388,13 @@ const fetchProductData = async (productCode) => {
       ],
     };
 
-    // Optionele partnerinformatie ophalen
+    // Merge all images from the product and configurations into the productImages array
+    productImages.value = [
+      ...(product.images || []).map((img) => img.url),
+      ...configImages,
+    ];
+
+    // Handle other partner-related data fetching
     const partnerId = product.partnerId;
     if (partnerId) {
       await fetchPartnerName(partnerId);
