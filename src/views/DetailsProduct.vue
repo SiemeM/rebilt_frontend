@@ -38,22 +38,24 @@ const selectedOption = ref(0);
 
 function setActiveOption(index) {
   selectedOption.value = index;
+
   // Verwijder de actieve klasse van alle opties
   const options = document.querySelectorAll(".option");
   options.forEach((option) => option.classList.remove("active"));
 
-  // Voeg de actieve klasse toe aan de geselecteerde optie
   const selectedOptionElement = document.querySelector(
     `.option[data-index="${index}"]`
   );
-
   if (selectedOptionElement) {
     selectedOptionElement.classList.add("active");
   }
 
-  // Stel de geselecteerde afbeelding in op basis van de index
-  if (productImages.value.length > 0 && productImages.value[index]) {
-    selectedImage.value = productImages.value[index].url; // Of gebruik een ander veld afhankelijk van jouw gegevensstructuur
+  // Stel de geselecteerde afbeelding in op basis van de geselecteerde optie
+  const selectedConfig = configurations.value[selectedOption.value];
+  if (selectedConfig?.images?.[0]?.url) {
+    selectedImage.value = selectedConfig.images[0].url;
+  } else {
+    console.warn("No image found for the selected configuration.");
   }
 }
 
@@ -185,7 +187,6 @@ async function fetchPartnerPackage(partnerId) {
     if (!response.ok) throw new Error("Network response was not ok");
     const data = await response.json();
     partnerPackage.value = data.data.partner.package || "";
-    console.log(partnerPackage.value);
   } catch (err) {
     console.error("Error fetching partner package:", err);
   }
@@ -202,6 +203,7 @@ async function fetchNumberOfPartnerConfigurations(partnerId) {
     ).length;
 
     partnerConfigurationsCount.value = count;
+    console.log("Number of partner configurations:", count);
     return count;
   } catch (err) {
     console.error("Error fetching partner configurations:", err);
@@ -210,7 +212,6 @@ async function fetchNumberOfPartnerConfigurations(partnerId) {
 
 const partnerConfigurations = ref([]);
 const configurations = ref([]);
-console.log(configurations.value);
 
 async function fetchPartnerConfigurations(partnerId) {
   try {
@@ -227,7 +228,7 @@ async function fetchPartnerConfigurations(partnerId) {
       return;
     }
 
-    // Voor elke partnerconfiguratie
+    // For each partner configuration
     for (const partnerConfig of partnerConfigs) {
       const configResponse = await fetch(
         `${baseURL}/configurations/${partnerConfig.configurationId}`
@@ -240,39 +241,56 @@ async function fetchPartnerConfigurations(partnerId) {
       const configData = await configResponse.json();
       const config = configData.data;
 
-      // Controleer of deze configuratie al in de lijst staat
+      // Log config details for debugging
+      console.log("Configuration Data:", config);
+
+      // Check if this configuration is already in the list
       const exists = configurations.value.some(
         (existingConfig) =>
           existingConfig.fieldName === config.fieldName &&
           existingConfig.fieldType === config.fieldType
       );
 
-      // Voeg toe als deze nog niet bestaat
+      // Add it if it doesn't exist
       if (!exists) {
         const options = await Promise.all(
-          config.options.map(async (optionId) => {
+          config.options.map(async (option) => {
+            const optionId = option._id; // Zorg ervoor dat je het juiste ID pakt
+            console.log("Option ID being used:", optionId); // Debugging log
+
+            if (!optionId) {
+              console.error(`Option ID is missing for option:`, option);
+              return null; // Of geef een fallback waarde
+            }
+
             const optionResponse = await fetch(
               `${baseURL}/options/${optionId}`
             );
-            if (!optionResponse.ok)
-              throw new Error(
+
+            if (!optionResponse.ok) {
+              console.error(
                 `Unable to fetch option details for ID: ${optionId}`
               );
+              return null; // Of geef een fallback waarde
+            }
             const optionData = await optionResponse.json();
+
             return optionData.data;
           })
         );
 
-        // Voeg de configuratie toe aan de lijst van configuraties
+        // Add the configuration to the list
         configurations.value.push({
           fieldName: config.fieldName,
           fieldType: config.fieldType,
           options: options,
         });
+
+        console.log("Configurations:", configurations.value);
       }
     }
 
-    // Verwijder dubbele configuraties op basis van fieldName en fieldType
+    // Remove duplicate configurations based on fieldName and fieldType
     configurations.value = configurations.value.filter(
       (value, index, self) =>
         index ===
@@ -286,48 +304,112 @@ async function fetchPartnerConfigurations(partnerId) {
   }
 }
 
-async function fetchProductData(code) {
-  isLoading.value = true;
-  error.value = null;
-
+const fetchProductData = async (productCode) => {
   try {
-    const response = await fetch(`${baseURL}/products/${code}`);
-    if (!response.ok) throw new Error("Network response was not ok");
+    isLoading.value = true;
+    error.value = null;
 
-    const data = await response.json();
-    const images = data.data.product.images || [];
-    const firstImage = images[0]?.url || null;
+    // Stap 1: Haal productinformatie op via de API
+    const response = await fetch(`${baseURL}/products/${productCode}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const product = result.data.product;
+
+    // Stap 2: Haal configuraties op als die bestaan
+    const configurations = product.configurations || [];
+    const enrichedConfigurations = await Promise.all(
+      configurations.map(async (config) => {
+        if (config.configurationId) {
+          try {
+            const configResponse = await fetch(
+              `${baseURL}/configurations/${config.configurationId._id}`,
+              {
+                method: "GET",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+
+            if (!configResponse.ok) {
+              throw new Error(
+                `Configuration fetch error! Status: ${configResponse.status}`
+              );
+            }
+
+            const configResult = await configResponse.json();
+            const options = configResult.data.options || [];
+
+            // Haal afbeeldingen uit de opties
+            const configImages = options.flatMap(
+              (option) => option.images?.map((img) => img.url) || []
+            );
+
+            console.log("Afbeeldingen uit configuraties:", configImages); // Debugging
+
+            selectedImage.value = configImages[0];
+
+            return {
+              ...config,
+              images: configImages,
+            };
+          } catch (err) {
+            console.error(
+              `Error fetching configuration for ID ${config.configurationId._id}:`,
+              err.message
+            );
+            return { ...config, images: [] }; // Fallback met lege array
+          }
+        }
+        return { ...config, images: [] }; // Geen configuratie-ID
+      })
+    );
+
+    // Stap 3: Voeg configuratieafbeeldingen toe aan het product
+    const configImages = enrichedConfigurations.flatMap(
+      (config) => config.images
+    );
+
+    // console.log("Alle configuratieafbeeldingen:", configImages); // Debugging: Controleer alle verzamelde afbeeldingen
 
     productData.value = {
-      productName: data.data.product.productName,
-      productCode: data.data.product.productCode,
-      productPrice: data.data.product.productPrice,
-      productImages: images, // Bewaart de volledige array met image-objecten
-      selectedImage: firstImage, // Stelt de eerste afbeelding in als geselecteerde afbeelding
+      productName: product.productName,
+      productCode: product.productCode,
+      productPrice: product.productPrice,
+      images: [
+        ...(product.images || []).map((img) => img.url),
+        ...configImages,
+      ],
     };
 
-    colors.value = images.map((image) => image.colors).flat() || []; // Verzamelt alle kleuren uit de afbeeldingen
-    productImages.value = images; // Slaat de volledige array van afbeeldingen op
-    selectedImage.value = firstImage; // Stelt de eerste afbeelding URL in als geselecteerde
-    setDefaultActiveColor();
-
-    const partnerId = data.data.product.partnerId;
+    // Optionele partnerinformatie ophalen
+    const partnerId = product.partnerId;
     if (partnerId) {
       await fetchPartnerName(partnerId);
       await fetchPartnerPackage(partnerId);
       await fetchNumberOfPartnerConfigurations(partnerId);
-      await fetchPartnerConfigurations(partnerId);
       await fetchLogoUrl(partnerId);
-    } else {
-      console.warn("No partner ID found in product data.");
+      await fetchPartnerConfigurations(partnerId);
     }
+
+    error.value = null;
   } catch (err) {
-    console.error("Error fetching product data:", err);
-    error.value = "Unable to fetch product information.";
+    console.error("Error fetching product data:", err.message);
+    error.value =
+      "Er is een fout opgetreden bij het ophalen van de productgegevens.";
   } finally {
     isLoading.value = false;
   }
-}
+};
 
 function setDefaultActiveColor() {
   if (colors.value.length > 0 && !selectedColor.value) {
@@ -694,6 +776,7 @@ function showNextImage() {
           </div>
         </div>
       </div>
+
       <div class="links">
         <a
           href="#"

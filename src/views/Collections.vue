@@ -45,7 +45,6 @@ const fetchPartnerID = async (partnerName) => {
       (p) => p.name.toLowerCase() === formattedPartnerName.toLowerCase()
     );
 
-    console.log(partner._id);
     if (partner) {
       return partner._id; // Geef de partner ID terug
     } else {
@@ -81,13 +80,10 @@ const fetchProducts = async () => {
 
     // Stap 2: Verwerk de producten en haal configuraties op
     const fetchedProducts = result.data.products;
-    console.log(fetchedProducts);
     const enrichedProducts = await Promise.all(
       fetchedProducts.map(async (product) => {
         // Controleer of het product een configurationID heeft
-        console.log(product.configurations[0].configurationId);
         if (product.configurations[0].configurationId) {
-          console.log(product.configurations[0].configurationId);
           try {
             // Haal configuratie op via configurationID
             const configResponse = await fetch(
@@ -133,7 +129,6 @@ const fetchProducts = async () => {
 
     // Stap 3: Opslaan van verrijkte producten
     products.value = enrichedProducts;
-    console.log(products.value); // Debugging: controleer producten met afbeeldingen
 
     error.value = null; // Reset foutmelding
   } catch (err) {
