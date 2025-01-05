@@ -240,7 +240,7 @@ const profileImage = computed(() => {
   justify-content: space-between;
   background-color: var(--secondary-color);
   box-shadow: 0px -4px 8px rgba(0, 0, 0, 0.1);
-  padding: 24px 16px;
+  padding: 16px 24px 32px 24px;
   position: fixed;
   z-index: 999;
   bottom: 0;
