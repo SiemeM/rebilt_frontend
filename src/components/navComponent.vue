@@ -102,7 +102,48 @@ const profileImage = computed(() => {
 </script>
 
 <template>
-  <nav>
+  <nav class="mobileNav">
+    <router-link
+      v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
+      to="/admin"
+      exact-active-class="active"
+    >
+      <img src="../assets/icons/package.svg" alt="icon" />
+      <p>Products</p>
+    </router-link>
+    <router-link
+      v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
+      to="/admin/orders"
+      exact-active-class="active"
+    >
+      <img src="../assets/icons/order.svg" alt="icon" />
+      <p>Orders</p>
+    </router-link>
+    <router-link
+      v-if="user.role === 'platform_admin'"
+      to="/admin/partners"
+      exact-active-class="active"
+    >
+      <img src="../assets/icons/users.svg" alt="icon" />
+      <p>Partners</p>
+    </router-link>
+    <router-link
+      v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
+      to="/admin/users"
+      exact-active-class="active"
+    >
+      <img src="../assets/icons/users.svg" alt="icon" />
+      <p>Users</p>
+    </router-link>
+    <router-link to="/admin/settings" exact-active-class="active">
+      <div
+        class="profilePicture"
+        :style="{ backgroundImage: 'url(' + profileImage + ')' }"
+      ></div>
+    </router-link>
+  </nav>
+
+  <nav class="desktopNav">
     <div
       class="logo"
       :style="{ backgroundImage: 'url(' + huisstijlData.logo_url + ')' }"
@@ -154,7 +195,11 @@ const profileImage = computed(() => {
         <img src="../assets/icons/users.svg" alt="icon" />
         <p>Partners</p>
       </router-link>
-      <router-link to="/admin/users" exact-active-class="active">
+      <router-link
+        v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
+        to="/admin/users"
+        exact-active-class="active"
+      >
         <img src="../assets/icons/users.svg" alt="icon" />
         <p>Users</p>
       </router-link>
@@ -188,8 +233,32 @@ const profileImage = computed(() => {
 
 <style scoped>
 /* background: linear-gradient(-45deg, #473c5d, #000000); */
-nav {
+.mobileNav {
   display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  background-color: var(--secondary-color);
+  box-shadow: 0px -4px 8px rgba(0, 0, 0, 0.1);
+  padding: 24px 16px;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+}
+
+.mobileNav a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.mobileNav a p {
+  display: none;
+}
+
+.desktopNav {
+  display: none;
   flex-direction: column;
   justify-content: space-between;
   gap: 120px;
@@ -203,22 +272,7 @@ nav {
   position: fixed;
 }
 
-nav {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 120px;
-  background: linear-gradient(
-    -45deg,
-    var(--primary-color),
-    var(--background-color)
-  );
-  height: 100vh;
-  padding: 48px 32px;
-  position: fixed;
-}
-
-nav .logo {
+.desktopNav .logo {
   background-repeat: no-repeat;
   background-size: contain;
   background-position: left;
@@ -226,8 +280,7 @@ nav .logo {
   height: 32px;
 }
 
-nav,
-nav .menu {
+.desktopNav .menu {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -240,40 +293,50 @@ nav .profile {
   gap: 16px;
 }
 
-nav .profile .profilePicture {
+.profilePicture {
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
-  width: 64px;
-  height: 64px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
 }
 
-nav .profile div {
+.desktopNav .profile div {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-nav .menu a,
-nav .menu a.active {
+.desktopNav .menu a,
+.desktopNav .menu a.active {
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 8px;
 }
 
-nav .menu a.active {
+.desktopNav .menu a.active {
   background-color: var(--primary-color);
   padding: 4px 12px;
   border-radius: 8px;
 }
 
-nav .menu a img {
+.desktopNav .menu a img {
   width: 24px;
 }
 
-nav .menu a p {
+.desktopNav .menu a p {
   color: var(--text-color);
+}
+
+@media (min-width: 768px) {
+  .desktopNav {
+    display: flex;
+  }
+  .profilePicture {
+    width: 24px;
+    height: 24px;
+  }
 }
 </style>

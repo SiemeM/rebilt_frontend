@@ -634,7 +634,10 @@ function showNextImage() {
 
 <template>
   <div class="container">
-    <div class="logo" :style="{ backgroundImage: `url(${logoUrl})` }"></div>
+    <div
+      class="logoConfigurator"
+      :style="{ backgroundImage: `url(${logoUrl})` }"
+    ></div>
     <div class="carousel" v-if="partnerPackage === 'standard'">
       <div class="top">
         <div

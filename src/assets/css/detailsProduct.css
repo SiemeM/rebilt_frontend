@@ -490,7 +490,7 @@ li svg {
   overflow: hidden;
 }
 
-.logo {
+.logoConfigurator {
   position: absolute;
   z-index: 999;
   top: 2%;
