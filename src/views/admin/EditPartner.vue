@@ -104,7 +104,7 @@ const updatePartner = async () => {
   <DynamicStyle />
   <Navigation />
   <div class="content">
-    <h1>Partner Bewerken</h1>
+    <h1>Edit partner</h1>
     <form v-if="partnerData" @submit.prevent="updatePartner">
       <div class="row">
         <div class="column">
@@ -169,7 +169,7 @@ const updatePartner = async () => {
           </select>
         </div>
       </div>
-      <button type="submit" class="btn active">Bewerk Partner</button>
+      <button type="submit" class="btn active">Save</button>
     </form>
   </div>
 </template>
@@ -179,6 +179,7 @@ const updatePartner = async () => {
 .content {
   width: 100%;
   height: 100vh;
+  margin-bottom: 136px;
 }
 
 form {
@@ -191,10 +192,8 @@ form {
 
 form .row {
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 120px;
+  flex-direction: column;
+  gap: 8px;
   width: 100%;
 }
 
@@ -218,5 +217,19 @@ select {
 button {
   color: white;
   cursor: pointer;
+}
+
+@media (min-width: 768px) {
+  .content {
+    margin: 0;
+  }
+
+  form .row {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 120px;
+    width: 100%;
+  }
 }
 </style>
