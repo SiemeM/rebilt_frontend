@@ -371,7 +371,7 @@ const selectColor = (option, fieldName) => {
   <DynamicStyle />
   <Navigation />
   <div class="content">
-    <h1>Add New Product</h1>
+    <h1>Add new product</h1>
     <form @submit.prevent="addProduct">
       <div class="row">
         <div class="column">
@@ -511,7 +511,7 @@ const selectColor = (option, fieldName) => {
         </div>
       </div>
 
-      <button type="submit" class="btn active">Add Product</button>
+      <button type="submit" class="btn active">Add product</button>
     </form>
 
     <div v-if="errorMessage" class="error-message">
@@ -523,7 +523,7 @@ const selectColor = (option, fieldName) => {
 <style scoped>
 .content {
   width: 100%;
-  height: 100vh;
+  margin-bottom: 72px;
 }
 
 form {
@@ -536,10 +536,8 @@ form {
 
 form .row {
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
+  flex-direction: column;
+  gap: 8px;
   width: 100%;
 }
 
@@ -662,5 +660,19 @@ button {
 
 .dropdown-option:active {
   background-color: #444;
+}
+
+@media (min-width: 768px) {
+  .content {
+    margin: 0;
+  }
+
+  form .row {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 120px;
+    width: 100%;
+  }
 }
 </style>

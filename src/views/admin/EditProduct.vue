@@ -568,7 +568,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <button type="submit" class="btn active">Add Product</button>
+      <button type="submit" class="btn active">Edit Product</button>
     </form>
 
     <div v-if="errorMessage" class="error-message">
@@ -580,7 +580,7 @@ onMounted(() => {
 <style scoped>
 .content {
   width: 100%;
-  height: 100vh;
+  margin-bottom: 72px;
 }
 
 form {
@@ -593,10 +593,8 @@ form {
 
 form .row {
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
+  flex-direction: column;
+  gap: 8px;
   width: 100%;
 }
 
@@ -719,5 +717,19 @@ button {
 
 .dropdown-option:active {
   background-color: #444;
+}
+
+@media (min-width: 768px) {
+  .content {
+    margin: 0;
+  }
+
+  form .row {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 120px;
+    width: 100%;
+  }
 }
 </style>
