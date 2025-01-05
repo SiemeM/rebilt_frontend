@@ -199,6 +199,7 @@ provide("user", user);
   <Navigation />
   <div class="overlay" v-if="isPopupVisible"></div>
   <div class="content">
+    <h2>Orders</h2>
     <div class="popup" v-if="isPopupVisible">
       <img src="../../assets/icons/cross-circle.svg" alt="icon" />
       <div class="text">
@@ -236,7 +237,38 @@ provide("user", user);
       </select>
     </div>
 
-    <div class="orders">
+    <div class="search">
+      <img src="../../assets/icons/search.svg" alt="icon" />
+      <input placeholder="Search" v-model="searchTerm" />
+    </div>
+
+    <div class="orders mobile">
+      <div class="items">
+        <router-link
+          v-if="filteredOrders.length"
+          v-for="order in filteredOrders"
+          :key="order._id"
+          :to="{ name: 'EditPartner', params: { id: order._id } }"
+        >
+          <div>
+            <p>{{ order.customer.firstName }} {{ order.customer.lastName }}</p>
+            <p>
+              {{ order.createdAt }}
+            </p>
+          </div>
+          <div>
+            <p>
+              {{ order.productId }}
+            </p>
+            <p>
+              {{ order.orderStatus }}
+            </p>
+          </div>
+        </router-link>
+      </div>
+    </div>
+
+    <div class="orders desktop">
       <div class="top">
         <input
           type="checkbox"
@@ -309,6 +341,11 @@ provide("user", user);
 .content {
   width: 100%;
   height: 100vh;
+}
+
+h2 {
+  text-align: center;
+  width: 100%;
 }
 
 .overlay {
@@ -395,26 +432,21 @@ provide("user", user);
 select {
   padding: 4px 12px;
   border-radius: 8px;
-  border: none;
   border: 1px solid var(--secondary-color);
   background-color: var(--secondary-color);
   color: var(--text-color);
-  width: 320px;
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 4px;
 }
 
-.search input {
-  color: var(--text-color);
+.search {
+  width: 100%;
 }
 
-.orders {
-  background-color: var(--secondary-color);
-  width: 100%;
-  border-radius: 8px;
-  overflow-x: auto;
+.search input {
+  color: var(--text-color);
 }
 
 .orders::-webkit-scrollbar {
@@ -558,5 +590,97 @@ select {
   padding: 16px;
   text-align: center;
   color: var(--text-color);
+}
+
+.search input {
+  color: var(--text-color);
+}
+
+.menu .search {
+  display: none;
+}
+
+.orders.desktop {
+  background-color: var(--secondary-color);
+  width: 100%;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.orders.mobile {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.orders.mobile a {
+  padding: 1em;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5em;
+  padding-bottom: 1em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.orders.mobile a .image {
+  width: 64px;
+  height: 64px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.orders.mobile a div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.orders.mobile a p {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.orders.mobile a p.name {
+  opacity: 1;
+}
+
+.orders.desktop {
+  display: none;
+}
+
+@media (min-width: 1200px) {
+  h2,
+  .search,
+  .orders.mobile {
+    display: none;
+  }
+
+  .menu .search {
+    display: flex;
+  }
+
+  .orders {
+    background-color: var(--secondary-color);
+    width: 100%;
+    border-radius: 8px;
+    overflow-x: auto; /* Enable horizontal scrolling */
+    white-space: nowrap; /* Prevent wrapping of items */
+  }
+
+  .orders.desktop {
+    display: block;
+  }
+  .search {
+    width: auto;
+  }
+
+  .menu .search,
+  select {
+    min-width: 320px;
+  }
 }
 </style>
