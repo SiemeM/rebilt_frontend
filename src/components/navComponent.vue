@@ -242,6 +242,7 @@ const profileImage = computed(() => {
   box-shadow: 0px -4px 8px rgba(0, 0, 0, 0.1);
   padding: 24px 16px;
   position: fixed;
+  z-index: 999;
   bottom: 0;
   width: 100%;
 }
