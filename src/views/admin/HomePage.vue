@@ -554,7 +554,7 @@ onMounted(async () => {
 <style scoped>
 .content {
   width: 100%;
-  height: 100vh;
+  margin-bottom: 72px;
 }
 
 h2 {
