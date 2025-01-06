@@ -132,7 +132,7 @@ const addUser = async () => {
   <DynamicStyle />
   <Navigation />
   <div class="content">
-    <h1>Add New User</h1>
+    <h1>Add new user</h1>
     <form @submit.prevent="addUser">
       <!-- Vereiste velden -->
       <div class="row">
@@ -216,7 +216,7 @@ const addUser = async () => {
       </div>
 
       <!-- Submit button -->
-      <button type="submit" class="btn active">Add User</button>
+      <button type="submit" class="btn active">Add user</button>
     </form>
   </div>
 </template>
@@ -224,7 +224,7 @@ const addUser = async () => {
 <style scoped>
 .content {
   width: 100%;
-  height: 100vh;
+  margin-bottom: 72px;
 }
 
 form {
@@ -237,10 +237,8 @@ form {
 
 form .row {
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 120px;
+  flex-direction: column;
+  gap: 8px;
   width: 100%;
 }
 
@@ -264,5 +262,19 @@ select {
 button {
   color: white;
   cursor: pointer;
+}
+
+@media (min-width: 768px) {
+  .content {
+    margin: 0;
+  }
+
+  form .row {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 120px;
+    width: 100%;
+  }
 }
 </style>
