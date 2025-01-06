@@ -39,30 +39,6 @@ const selectedOption = ref(0);
 
 const productConfigs = ref([]);
 
-function setActiveOption(index) {
-  selectedOption.value = index;
-
-  // Verwijder de actieve klasse van alle opties
-  const options = document.querySelectorAll(".option");
-  options.forEach((option) => option.classList.remove("active"));
-
-  const selectedOptionElement = document.querySelector(
-    `.option[data-index="${index}"]`
-  );
-  if (selectedOptionElement) {
-    selectedOptionElement.classList.add("active");
-  }
-
-  // Stel de geselecteerde afbeelding in op basis van de geselecteerde optie
-  const selectedConfig = configurations.value[selectedOption.value];
-  console.log("Selected configuration:", selectedConfig);
-  if (selectedConfig?.images?.[0]?.url) {
-    selectedImage.value = selectedConfig.images[0].url;
-  } else {
-    console.warn("No image found for the selected configuration.");
-  }
-}
-
 function onWindowResize() {
   const container = document.querySelector(".model");
   if (container && renderer) {
@@ -127,44 +103,6 @@ function extractMaterials(object) {
   });
 
   layers.value = [...new Set(layers.value)];
-}
-
-function applyColorToMaterial(material, color, opacity = 1) {
-  if (
-    material instanceof THREE.MeshStandardMaterial ||
-    material instanceof THREE.MeshBasicMaterial
-  ) {
-    material.color.set(color);
-    material.opacity = opacity;
-    material.transparent = opacity < 1;
-  } else if (material instanceof THREE.ShaderMaterial) {
-    if (material.uniforms && material.uniforms.color) {
-      material.uniforms.color.value.set(color);
-    }
-  } else {
-    material.emissive.set(color);
-  }
-}
-
-function applyColorToSpecificLayer(color, layerName) {
-  const material = materials.value.find((mat) => mat.name === layerName);
-
-  if (material) {
-    applyColorToMaterial(material, color);
-  } else {
-    console.warn(`Material with name ${layerName} not found.`);
-  }
-
-  const layerIndex = layers.value.indexOf(layerName);
-  if (layerIndex !== -1) {
-    layersColors.value[layerIndex] = color;
-  }
-
-  scene.traverse((child) => {
-    if (child.isMesh && child.material.name === layerName) {
-      applyColorToMaterial(child.material, color);
-    }
-  });
 }
 
 function selectColor(color, layerName) {
@@ -250,13 +188,10 @@ async function fetchPartnerConfigurations(partnerId, product) {
       (config) => config.partnerId === partnerId
     );
 
-    // Log the product to check its structure
-    console.log("Product:", product);
-    console.log("Product Configurations:", product.configurations);
-
     // Ensure product configurations exist
     if (product.configurations && product.configurations.length > 0) {
       productConfigs.value = product.configurations;
+      console.log("Product configurations:", productConfigs.value);
     } else {
       console.error("No configurations available for the product.");
       productConfigs.value = [];
@@ -273,8 +208,102 @@ async function fetchPartnerConfigurations(partnerId, product) {
   }
 }
 
+async function setActiveOption(optionId, configurationId) {
+  selectedOption.value = optionId;
+  console.log(optionId, configurationId);
+
+  const selectedConfig = configurations.value.find(
+    (config) => config.configurationId === configurationId
+  );
+
+  if (selectedConfig && selectedConfig.options) {
+    const selectedOptionDetails = selectedConfig.options.find(
+      (option) => option.optionId === optionId
+    );
+
+    if (selectedOptionDetails) {
+      console.log("Geselecteerde optie details:", selectedOptionDetails);
+      // Hier kun je verdere logica toevoegen voor wat er moet gebeuren
+    }
+  }
+}
+
+async function loadOptionsForConfig(configId) {
+  console.log("Loading options for configuration:", configId);
+  const config = configurations.value.find(
+    (config) => config.configurationId === configId
+  );
+
+  if (!config || !config.options || config.options.length === 0) {
+    console.error("Geen opties gevonden voor deze configuratie");
+    return [];
+  }
+
+  try {
+    const optionDetails = await Promise.all(
+      config.options.map(async (option) => {
+        const optionData = await fetchOptionById(option.optionId);
+        return optionData;
+      })
+    );
+    return optionDetails;
+  } catch (error) {
+    console.error("Fout bij het ophalen van de opties:", error);
+    return [];
+  }
+}
+
+function applyColorToMaterial(material, color, opacity = 1) {
+  if (
+    material instanceof THREE.MeshStandardMaterial ||
+    material instanceof THREE.MeshBasicMaterial
+  ) {
+    material.color.set(color);
+    material.opacity = opacity;
+    material.transparent = opacity < 1;
+  } else if (material instanceof THREE.ShaderMaterial) {
+    if (material.uniforms && material.uniforms.color) {
+      material.uniforms.color.value.set(color);
+    }
+  } else {
+    material.emissive.set(color);
+  }
+}
+
+function applyColorToSpecificLayer(color, layerName) {
+  const material = materials.value.find((mat) => mat.name === layerName);
+
+  if (material) {
+    applyColorToMaterial(material, color);
+  } else {
+    console.warn(`Material with name ${layerName} not found.`);
+  }
+
+  // Update layersColors array with new color
+  const layerIndex = layers.value.indexOf(layerName);
+  if (layerIndex !== -1) {
+    layersColors.value[layerIndex] = color;
+  }
+
+  // Apply color to all matching materials in the scene
+  scene.traverse((child) => {
+    if (child.isMesh && child.material.name === layerName) {
+      applyColorToMaterial(child.material, color);
+    }
+  });
+}
+
+async function fetchOptionById(optionId) {
+  console.log("Fetching option with ID:", optionId);
+  return fetch(`${baseURL}/options/${optionId}`)
+    .then((response) => response.json())
+    .then((data) => data.data.option || null)
+    .catch((err) => console.error("Error fetching option:", err));
+}
+
 async function fetchProductData(productCode) {
   try {
+    console.log("Fetching product data for:", productCode);
     isLoading.value = true;
     error.value = null;
 
@@ -292,20 +321,18 @@ async function fetchProductData(productCode) {
 
     const result = await response.json();
     const product = result.data.product;
-    console.log(product);
+    console.log("Fetched product data:", product); // Log het opgehaalde product
 
     // Haal en verrijk configuraties voor dit product
     const configurations = product.configurations || []; // Default to an empty array if configurations is missing
-    console.log("Product Configurations:", configurations);
+    console.log("Configurations:", configurations); // Log de configuraties van het product
 
     // Check if there are configurations and enrich them
     const enrichedConfigurations = await Promise.all(
       configurations.map(async (config) => {
+        console.log("Enriching configuration:", config.configurationId); // Log elke configuratie die je verrijkt
+
         let selectedConfigId = config.configurationId;
-        console.log(
-          "Selected Configuration ID before conversion:",
-          selectedConfigId
-        );
 
         // Check if configurationId is an object and extract the _id
         if (typeof selectedConfigId === "object") {
@@ -317,11 +344,9 @@ async function fetchProductData(productCode) {
 
         // Ensure selectedConfigId is a string
         selectedConfigId = String(selectedConfigId);
-        console.log("Final Configuration ID:", selectedConfigId); // Log final configuration ID
 
         // Fetch configuration data for the given ID
         const configUrl = `${baseURL}/configurations/${selectedConfigId}`;
-        console.log("Configuration fetch URL:", configUrl);
 
         try {
           const configResponse = await fetch(configUrl, {
@@ -339,7 +364,6 @@ async function fetchProductData(productCode) {
 
           const configResult = await configResponse.json();
           const options = configResult.data.options || [];
-          console.log("Fetched Configuration Options:", options);
 
           // Collect images from the options
           const configImages = options.flatMap(
@@ -734,7 +758,7 @@ function showNextImage() {
       </div>
 
       <div
-        v-for="(configuration, index) in configurations"
+        v-for="(configuration, index) in productConfigs"
         :key="index"
         class="config-ui__page"
         v-show="currentPageIndex === index"
@@ -745,33 +769,52 @@ function showNextImage() {
               ? "Choose the color for"
               : "Choose an option for"
           }}
-          {{ configuration.fieldName }}
+          {{ configuration.configurationId?.fieldName }}
         </h2>
         <div class="row">
+          <!-- Color Options -->
           <div
             v-if="configuration.fieldType === 'Color'"
             v-for="(option, optionIndex) in configuration.options"
-            :key="optionIndex"
-            :class="{ active: selectedOption === optionIndex }"
-            :data-color="option.name"
+            :key="'color-option-' + option.optionId"
+            :class="{ active: selectedOption === option.optionId }"
+            :data-color="option.optionId"
             :style="{ backgroundColor: option.name }"
-            @click="setActiveOption(optionIndex)"
-            @keydown.enter="setActiveOption(optionIndex)"
-            @keydown.space="setActiveOption(optionIndex)"
+            @click="
+              setActiveOption(option.optionId, configuration.configurationId)
+            "
+            @keydown.enter="
+              setActiveOption(option.optionId, configuration.configurationId)
+            "
+            @keydown.space="
+              setActiveOption(option.optionId, configuration.configurationId)
+            "
             tabindex="0"
             role="button"
-          ></div>
+          >
+            <!-- Toon de optie ID of kleur naam -->
+            <span class="color-label"
+              >{{ option.optionId }} - {{ option.name }}</span
+            >
+          </div>
 
-          <!-- Dropdown select voor Dropdown veldtype -->
+          <!-- Select Options -->
           <div
-            v-else-if="configuration.fieldType === 'Dropdown'"
+            v-else-if="configuration.fieldType === 'select'"
             v-for="(option, optionIndex) in configuration.options"
+            :key="'select-option-' + option.optionId"
             class="option"
-            :class="{ active: selectedOption === optionIndex }"
-            :value="option.name"
-            @click="setActiveOption(optionIndex)"
-            @keydown.enter="setActiveOption(optionIndex)"
-            @keydown.space="setActiveOption(optionIndex)"
+            :class="{ active: selectedOption === option.optionId }"
+            :value="option.optionId"
+            @click="
+              setActiveOption(option.optionId, configuration.configurationId)
+            "
+            @keydown.enter="
+              setActiveOption(option.optionId, configuration.configurationId)
+            "
+            @keydown.space="
+              setActiveOption(option.optionId, configuration.configurationId)
+            "
             tabindex="0"
           >
             <p>{{ option.name }}</p>
