@@ -108,7 +108,7 @@ const profileImage = computed(() => {
       to="/admin"
       exact-active-class="active"
     >
-      <img src="../assets/icons/package.svg" alt="icon" />
+      <img src="../assets/icons/tag.svg" alt="icon" />
       <p>Products</p>
     </router-link>
     <router-link
@@ -116,7 +116,7 @@ const profileImage = computed(() => {
       to="/admin/orders"
       exact-active-class="active"
     >
-      <img src="../assets/icons/order.svg" alt="icon" />
+      <img src="../assets/icons/inbox.svg" alt="icon" />
       <p>Orders</p>
     </router-link>
     <router-link
@@ -124,7 +124,7 @@ const profileImage = computed(() => {
       to="/admin/partners"
       exact-active-class="active"
     >
-      <img src="../assets/icons/users.svg" alt="icon" />
+      <img src="../assets/icons/partners.svg" alt="icon" />
       <p>Partners</p>
     </router-link>
     <router-link
@@ -301,6 +301,7 @@ nav .profile {
   width: 24px;
   height: 24px;
   border-radius: 50%;
+  border: 1px solid #dadbdd;
 }
 
 .desktopNav .profile div {
