@@ -471,7 +471,7 @@ onMounted(async () => {
           v-if="data.length"
           v-for="product in data"
           :key="product._id"
-          :to="{ name: 'EditPartner', params: { id: product._id } }"
+          :to="{ name: 'EditProduct', params: { id: product._id } }"
         >
           <div
             class="image"
