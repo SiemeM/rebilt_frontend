@@ -266,6 +266,7 @@ onMounted(fetchData);
   <Navigation />
   <div class="overlay" v-if="isPopupVisible"></div>
   <div class="content">
+    <h2>Users</h2>
     <div class="popup" v-if="isPopupVisible">
       <img src="../../assets/icons/cross-circle.svg" alt="icon" />
       <div class="text">
@@ -302,7 +303,34 @@ onMounted(fetchData);
       </select>
     </div>
 
-    <div class="users">
+    <div class="search">
+      <img src="../../assets/icons/search.svg" alt="icon" />
+      <input placeholder="Search" v-model="searchTerm" />
+    </div>
+
+    <div class="users mobile">
+      <div class="items">
+        <router-link
+          v-if="filteredUsers && filteredUsers.length > 0"
+          v-for="user in filteredUsers"
+          :key="user._id"
+          :to="{ name: 'EditUser', params: { id: user._id } }"
+        >
+          <div class="elements">
+            <div class="text">
+              <p class="name">{{ user.firstname }} {{ user.lastname }}</p>
+              <p>{{ user.email }}</p>
+              <p>{{ user.role }}</p>
+            </div>
+            <div class="btn">
+              <p>{{ user.activeUnactive }}</p>
+            </div>
+          </div>
+        </router-link>
+      </div>
+    </div>
+
+    <div class="users desktop">
       <div class="top">
         <input
           type="checkbox"
@@ -345,6 +373,11 @@ onMounted(fetchData);
 .content {
   width: 100%;
   height: 100vh;
+}
+
+h2 {
+  text-align: center;
+  width: 100%;
 }
 
 .overlay {
@@ -435,11 +468,17 @@ onMounted(fetchData);
 select {
   padding: 4px 12px;
   border-radius: 8px;
-  border: none;
   border: 1px solid var(--secondary-color);
   background-color: var(--secondary-color);
   color: var(--text-color);
-  width: 320px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+.search {
+  width: 100%;
 }
 
 .search {
@@ -453,12 +492,71 @@ select {
   color: var(--text-color);
 }
 
-.users {
+.menu .search {
+  display: none;
+}
+
+.users.desktop {
   background-color: var(--secondary-color);
   width: 100%;
   border-radius: 8px;
   overflow-x: auto;
-  white-space: nowrap;
+}
+
+.users.mobile {
+  width: 100%;
+}
+
+.users.mobile .items {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.users.mobile a {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 1.5em;
+  padding-bottom: 1em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.users.mobile a .image {
+  width: 64px;
+  height: 64px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.users.mobile a .elements {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  gap: 1em;
+}
+
+.users.mobile a .elements .text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.users.mobile a p {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.users.mobile a p.name {
+  opacity: 1;
+}
+
+.users.desktop {
+  display: none;
 }
 
 .users::-webkit-scrollbar {
@@ -544,5 +642,29 @@ select {
   padding: 20px;
   font-size: 18px;
   color: var(--text-color);
+}
+
+@media (min-width: 1200px) {
+  h2,
+  .search,
+  .partners.mobile {
+    display: none;
+  }
+
+  .menu .search {
+    display: flex;
+  }
+
+  .partners.desktop {
+    display: block;
+  }
+  .search {
+    width: auto;
+  }
+
+  .menu .search,
+  select {
+    min-width: 320px;
+  }
 }
 </style>
