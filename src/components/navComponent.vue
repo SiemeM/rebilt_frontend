@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, computed, onMounted, watch, inject } from "vue";
+import { reactive, computed, onMounted, inject } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 
@@ -93,6 +93,38 @@ const logout = () => {
   router.push("/login");
 };
 
+// Function to dynamically select the icon based on the active route
+const getActiveIcon = (routeName, defaultIcon) => {
+  const currentRoute = router.currentRoute.value.path;
+
+  switch (routeName) {
+    case "products":
+      return currentRoute === "/admin"
+        ? "../src/assets/icons/tag_active.svg"
+        : "../src/assets/icons/tag.svg";
+    case "orders":
+      return currentRoute === "/admin/orders"
+        ? "../src/assets/icons/inbox_active.svg"
+        : "../src/assets/icons/inbox.svg";
+    case "partners":
+      return currentRoute === "/admin/partners"
+        ? "../src/assets/icons/partners_active.svg"
+        : "../src/assets/icons/partners.svg";
+    case "users":
+      return currentRoute === "/admin/users"
+        ? "../src/assets/icons/users_active.svg"
+        : "../src/assets/icons/users.svg";
+    case "settings":
+      return currentRoute === "/admin/settings"
+        ? "../src/assets/icons/settings_active.svg"
+        : "../src/assets/icons/settings.svg";
+    case "logout":
+      return "../assets/icons/logout.svg"; // Logout icon is always static
+    default:
+      return defaultIcon; // Return the default icon for all other routes
+  }
+};
+
 const profileImage = computed(() => {
   return (
     user.profilePicture ||
@@ -108,7 +140,10 @@ const profileImage = computed(() => {
       to="/admin"
       exact-active-class="active"
     >
-      <img src="../assets/icons/tag.svg" alt="icon" />
+      <img
+        :src="getActiveIcon('products', '../assets/icons/tag.svg')"
+        alt="icon"
+      />
       <p>Products</p>
     </router-link>
     <router-link
@@ -116,7 +151,10 @@ const profileImage = computed(() => {
       to="/admin/orders"
       exact-active-class="active"
     >
-      <img src="../assets/icons/inbox.svg" alt="icon" />
+      <img
+        :src="getActiveIcon('orders', '../assets/icons/inbox.svg')"
+        alt="icon"
+      />
       <p>Orders</p>
     </router-link>
     <router-link
@@ -124,7 +162,10 @@ const profileImage = computed(() => {
       to="/admin/partners"
       exact-active-class="active"
     >
-      <img src="../assets/icons/partners.svg" alt="icon" />
+      <img
+        :src="getActiveIcon('partners', '../assets/icons/partners.svg')"
+        alt="icon"
+      />
       <p>Partners</p>
     </router-link>
     <router-link
@@ -132,7 +173,10 @@ const profileImage = computed(() => {
       to="/admin/users"
       exact-active-class="active"
     >
-      <img src="../assets/icons/users.svg" alt="icon" />
+      <img
+        :src="getActiveIcon('users', '../assets/icons/users.svg')"
+        alt="icon"
+      />
       <p>Users</p>
     </router-link>
     <router-link to="/admin/settings" exact-active-class="active">
@@ -168,7 +212,10 @@ const profileImage = computed(() => {
         to="/admin"
         exact-active-class="active"
       >
-        <img src="../assets/icons/package.svg" alt="icon" />
+        <img
+          :src="getActiveIcon('products', '../assets/icons/package.svg')"
+          alt="icon"
+        />
         <p>Products</p>
       </router-link>
       <router-link
@@ -176,7 +223,10 @@ const profileImage = computed(() => {
         to="/admin/orders"
         exact-active-class="active"
       >
-        <img src="../assets/icons/order.svg" alt="icon" />
+        <img
+          :src="getActiveIcon('orders', '../assets/icons/order.svg')"
+          alt="icon"
+        />
         <p>Orders</p>
       </router-link>
       <router-link
@@ -192,7 +242,10 @@ const profileImage = computed(() => {
         to="/admin/partners"
         exact-active-class="active"
       >
-        <img src="../assets/icons/users.svg" alt="icon" />
+        <img
+          :src="getActiveIcon('partners', '../assets/icons/users.svg')"
+          alt="icon"
+        />
         <p>Partners</p>
       </router-link>
       <router-link
@@ -200,11 +253,17 @@ const profileImage = computed(() => {
         to="/admin/users"
         exact-active-class="active"
       >
-        <img src="../assets/icons/users.svg" alt="icon" />
+        <img
+          :src="getActiveIcon('users', '../assets/icons/users.svg')"
+          alt="icon"
+        />
         <p>Users</p>
       </router-link>
       <router-link to="/admin/settings" exact-active-class="active">
-        <img src="../assets/icons/settings.svg" alt="icon" />
+        <img
+          :src="getActiveIcon('settings', '../assets/icons/settings.svg')"
+          alt="icon"
+        />
         <p>Settings</p>
       </router-link>
       <router-link
@@ -212,7 +271,10 @@ const profileImage = computed(() => {
         to="/admin/myconfigurations"
         exact-active-class="active"
       >
-        <img src="../assets/icons/settings.svg" alt="icon" />
+        <img
+          :src="getActiveIcon('settings', '../assets/icons/settings.svg')"
+          alt="icon"
+        />
         <p>Configurations</p>
       </router-link>
       <router-link
@@ -220,7 +282,10 @@ const profileImage = computed(() => {
         to="/admin/manageconfigurations"
         exact-active-class="active"
       >
-        <img src="../assets/icons/settings.svg" alt="icon" />
+        <img
+          :src="getActiveIcon('settings', '../assets/icons/settings.svg')"
+          alt="icon"
+        />
         <p>Configurations</p>
       </router-link>
       <a @click.prevent="logout">
