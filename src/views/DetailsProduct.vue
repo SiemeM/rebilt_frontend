@@ -8,13 +8,13 @@ const sizes = ref([]);
 const materials = ref([]);
 const layers = ref([]);
 const partnerConfigurationsCount = ref(0);
+const count = ref(0);
 const layersColors = ref([]);
 const selectedThingsInLayers = ref([]);
 const colors = ref([]);
 const selectedColor = ref(null);
 const currentPageIndex = ref(0);
 const productImages = ref([]);
-console.log("productImages:", productImages.value);
 const selectedImage = ref(null);
 const route = useRoute();
 const router = useRouter();
@@ -37,6 +37,8 @@ let isModelLoaded = false;
 let model = null;
 const selectedOption = ref(0);
 
+const productConfigs = ref([]);
+
 function setActiveOption(index) {
   selectedOption.value = index;
 
@@ -53,6 +55,7 @@ function setActiveOption(index) {
 
   // Stel de geselecteerde afbeelding in op basis van de geselecteerde optie
   const selectedConfig = configurations.value[selectedOption.value];
+  console.log("Selected configuration:", selectedConfig);
   if (selectedConfig?.images?.[0]?.url) {
     selectedImage.value = selectedConfig.images[0].url;
   } else {
@@ -204,7 +207,6 @@ async function fetchNumberOfPartnerConfigurations(partnerId) {
     ).length;
 
     partnerConfigurationsCount.value = count;
-    console.log("Number of partner configurations:", count);
     return count;
   } catch (err) {
     console.error("Error fetching partner configurations:", err);
@@ -214,103 +216,69 @@ async function fetchNumberOfPartnerConfigurations(partnerId) {
 const partnerConfigurations = ref([]);
 const configurations = ref([]);
 
-async function fetchPartnerConfigurations(partnerId) {
+onMounted(async () => {
+  productId.value = route.params.productId; // Get productId from route params
+
+  if (!productId.value) {
+    console.error("No productId found in the route params!");
+    return;
+  }
+
+  await fetchProductData(productId.value); // Fetch the product data using productId
+});
+
+// Aangenomen dat je productgegevens en partnerconfiguraties al hebt
+
+async function fetchPartnerConfigurations(partnerId, product) {
   try {
-    const response = await fetch(`${baseURL}/partnerConfigurations`);
+    // Fetch partner configurations
+    const response = await fetch(
+      `${baseURL}/partnerConfigurations?partnerId=${partnerId}`
+    );
+
     if (!response.ok) throw new Error("Unable to fetch partner configurations");
 
     const data = await response.json();
+
+    // Check if the fetched data is an array
+    if (!Array.isArray(data.data)) {
+      console.error("Fetched data is not an array:", data.data);
+      return [];
+    }
 
     const partnerConfigs = data.data.filter(
       (config) => config.partnerId === partnerId
     );
 
-    if (partnerConfigs.length === 0) {
-      return;
+    // Log the product to check its structure
+    console.log("Product:", product);
+    console.log("Product Configurations:", product.configurations);
+
+    // Ensure product configurations exist
+    if (product.configurations && product.configurations.length > 0) {
+      productConfigs.value = product.configurations;
+    } else {
+      console.error("No configurations available for the product.");
+      productConfigs.value = [];
     }
 
-    // For each partner configuration
-    for (const partnerConfig of partnerConfigs) {
-      const configResponse = await fetch(
-        `${baseURL}/configurations/${partnerConfig.configurationId}`
-      );
-      if (!configResponse.ok)
-        throw new Error(
-          `Unable to fetch configuration details for ID: ${partnerConfig.configurationId}`
-        );
-
-      const configData = await configResponse.json();
-      const config = configData.data;
-
-      // Log config details for debugging
-      console.log("Configuration Data:", config);
-
-      // Check if this configuration is already in the list
-      const exists = configurations.value.some(
-        (existingConfig) =>
-          existingConfig.fieldName === config.fieldName &&
-          existingConfig.fieldType === config.fieldType
-      );
-
-      // Add it if it doesn't exist
-      if (!exists) {
-        const options = await Promise.all(
-          config.options.map(async (option) => {
-            const optionId = option._id; // Zorg ervoor dat je het juiste ID pakt
-            console.log("Option ID being used:", optionId); // Debugging log
-
-            if (!optionId) {
-              console.error(`Option ID is missing for option:`, option);
-              return null; // Of geef een fallback waarde
-            }
-
-            const optionResponse = await fetch(
-              `${baseURL}/options/${optionId}`
-            );
-
-            if (!optionResponse.ok) {
-              console.error(
-                `Unable to fetch option details for ID: ${optionId}`
-              );
-              return null; // Of geef een fallback waarde
-            }
-            const optionData = await optionResponse.json();
-
-            return optionData.data;
-          })
-        );
-
-        // Add the configuration to the list
-        configurations.value.push({
-          fieldName: config.fieldName,
-          fieldType: config.fieldType,
-          options: options,
-        });
-
-        console.log("Configurations:", configurations.value);
-      }
+    const productConfigurationId = product.configurations?.[0]?.configurationId;
+    if (!productConfigurationId) {
+      console.error("ConfigurationId for product is not available.");
+      return [];
     }
-
-    // Remove duplicate configurations based on fieldName and fieldType
-    configurations.value = configurations.value.filter(
-      (value, index, self) =>
-        index ===
-        self.findIndex(
-          (t) =>
-            t.fieldName === value.fieldName && t.fieldType === value.fieldType
-        )
-    );
   } catch (err) {
     console.error("Error fetching partner configurations:", err);
+    return [];
   }
 }
 
-const fetchProductData = async (productCode) => {
+async function fetchProductData(productCode) {
   try {
     isLoading.value = true;
     error.value = null;
 
-    // Fetch product data
+    // Haal productgegevens op
     const response = await fetch(`${baseURL}/products/${productCode}`, {
       method: "GET",
       headers: {
@@ -324,56 +292,78 @@ const fetchProductData = async (productCode) => {
 
     const result = await response.json();
     const product = result.data.product;
+    console.log(product);
 
-    // Fetch and enrich configurations
-    const configurations = product.configurations || [];
+    // Haal en verrijk configuraties voor dit product
+    const configurations = product.configurations || []; // Default to an empty array if configurations is missing
+    console.log("Product Configurations:", configurations);
+
+    // Check if there are configurations and enrich them
     const enrichedConfigurations = await Promise.all(
       configurations.map(async (config) => {
-        if (config.configurationId) {
-          try {
-            const configResponse = await fetch(
-              `${baseURL}/configurations/${config.configurationId._id}`,
-              {
-                method: "GET",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-              }
-            );
+        let selectedConfigId = config.configurationId;
+        console.log(
+          "Selected Configuration ID before conversion:",
+          selectedConfigId
+        );
 
-            if (!configResponse.ok) {
-              throw new Error(
-                `Configuration fetch error! Status: ${configResponse.status}`
-              );
-            }
-
-            const configResult = await configResponse.json();
-            const options = configResult.data.options || [];
-
-            // Collect images from options
-            const configImages = options.flatMap(
-              (option) => option.images?.map((img) => img.url) || []
-            );
-
-            selectedImage.value = configImages[0];
-
-            return {
-              ...config,
-              images: configImages,
-            };
-          } catch (err) {
-            console.error(
-              `Error fetching configuration for ID ${config.configurationId._id}:`,
-              err.message
-            );
-            return { ...config, images: [] };
-          }
+        // Check if configurationId is an object and extract the _id
+        if (typeof selectedConfigId === "object") {
+          selectedConfigId = selectedConfigId._id; // Extract the _id property
+          console.warn(
+            `configurationId was an object, extracted _id: ${selectedConfigId}`
+          );
         }
-        return { ...config, images: [] };
+
+        // Ensure selectedConfigId is a string
+        selectedConfigId = String(selectedConfigId);
+        console.log("Final Configuration ID:", selectedConfigId); // Log final configuration ID
+
+        // Fetch configuration data for the given ID
+        const configUrl = `${baseURL}/configurations/${selectedConfigId}`;
+        console.log("Configuration fetch URL:", configUrl);
+
+        try {
+          const configResponse = await fetch(configUrl, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (!configResponse.ok) {
+            throw new Error(
+              `Configuration fetch error! Status: ${configResponse.status}`
+            );
+          }
+
+          const configResult = await configResponse.json();
+          const options = configResult.data.options || [];
+          console.log("Fetched Configuration Options:", options);
+
+          // Collect images from the options
+          const configImages = options.flatMap(
+            (option) => option.images?.map((img) => img.url) || []
+          );
+
+          selectedImage.value = configImages[0];
+
+          return {
+            ...config,
+            images: configImages,
+            options, // Include options in the enriched configuration
+          };
+        } catch (err) {
+          console.error(
+            `Error fetching configuration for ID ${selectedConfigId}:`,
+            err.message
+          );
+          return { ...config, images: [], options: [] };
+        }
       })
     );
 
-    // Add all images to productImages
+    // Combine all images from the product and configurations
     const configImages = enrichedConfigurations.flatMap(
       (config) => config.images
     );
@@ -386,22 +376,24 @@ const fetchProductData = async (productCode) => {
         ...(product.images || []).map((img) => img.url),
         ...configImages,
       ],
+      configurations: enrichedConfigurations, // Add enriched configurations
     };
 
-    // Merge all images from the product and configurations into the productImages array
+    // Combine all product and configuration images in productImages
     productImages.value = [
       ...(product.images || []).map((img) => img.url),
       ...configImages,
     ];
 
-    // Handle other partner-related data fetching
+    // Fetch partner data if partnerId is available
     const partnerId = product.partnerId;
+    const productId = product._id;
     if (partnerId) {
       await fetchPartnerName(partnerId);
       await fetchPartnerPackage(partnerId);
       await fetchNumberOfPartnerConfigurations(partnerId);
       await fetchLogoUrl(partnerId);
-      await fetchPartnerConfigurations(partnerId);
+      await fetchPartnerConfigurations(partnerId, product);
     }
 
     error.value = null;
@@ -412,7 +404,7 @@ const fetchProductData = async (productCode) => {
   } finally {
     isLoading.value = false;
   }
-};
+}
 
 function setDefaultActiveColor() {
   if (colors.value.length > 0 && !selectedColor.value) {
@@ -727,14 +719,18 @@ function showNextImage() {
       <p>Drag to rotate</p>
     </div>
     <div class="config-wrapper">
-      <div class="overview" v-if="partnerConfigurationsCount > 1">
+      <div class="overview">
         <h2>Overview</h2>
-        <ul>
-          <li v-for="(configuration, index) in configurations" :key="index">
-            {{ configuration.fieldName }}
+        <ul v-if="productConfigs.length > 0">
+          <li v-for="(configuration, index) in productConfigs" :key="index">
+            <p>
+              {{ configuration.configurationId?.fieldName }}
+            </p>
             <i class="fa fa-angle-right"></i>
           </li>
         </ul>
+
+        <p v-else>No configurations found for this product.</p>
       </div>
 
       <div
