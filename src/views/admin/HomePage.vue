@@ -485,9 +485,12 @@ onMounted(async () => {
               <p class="name">{{ product.productName }}</p>
               <p>1 variant</p>
             </div>
-            <p class="btn">
-              {{ product.activeUnactive ? "Active" : "Inactive" }}
-            </p>
+            <div
+              class="btn"
+              :class="{ active: product.activeUnactive === 'active' }"
+            >
+              <p>{{ product.activeUnactive }}</p>
+            </div>
           </div>
         </router-link>
       </div>
@@ -812,6 +815,27 @@ select {
   display: flex;
   flex-direction: column;
   gap: 0.5em;
+}
+
+.products.mobile a .elements .btn {
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.025rem;
+  width: 60px;
+  height: 26px;
+}
+
+.products.mobile a .elements .btn.active {
+  background-color: #53e971;
+  border: none;
+}
+
+.products.mobile a .elements .btn p {
+  opacity: 1;
+}
+
+.products.mobile a .elements .btn.active p {
+  color: #000;
+  opacity: 1;
 }
 
 .products.mobile a p {

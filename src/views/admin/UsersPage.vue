@@ -329,7 +329,10 @@ onMounted(fetchData);
               <p>{{ user.email }}</p>
               <p>{{ user.role }}</p>
             </div>
-            <div class="btn">
+            <div
+              class="btn"
+              :class="{ active: user.activeUnactive === 'active' }"
+            >
               <p>{{ user.activeUnactive }}</p>
             </div>
           </div>
@@ -551,6 +554,27 @@ select {
   display: flex;
   flex-direction: column;
   gap: 0.5em;
+}
+
+.users.mobile a .elements .btn {
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.025rem;
+  width: 60px;
+  height: 26px;
+}
+
+.users.mobile a .elements .btn.active {
+  background-color: #53e971;
+  border: none;
+}
+
+.users.mobile a .elements .btn p {
+  opacity: 1;
+}
+
+.users.mobile a .elements .btn.active p {
+  color: #000;
+  opacity: 1;
 }
 
 .users.mobile a p {
