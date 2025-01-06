@@ -293,7 +293,7 @@ onMounted(fetchData);
         </router-link>
         <div
           class="btn display"
-          :style="{ visibility: isDeleteButtonVisible ? 'visible' : 'hidden' }"
+          :style="{ display: isDeleteButtonVisible ? 'flex' : 'none' }"
           @click="showPopup"
         >
           <p>Delete item(s)</p>
@@ -463,7 +463,7 @@ h2 {
 }
 
 .btn.display {
-  visibility: hidden;
+  display: none;
   border: 1px solid #d34848;
   background-color: rgba(211, 72, 72, 0.2);
   border-radius: 8px;
