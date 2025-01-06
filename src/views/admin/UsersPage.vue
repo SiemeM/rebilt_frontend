@@ -105,6 +105,13 @@ const fetchUserProfile = async () => {
     user.bio = userData.bio || "";
     user.role = userData.role || "";
     user.activeUnactive = userData.activeUnactive ?? true;
+
+    if (
+      userData.role !== "partner_admin" &&
+      userData.role !== "partner_owner"
+    ) {
+      router.push("/login");
+    }
   } catch (error) {
     console.error("Error fetching user profile:", error);
   }
