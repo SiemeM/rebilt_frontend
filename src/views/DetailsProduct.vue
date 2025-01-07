@@ -227,7 +227,6 @@ async function optionNameById(optionId) {
 function selectOption(index) {
   // Haal de productId op uit de URL
   const productId = route.params.productId;
-  console.log("Selected productId:", productId);
 
   if (!productId) {
     console.error("productId is undefined!");
@@ -235,7 +234,6 @@ function selectOption(index) {
   }
 
   selectedOption.value = index; // Update de geselecteerde optie
-  console.log("Selected option index:", index);
 
   // Initialiseer configImages voordat we ze gebruiken
   let selectedOptionImages = [];
@@ -292,7 +290,6 @@ function selectOption(index) {
               selectedOptionImages = selectedOptionData.images.map(
                 (img) => img.url
               );
-              console.log("Selected option images:", selectedOptionImages); // Log de geselecteerde afbeeldingen
             } else {
               selectedOptionImages = []; // Als er geen afbeeldingen zijn, stel in op een lege array
             }
@@ -314,7 +311,6 @@ function selectOption(index) {
       // Nu stellen we selectedImage in op de eerste afbeelding van de geselecteerde optie
       if (selectedOptionImages.length > 0) {
         selectedImage.value = selectedOptionImages[0]; // Stel de geselecteerde afbeelding in op de eerste afbeelding
-        console.log("Selected image:", selectedImage.value); // Log de geselecteerde afbeelding
       }
 
       // Combineer de afbeeldingen van de geselecteerde optie
@@ -550,28 +546,68 @@ async function nextPage() {
   const summary = document.querySelector(".summary");
   const pages = document.querySelectorAll(".config-ui__page");
 
+  // Controleer of er pagina's zijn
   if (!pages || pages.length === 0) {
     console.warn("No config-ui__page elements found.");
     return;
   }
 
+  // Als de overzichtspagina wordt weergegeven
   if (overview && overview.style.display !== "none") {
+    // Verberg overzicht en zet de eerste pagina als actief
     overview.style.display = "none";
     currentPageIndex.value = 0;
     pages.forEach((page) => page.classList.remove("active"));
     pages[currentPageIndex.value].classList.add("active");
   } else {
+    // Verwijder de 'active' klasse van de huidige pagina
     pages[currentPageIndex.value].classList.remove("active");
 
+    // Verhoog de pagina-index en toon de volgende pagina
     if (currentPageIndex.value < pages.length - 1) {
       currentPageIndex.value++;
       pages[currentPageIndex.value].classList.add("active");
     } else {
-      // Show the summary if there are multiple configurations
-      const count = await fetchNumberOfPartnerConfigurations(partnerId.value);
-      if (count > 1) {
-        summary.style.display = "flex";
-        document.querySelector(".nextButton").style.visibility = "hidden";
+      // Haal productId op uit de URL
+      const productId = route.params.productId;
+
+      // Controleer of productId beschikbaar is
+      if (!productId) {
+        console.error("productId is undefined!");
+        return;
+      }
+
+      try {
+        // Haal productgegevens op
+        const response = await fetch(`${baseURL}/products/${productId}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch product data. Status: ${response.status}`
+          );
+        }
+
+        const result = await response.json();
+        const product = result.data.product; // Zorg ervoor dat 'product' hier wordt gedefinieerd
+
+        // Haal partnerId van het product
+        const partnerId = product.partnerId;
+
+        // Haal het aantal configuraties op voor de partner
+        const count = await fetchNumberOfPartnerConfigurations(partnerId);
+
+        // Als er meerdere configuraties zijn, toon de samenvatting
+        if (count >= 1) {
+          summary.style.display = "flex";
+          document.querySelector(".nextButton").style.visibility = "hidden";
+        }
+      } catch (err) {
+        console.error("Error fetching product data:", err.message);
       }
     }
   }
@@ -877,7 +913,133 @@ function showNextImage() {
           </div>
         </div>
       </div>
+      <div class="summary display">
+        <h2>Summary</h2>
+        <ul v-if="productConfigs.length > 0">
+          <li v-for="(configuration, index) in productConfigs" :key="index">
+            <p>
+              {{ configuration.configurationId?.fieldName }}
+            </p>
+            <p
+              class="border"
+              :style="{
+                backgroundColor: selectedLacesColor || 'transparent',
+              }"
+            ></p>
+          </li>
+        </ul>
 
+        <!-- Personal info form -->
+        <h3>Personal info</h3>
+        <form @submit.prevent="submitOrder">
+          <p style="display: none">{{ productCode }}</p>
+          <div class="row">
+            <div class="column">
+              <label for="firstname">First Name</label>
+              <input
+                type="text"
+                id="firstname"
+                name="firstname"
+                v-model="firstName"
+                placeholder="John"
+                required
+              />
+            </div>
+            <div class="column">
+              <label for="lastname">Last Name</label>
+              <input
+                type="text"
+                id="lastname"
+                name="lastname"
+                v-model="lastName"
+                placeholder="Doe"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="column">
+              <label for="email">Email</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                v-model="email"
+                placeholder="johndoe@gmail.com"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="column">
+              <label for="street">Street</label>
+              <input
+                type="text"
+                id="street"
+                name="street"
+                v-model="street"
+                placeholder="Grote markt"
+                required
+              />
+            </div>
+            <div class="column">
+              <label for="house-number">House Number</label>
+              <input
+                type="text"
+                id="house-number"
+                name="house-number"
+                v-model="houseNumber"
+                placeholder="1"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="column">
+              <label for="postalcode">Postal Code</label>
+              <input
+                type="text"
+                id="postalcode"
+                name="postalcode"
+                v-model="postalCode"
+                placeholder="2800"
+                required
+              />
+            </div>
+            <div class="column">
+              <label for="city">City</label>
+              <input
+                type="text"
+                id="city"
+                name="city"
+                v-model="city"
+                placeholder="Mechelen"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="column">
+              <label for="message">Message</label>
+              <input
+                type="text"
+                id="message"
+                name="message"
+                v-model="message"
+                placeholder="Your message"
+              />
+            </div>
+          </div>
+
+          <button type="submit" class="btn active">Checkout</button>
+          <p class="errorMessage"></p>
+          <p class="successMessage"></p>
+        </form>
+      </div>
       <div class="links">
         <a
           href="#"

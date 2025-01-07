@@ -308,7 +308,8 @@ li svg {
   width: 100%;
 }
 
-.config-wrapper .overview ul {
+.config-wrapper .overview ul,
+.config-wrapper .summary ul {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -328,7 +329,7 @@ li svg {
 }
 
 .config-wrapper .overview ul li,
-.config-wrapper .summary .configurations div {
+.config-wrapper .summary ul li {
   display: flex;
   width: 100%;
   justify-content: space-between;
@@ -338,27 +339,8 @@ li svg {
 }
 
 .config-wrapper .overview ul li,
-.config-wrapper .summary .configurations .config-item {
+.config-wrapper .summary ul li {
   padding-bottom: 12px;
-}
-
-.config-wrapper .summary .configurations div {
-  gap: 48px;
-}
-
-.config-wrapper .summary .configurations div .row {
-  display: flex;
-  flex-direction: row;
-  gap: 16px;
-  border: none;
-  width: auto;
-}
-
-.config-wrapper .summary .configurations div .row p {
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--text-color);
-  border-radius: 50%;
 }
 
 .config-wrapper form .row {
@@ -709,7 +691,7 @@ li svg {
 }
 
 .config-wrapper .overview ul li,
-.config-wrapper .summary .configurations div {
+.config-wrapper .summary ul li {
   display: flex;
   width: 100%;
   justify-content: space-between;
@@ -718,18 +700,10 @@ li svg {
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.config-wrapper .summary .configurations div .row {
-  display: flex;
-  flex-direction: row;
-  gap: 16px;
-  border: none;
-  width: auto;
-}
-
-.config-wrapper .summary .configurations div .row p {
+.config-wrapper .summary ul li p.border {
   width: 24px;
   height: 24px;
-  border: 1px solid var(--white);
+  border: 1px solid var(--text-color);
   border-radius: 50%;
 }
 
