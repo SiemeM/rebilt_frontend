@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
@@ -105,13 +105,6 @@ function extractMaterials(object) {
   layers.value = [...new Set(layers.value)];
 }
 
-function selectColor(color, layerName) {
-  selectedColor.value = color;
-  highlightSelectedItem(color, "row-class-name");
-
-  applyColorToSpecificLayer(color, layerName);
-}
-
 async function fetchPartnerName(partnerId) {
   try {
     const response = await fetch(`${baseURL}/partners/${partnerId}`);
@@ -151,7 +144,6 @@ async function fetchNumberOfPartnerConfigurations(partnerId) {
   }
 }
 
-const partnerConfigurations = ref([]);
 const configurations = ref([]);
 
 onMounted(async () => {
@@ -208,20 +200,6 @@ async function fetchPartnerConfigurations(partnerId, product) {
   }
 }
 
-async function setActiveOption(optionId, configurationId) {
-  selectedOption.value = optionId;
-
-  const selectedConfig = configurations.value.find(
-    (config) => config.configurationId === configurationId
-  );
-
-  if (selectedConfig && selectedConfig.options) {
-    const selectedOptionDetails = selectedConfig.options.find(
-      (option) => option.optionId === optionId
-    );
-  }
-}
-
 const optionNames = ref([]); // Array that holds optionId and name pairs
 console.log("Option names array:", optionNames.value);
 
@@ -250,11 +228,10 @@ async function optionNameById(optionId) {
   }
 }
 
-// Function to get the option name from optionNames array
-const getOptionName = (optionId) => {
-  const entry = optionNames.value.find((item) => item.optionId === optionId);
-  return entry ? entry.name : null; // Return the name or null if not found
-};
+function selectOption(index) {
+  selectedOption.value = index;
+  console.log("Selected option index:", index);
+}
 
 // Function to load options for a given configuration ID
 async function loadOptionsForConfig(configId) {
@@ -278,6 +255,9 @@ async function loadOptionsForConfig(configId) {
     return null;
   }
 }
+
+// Make `optionNames` reactive and accessible in the template
+const options = computed(() => optionNames.value);
 
 function applyColorToMaterial(material, color, opacity = 1) {
   if (
@@ -440,28 +420,6 @@ async function fetchProductData(productCode) {
       "Er is een fout opgetreden bij het ophalen van de productgegevens.";
   } finally {
     isLoading.value = false;
-  }
-}
-
-function setDefaultActiveColor() {
-  if (colors.value.length > 0 && !selectedColor.value) {
-    selectedColor.value = colors.value[0];
-    highlightSelectedItem(colors.value[0], "row-class-name");
-  }
-}
-
-function highlightSelectedItem(color, part) {
-  const elements = document.querySelectorAll(`.${part}`);
-  elements.forEach((element) => {
-    element.classList.remove("selected", "active");
-  });
-
-  const selectedElement = Array.from(elements).find(
-    (element) => element.dataset.color === color
-  );
-
-  if (selectedElement) {
-    selectedElement.classList.add("selected", "active");
   }
 }
 
@@ -787,14 +745,13 @@ function showNextImage() {
         <!-- Ensure productConfigs exist before proceeding -->
 
         <div class="row">
-          <!-- Iterate over the options in optionNames.value and display the name -->
           <div
-            v-for="(option, index) in optionNames"
+            v-for="(option, index) in options"
             :key="index"
-            class="option"
+            :class="{ active: selectedOption === index }"
+            @click="selectOption(index)"
           >
             <p>{{ option.name }}</p>
-            <!-- Display the name -->
           </div>
         </div>
       </div>
