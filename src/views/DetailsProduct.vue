@@ -191,13 +191,13 @@ async function fetchPartnerConfigurations(partnerId, product) {
     // Ensure product configurations exist
     if (product.configurations && product.configurations.length > 0) {
       productConfigs.value = product.configurations;
-      console.log("Product configurations:", productConfigs.value);
     } else {
       console.error("No configurations available for the product.");
       productConfigs.value = [];
     }
 
     const productConfigurationId = product.configurations?.[0]?.configurationId;
+
     if (!productConfigurationId) {
       console.error("ConfigurationId for product is not available.");
       return [];
@@ -210,7 +210,6 @@ async function fetchPartnerConfigurations(partnerId, product) {
 
 async function setActiveOption(optionId, configurationId) {
   selectedOption.value = optionId;
-  console.log(optionId, configurationId);
 
   const selectedConfig = configurations.value.find(
     (config) => config.configurationId === configurationId
@@ -220,36 +219,63 @@ async function setActiveOption(optionId, configurationId) {
     const selectedOptionDetails = selectedConfig.options.find(
       (option) => option.optionId === optionId
     );
-
-    if (selectedOptionDetails) {
-      console.log("Geselecteerde optie details:", selectedOptionDetails);
-      // Hier kun je verdere logica toevoegen voor wat er moet gebeuren
-    }
   }
 }
 
-async function loadOptionsForConfig(configId) {
-  console.log("Loading options for configuration:", configId);
-  const config = configurations.value.find(
-    (config) => config.configurationId === configId
-  );
+const optionNames = ref([]); // Array that holds optionId and name pairs
+console.log("Option names array:", optionNames.value);
 
-  if (!config || !config.options || config.options.length === 0) {
-    console.error("Geen opties gevonden voor deze configuratie");
-    return [];
-  }
-
+// Function to fetch the option name by optionId
+async function optionNameById(optionId) {
+  console.log("Calling optionNameById with optionId:", optionId); // Log the optionId being passed
   try {
-    const optionDetails = await Promise.all(
-      config.options.map(async (option) => {
-        const optionData = await fetchOptionById(option.optionId);
-        return optionData;
-      })
+    const response = await fetch(`${baseURL}/options/${optionId}`);
+    if (!response.ok) throw new Error("Network response was not ok");
+    const data = await response.json();
+    console.log("Fetched option by ID:", data.data.name);
+
+    // Check if the name already exists in the optionNames array, if not, push it
+    const existing = optionNames.value.find(
+      (item) => item.optionId === optionId
     );
-    return optionDetails;
+    if (!existing) {
+      optionNames.value.push({ optionId, name: data.data.name }); // Push the optionId and name pair
+    }
+
+    console.log("Option name:", data.data.name);
+    return data.data.name; // Return the name for use
   } catch (error) {
-    console.error("Fout bij het ophalen van de opties:", error);
-    return [];
+    console.error("Error fetching option by ID:", error);
+    return null; // Return null in case of an error
+  }
+}
+
+// Function to get the option name from optionNames array
+const getOptionName = (optionId) => {
+  const entry = optionNames.value.find((item) => item.optionId === optionId);
+  return entry ? entry.name : null; // Return the name or null if not found
+};
+
+// Function to load options for a given configuration ID
+async function loadOptionsForConfig(configId) {
+  console.log("Calling loadOptionsForConfig with configId:", configId); // Check if this is being triggered
+  try {
+    const response = await fetch(`${baseURL}/configurations/${configId}`);
+    if (!response.ok) throw new Error("Network response was not ok");
+    const data = await response.json();
+    console.log("Fetched options for config:", data.data.options);
+
+    // For each option in the config, fetch its name
+    for (const option of data.data.options) {
+      await optionNameById(option.optionId);
+    }
+
+    // After fetching all names, log optionNames
+    console.log("Loaded options:", optionNames.value);
+    return data.data.options; // Return the fetched options
+  } catch (error) {
+    console.error("Error fetching configuration options:", error);
+    return null;
   }
 }
 
@@ -293,17 +319,8 @@ function applyColorToSpecificLayer(color, layerName) {
   });
 }
 
-async function fetchOptionById(optionId) {
-  console.log("Fetching option with ID:", optionId);
-  return fetch(`${baseURL}/options/${optionId}`)
-    .then((response) => response.json())
-    .then((data) => data.data.option || null)
-    .catch((err) => console.error("Error fetching option:", err));
-}
-
 async function fetchProductData(productCode) {
   try {
-    console.log("Fetching product data for:", productCode);
     isLoading.value = true;
     error.value = null;
 
@@ -321,29 +338,25 @@ async function fetchProductData(productCode) {
 
     const result = await response.json();
     const product = result.data.product;
-    console.log("Fetched product data:", product); // Log het opgehaalde product
 
     // Haal en verrijk configuraties voor dit product
     const configurations = product.configurations || []; // Default to an empty array if configurations is missing
-    console.log("Configurations:", configurations); // Log de configuraties van het product
 
     // Check if there are configurations and enrich them
     const enrichedConfigurations = await Promise.all(
       configurations.map(async (config) => {
-        console.log("Enriching configuration:", config.configurationId); // Log elke configuratie die je verrijkt
-
         let selectedConfigId = config.configurationId;
+        console.log("Selected configuration ID:", selectedConfigId);
+        await loadOptionsForConfig(selectedConfigId._id);
 
         // Check if configurationId is an object and extract the _id
         if (typeof selectedConfigId === "object") {
           selectedConfigId = selectedConfigId._id; // Extract the _id property
-          console.warn(
-            `configurationId was an object, extracted _id: ${selectedConfigId}`
+          console.log(
+            "configurationId was an object, extracted _id:",
+            selectedConfigId
           );
         }
-
-        // Ensure selectedConfigId is a string
-        selectedConfigId = String(selectedConfigId);
 
         // Fetch configuration data for the given ID
         const configUrl = `${baseURL}/configurations/${selectedConfigId}`;
@@ -756,7 +769,6 @@ function showNextImage() {
 
         <p v-else>No configurations found for this product.</p>
       </div>
-
       <div
         v-for="(configuration, index) in productConfigs"
         :key="index"
@@ -771,53 +783,18 @@ function showNextImage() {
           }}
           {{ configuration.configurationId?.fieldName }}
         </h2>
-        <div class="row">
-          <!-- Color Options -->
-          <div
-            v-if="configuration.fieldType === 'Color'"
-            v-for="(option, optionIndex) in configuration.options"
-            :key="'color-option-' + option.optionId"
-            :class="{ active: selectedOption === option.optionId }"
-            :data-color="option.optionId"
-            :style="{ backgroundColor: option.name }"
-            @click="
-              setActiveOption(option.optionId, configuration.configurationId)
-            "
-            @keydown.enter="
-              setActiveOption(option.optionId, configuration.configurationId)
-            "
-            @keydown.space="
-              setActiveOption(option.optionId, configuration.configurationId)
-            "
-            tabindex="0"
-            role="button"
-          >
-            <!-- Toon de optie ID of kleur naam -->
-            <span class="color-label"
-              >{{ option.optionId }} - {{ option.name }}</span
-            >
-          </div>
 
-          <!-- Select Options -->
+        <!-- Ensure productConfigs exist before proceeding -->
+
+        <div class="row">
+          <!-- Iterate over the options in optionNames.value and display the name -->
           <div
-            v-else-if="configuration.fieldType === 'select'"
-            v-for="(option, optionIndex) in configuration.options"
-            :key="'select-option-' + option.optionId"
+            v-for="(option, index) in optionNames"
+            :key="index"
             class="option"
-            :class="{ active: selectedOption === option.optionId }"
-            :value="option.optionId"
-            @click="
-              setActiveOption(option.optionId, configuration.configurationId)
-            "
-            @keydown.enter="
-              setActiveOption(option.optionId, configuration.configurationId)
-            "
-            @keydown.space="
-              setActiveOption(option.optionId, configuration.configurationId)
-            "
-            tabindex="0"
           >
             <p>{{ option.name }}</p>
+            <!-- Display the name -->
           </div>
         </div>
       </div>
