@@ -226,20 +226,16 @@ async function optionNameById(optionId) {
 }
 
 function selectOption(index) {
-  // Haal de productId op uit de URL
   const productId = route.params.productId;
 
   if (!productId) {
     console.error("productId is undefined!");
-    return; // Stop de uitvoering als productId niet beschikbaar is
+    return;
   }
 
   selectedOption.value = index; // Update de geselecteerde optie
-  // Initialiseer configImages voordat we ze gebruiken
   let selectedOptionImages = [];
-  let selectedOptionName = "";
 
-  // Begin de netwerkverzoeken om de productgegevens en configuraties op te halen
   fetch(`${baseURL}/products/${productId}`, {
     method: "GET",
     headers: {
@@ -249,20 +245,16 @@ function selectOption(index) {
     .then((response) => response.json())
     .then(async (result) => {
       const product = result.data.product;
-
-      // Haal en verrijk de configuraties voor dit product
       const configurations = product.configurations || [];
 
       const enrichedConfigurations = await Promise.all(
         configurations.map(async (config) => {
           let selectedConfigId = config.configurationId;
 
-          // Zorg ervoor dat selectedConfigId een string is (we extraheren _id als dat nodig is)
           if (typeof selectedConfigId === "object" && selectedConfigId._id) {
             selectedConfigId = selectedConfigId._id;
           }
 
-          // Laad de opties voor de geselecteerde configuratie
           await loadOptionsForConfig(selectedConfigId);
 
           const configUrl = `${baseURL}/configurations/${selectedConfigId}`;
@@ -283,45 +275,66 @@ function selectOption(index) {
 
             const configResult = await configResponse.json();
             const options = configResult.data.options || [];
-
-            // Selecteer de optie op basis van de index en haal de bijbehorende afbeeldingen op
             const selectedOptionData = options[index];
 
-            console.log(selectedOptionData);
+            let optionName = selectedOptionData?.name;
 
-            if (selectedOptionData && selectedOptionData.images) {
+            if (!optionName && selectedOptionData?.optionId) {
+              // Haal de naam op via de aparte API-call
+              const optionUrl = `${baseURL}/options/${selectedOptionData.optionId}`;
+              try {
+                const optionResponse = await fetch(optionUrl, {
+                  method: "GET",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                });
+
+                if (!optionResponse.ok) {
+                  throw new Error(
+                    `Option fetch error! Status: ${optionResponse.status}`
+                  );
+                }
+
+                const optionResult = await optionResponse.json();
+                optionName = optionResult.data?.name || `Option ${index + 1}`; // Fallback
+              } catch (err) {
+                console.error(
+                  `Error fetching option name for optionId ${selectedOptionData.optionId}:`,
+                  err.message
+                );
+              }
+            }
+
+            if (selectedOptionData?.images) {
               selectedOptionImages = selectedOptionData.images.map(
                 (img) => img.url
               );
             } else {
-              selectedOptionImages = []; // Als er geen afbeeldingen zijn, stel in op een lege array
+              selectedOptionImages = [];
             }
 
-            // Haal de naam van de optie op via een extra fetch-aanroep naar /options/optionId
-            const optionUrl = `${baseURL}/options/${selectedOptionData.optionId}`;
-            const optionResponse = await fetch(optionUrl, {
-              method: "GET",
-              headers: {
-                "Content-Type": "application/json",
-              },
-            });
+            // Update selectedItems
+            const existingConfigIndex = selectedItems.value.findIndex(
+              (item) => item.configurationId === selectedConfigId
+            );
 
-            if (!optionResponse.ok) {
-              throw new Error(
-                `Option fetch error! Status: ${optionResponse.status}`
-              );
-            }
-
-            const optionResult = await optionResponse.json();
-            selectedOptionName = optionResult.data.name || "Onbekende optie";
-
-            // Voeg de geselecteerde optie en configuratie toe aan de selectedItems array
-            selectedItems.value.push({
-              configurationId: config.configurationId,
-              optionName: selectedOptionName, // Nu hebben we de optie naam
-              images: selectedOptionImages,
-            });
             console.log(selectedItems.value);
+
+            if (existingConfigIndex !== -1) {
+              selectedItems.value[existingConfigIndex].selectedItem = {
+                optionName: optionName,
+                images: selectedOptionImages,
+              };
+            } else {
+              selectedItems.value.push({
+                configurationId: selectedConfigId,
+                selectedItem: {
+                  optionName: optionName,
+                  images: selectedOptionImages,
+                },
+              });
+            }
 
             return {
               ...config,
@@ -337,38 +350,32 @@ function selectOption(index) {
         })
       );
 
-      // Nu stellen we selectedImage in op de eerste afbeelding van de geselecteerde optie
       if (selectedOptionImages.length > 0) {
-        selectedImage.value = selectedOptionImages[0]; // Stel de geselecteerde afbeelding in op de eerste afbeelding
+        selectedImage.value = selectedOptionImages[0];
       }
 
-      // Combineer de afbeeldingen van de geselecteerde optie
       const selectedImageContainer = document.getElementById("image-container");
       if (selectedImageContainer) {
-        selectedImageContainer.innerHTML = ""; // Maak de container leeg
-
+        selectedImageContainer.innerHTML = "";
         selectedOptionImages.forEach((imageUrl) => {
           const img = document.createElement("img");
-          img.src = imageUrl; // Stel de afbeelding in
+          img.src = imageUrl;
           img.alt = "Afbeelding";
-          img.style.width = "200px"; // Styling naar keuze
+          img.style.width = "200px";
           selectedImageContainer.appendChild(img);
         });
       }
 
-      // Bijwerken van productgegevens met de geselecteerde afbeeldingen per optie
       productData.value = {
         productName: product.productName,
         productCode: product.productCode,
         productPrice: product.productPrice,
-        images: selectedOptionImages, // Gebruik alleen de geselecteerde afbeeldingen
+        images: selectedOptionImages,
         configurations: enrichedConfigurations,
       };
 
-      // Update de productImages voor navigatie (alleen de geselecteerde optie afbeeldingen)
       productImages.value = selectedOptionImages;
 
-      // Zet eventuele partnergegevens op
       const partnerId = product.partnerId;
       if (partnerId) {
         await fetchPartnerName(partnerId);
@@ -950,19 +957,34 @@ function showNextImage() {
             :key="index"
             class="borderBottom"
           >
-            <p>
-              {{ configuration.configurationId?.fieldName }}
-            </p>
-            <ul v-if="selectedItems.length > 0">
-              <li v-for="(item, index) in selectedItems" :key="index">
+            <p>{{ configuration.configurationId?.fieldName }}</p>
+
+            <!-- Controleer of er geselecteerde items zijn -->
+            <ul>
+              <li
+                v-if="
+                  selectedItems.length > 0 &&
+                  selectedItems.some(
+                    (item) =>
+                      item.configurationId ===
+                      configuration.configurationId?._id
+                  )
+                "
+                v-for="(item, index) in selectedItems"
+                :key="index"
+              >
                 <p
                   class="border"
                   :style="{
-                    backgroundColor: item.optionName
-                      ? item.optionName
-                      : 'transparent',
+                    backgroundColor:
+                      item.selectedItem?.optionName || 'transparent',
                   }"
                 ></p>
+              </li>
+
+              <!-- Als er geen geselecteerde optie is, toon dan een transparante border met configuratienaam -->
+              <li v-else>
+                <p class="border" style="background-color: transparent"></p>
               </li>
             </ul>
           </li>
@@ -970,7 +992,7 @@ function showNextImage() {
 
         <!-- Personal info form -->
         <h3>Personal info</h3>
-        <!-- <form @submit.prevent="submitOrder">
+        <form @submit.prevent="submitOrder">
           <p style="display: none">{{ productCode }}</p>
           <div class="row">
             <div class="column">
@@ -1077,7 +1099,7 @@ function showNextImage() {
           <button type="submit" class="btn active">Checkout</button>
           <p class="errorMessage"></p>
           <p class="successMessage"></p>
-        </form> -->
+        </form>
       </div>
       <div class="links">
         <a
