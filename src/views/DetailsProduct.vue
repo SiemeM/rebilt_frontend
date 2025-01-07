@@ -37,6 +37,7 @@ let isModelLoaded = false;
 let model = null;
 const selectedOption = ref(0);
 
+const selectedItems = ref([]);
 const productConfigs = ref([]);
 
 function onWindowResize() {
@@ -234,9 +235,9 @@ function selectOption(index) {
   }
 
   selectedOption.value = index; // Update de geselecteerde optie
-
   // Initialiseer configImages voordat we ze gebruiken
   let selectedOptionImages = [];
+  let selectedOptionName = "";
 
   // Begin de netwerkverzoeken om de productgegevens en configuraties op te halen
   fetch(`${baseURL}/products/${productId}`, {
@@ -286,6 +287,8 @@ function selectOption(index) {
             // Selecteer de optie op basis van de index en haal de bijbehorende afbeeldingen op
             const selectedOptionData = options[index];
 
+            console.log(selectedOptionData);
+
             if (selectedOptionData && selectedOptionData.images) {
               selectedOptionImages = selectedOptionData.images.map(
                 (img) => img.url
@@ -293,6 +296,32 @@ function selectOption(index) {
             } else {
               selectedOptionImages = []; // Als er geen afbeeldingen zijn, stel in op een lege array
             }
+
+            // Haal de naam van de optie op via een extra fetch-aanroep naar /options/optionId
+            const optionUrl = `${baseURL}/options/${selectedOptionData.optionId}`;
+            const optionResponse = await fetch(optionUrl, {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            });
+
+            if (!optionResponse.ok) {
+              throw new Error(
+                `Option fetch error! Status: ${optionResponse.status}`
+              );
+            }
+
+            const optionResult = await optionResponse.json();
+            selectedOptionName = optionResult.data.name || "Onbekende optie";
+
+            // Voeg de geselecteerde optie en configuratie toe aan de selectedItems array
+            selectedItems.value.push({
+              configurationId: config.configurationId,
+              optionName: selectedOptionName, // Nu hebben we de optie naam
+              images: selectedOptionImages,
+            });
+            console.log(selectedItems.value);
 
             return {
               ...config,
@@ -916,22 +945,32 @@ function showNextImage() {
       <div class="summary display">
         <h2>Summary</h2>
         <ul v-if="productConfigs.length > 0">
-          <li v-for="(configuration, index) in productConfigs" :key="index">
+          <li
+            v-for="(configuration, index) in productConfigs"
+            :key="index"
+            class="borderBottom"
+          >
             <p>
               {{ configuration.configurationId?.fieldName }}
             </p>
-            <p
-              class="border"
-              :style="{
-                backgroundColor: selectedLacesColor || 'transparent',
-              }"
-            ></p>
+            <ul v-if="selectedItems.length > 0">
+              <li v-for="(item, index) in selectedItems" :key="index">
+                <p
+                  class="border"
+                  :style="{
+                    backgroundColor: item.optionName
+                      ? item.optionName
+                      : 'transparent',
+                  }"
+                ></p>
+              </li>
+            </ul>
           </li>
         </ul>
 
         <!-- Personal info form -->
         <h3>Personal info</h3>
-        <form @submit.prevent="submitOrder">
+        <!-- <form @submit.prevent="submitOrder">
           <p style="display: none">{{ productCode }}</p>
           <div class="row">
             <div class="column">
@@ -1038,7 +1077,7 @@ function showNextImage() {
           <button type="submit" class="btn active">Checkout</button>
           <p class="errorMessage"></p>
           <p class="successMessage"></p>
-        </form>
+        </form> -->
       </div>
       <div class="links">
         <a
