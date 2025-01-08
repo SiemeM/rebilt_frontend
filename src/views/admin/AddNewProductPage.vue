@@ -343,12 +343,25 @@ const uploadImageToCloudinary = async (file, productName) => {
   }
 };
 
-// Functie om geselecteerde afbeeldingen op te slaan
+// Functie om de verborgen file input te triggeren
+const triggerFileInput = () => {
+  document.getElementById("images").click();
+};
+
+const previewImages = ref([]);
+
 const handleImageUpload = (event) => {
   if (event.target.files && event.target.files.length > 0) {
-    // Controleer of de bestanden geldig zijn
-    images.value = Array.from(event.target.files).filter(
+    const newImages = Array.from(event.target.files).filter(
       (file) => file instanceof File
+    );
+
+    // Voeg de nieuwe afbeeldingen toe
+    images.value.push(...newImages);
+
+    // Voeg tijdelijke URLs toe voor preview
+    previewImages.value.push(
+      ...newImages.map((file) => URL.createObjectURL(file))
     );
   }
 };
@@ -531,16 +544,34 @@ const selectColor = (option, fieldName) => {
       <div class="row">
         <div class="column">
           <label for="images">Upload Images:</label>
-          <input type="file" id="images" multiple @change="handleImageUpload" />
-          <div class="image-preview">
-            <img
-              v-for="(image, index) in images"
-              :key="index"
-              v-if="image && image instanceof File"
-              :src="URL.createObjectURL(image)"
-              alt="preview"
-              class="preview-image"
-            />
+          <!-- Verborgen file input -->
+          <input
+            type="file"
+            id="images"
+            multiple
+            style="display: none"
+            @change="handleImageUpload"
+          />
+
+          <!-- Klikbare uploadImage-div met dynamische stijl -->
+          <div
+            class="uploadImage"
+            @click="triggerFileInput"
+            :style="{
+              flexDirection: images.length > 0 ? 'row' : 'column',
+              flexWrap: images.length > 0 ? 'wrap' : 'no-wrap',
+              justifyContent: images.length > 0 ? 'flex-start' : 'center',
+            }"
+          >
+            <!-- Toon de afbeelding en tekst alleen als er geen afbeeldingen zijn -->
+            <div v-if="images.length === 0" class="text">
+              <img src="../../assets/icons/image-add.svg" alt="image-add" />
+              <p>Afbeeldingen, video's of 3D-modellen toevoegen</p>
+            </div>
+
+            <div v-for="(previewUrl, index) in previewImages" :key="index">
+              <img :src="previewUrl" alt="Uploaded image preview" width="100" />
+            </div>
           </div>
         </div>
       </div>
@@ -694,6 +725,43 @@ button {
 
 .dropdown-option:active {
   background-color: #444;
+}
+
+.uploadImage {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  width: 100%;
+  height: 120px;
+  background-color: #333;
+}
+
+.uploadImage .text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.uploadImage img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+}
+
+.uploadImage .text img {
+  width: 24px;
+  height: 24px;
+}
+
+.uploadImage p {
+  text-align: center;
+  font-size: 12px;
 }
 
 @media (min-width: 768px) {
