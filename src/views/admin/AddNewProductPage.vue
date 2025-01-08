@@ -90,41 +90,72 @@ const fetchPartnerConfigurations = async () => {
         const matchingConfig = configurations.find(
           (config) => config._id === partnerConfig.configurationId
         );
+        console.log("matched config", matchingConfig);
 
-        const options = matchingConfig?.options
-          ? await fetchOptionNames(matchingConfig.options)
-          : [];
+        // Extract optionIds and their related objects from the options array
+        const optionsData =
+          matchingConfig?.options?.map((option) => {
+            return {
+              optionId: option.optionId, // Behoud de optionId
+              ...option, // Voeg de rest van de option toe (images, _id, etc.)
+            };
+          }) || [];
+
+        console.log("Options Data:", optionsData); // Controleer wat hier uitkomt
+        // Fetch the option names using the extracted optionIds
+        const options =
+          optionsData.length > 0 ? await fetchOptionNames(optionsData) : [];
 
         return {
           ...partnerConfig,
-          fieldName: matchingConfig?.fieldName || "Unknown",
-          fieldType: matchingConfig?.fieldType || "Text",
-          options, // Ingevulde opties
+          fieldName: matchingConfig?.fieldName,
+          fieldType: matchingConfig?.fieldType,
+          options, // Ingevulde opties met namen
           value: "",
         };
       })
     );
 
-    console.log("Partner Configurations:", partnerConfigurations.value);
+    console.log("Partner Configurations:", partnerConfigurations.value); // Log de configuraties na het ophalen
   } catch (error) {
     console.error("Error fetching partner configurations:", error);
   }
 };
 
-const fetchOptionNames = async (optionIds) => {
+const fetchOptionNames = async (optionsData) => {
   try {
+    // Filter out undefined or empty IDs before making API calls
+    const validOptions = optionsData.filter(
+      (option) => option.optionId && option.optionId !== "undefined"
+    );
+
+    // If there are no valid optionIds, return an empty array or some default value
+    if (validOptions.length === 0) {
+      return optionsData.map(() => ({ name: "Unknown" })); // Return an object with name as 'Unknown'
+    }
+
+    // Fetch data from the API for each optionId using the correct URL structure
     const responses = await Promise.all(
-      optionIds.map((id) =>
-        axios.get(`${baseURL}/options/${id}`, {
+      validOptions.map((option) =>
+        axios.get(`${baseURL}/options/${option.optionId}`, {
           headers: { Authorization: `Bearer ${jwtToken}` },
         })
       )
     );
 
-    return responses.map((res) => res.data?.data || "Unknown"); // Zorg ervoor dat we een object met een _id terugkrijgen
+    console.log("optionIds", validOptions);
+
+    // Map the responses to return option names (or use value as fallback)
+    return responses.map((res, index) => {
+      const optionData = res.data?.data;
+      console.log(optionData?.name);
+      return {
+        name: optionData?.name,
+      };
+    });
   } catch (error) {
     console.error("Error fetching option names:", error);
-    return optionIds.map(() => "Unknown");
+    return optionsData.map(() => ({ name: "Unknown" })); // Return 'Unknown' voor elk optionId in geval van fout
   }
 };
 
@@ -157,6 +188,13 @@ const addProduct = async () => {
   } catch (error) {
     console.error("Error decoding token", error);
     errorMessage.value = "Invalid token.";
+    return;
+  }
+
+  // Ensure userCompanyId exists before proceeding
+  if (!userCompanyId) {
+    console.error("Company ID not found in token payload.");
+    errorMessage.value = "Company ID not found.";
     return;
   }
 
@@ -227,7 +265,7 @@ const addProduct = async () => {
             )
           )
         : [],
-    partnerId: userCompanyId,
+    partnerId: userCompanyId, // Use the extracted userCompanyId here
     configurations: selectedConfigurations, // Send the valid configurations
     customConfigurations: customConfigurations, // Ensure custom configurations use ObjectIds
   };
@@ -352,14 +390,20 @@ const toggleDropdown = (fieldName) => {
 };
 
 const selectColor = (option, fieldName) => {
-  // Zoek de configuratie object op op basis van het fieldName
+  // Zoek de configuratie object op basis van het fieldName
   const selectedConfig = partnerConfigurations.value.find(
     (config) => config.fieldName === fieldName
   );
 
   if (selectedConfig) {
-    // Stel de selectedOption in op het ID van de geselecteerde optie
-    selectedConfig.value = option._id; // Alleen het _id wordt opgeslagen
+    // Wijzig de waarde
+    console.log(option);
+    selectedConfig.value = option.name;
+    console.log(selectedConfig.value);
+
+    console.log(`Geselecteerde optie voor ${fieldName}:`, option.name);
+  } else {
+    console.warn(`Geen configuratie gevonden voor ${fieldName}`);
   }
 
   // Sluit de dropdown na het selecteren van de kleur
@@ -425,48 +469,55 @@ const selectColor = (option, fieldName) => {
       >
         <div class="column">
           <label :for="config.fieldName">{{ config.fieldName }}:</label>
+
+          <!-- Text field -->
           <template v-if="config.fieldType === 'Text'">
             <input v-model="config.value" :id="config.fieldName" type="text" />
           </template>
 
+          <!-- Dropdown field -->
           <template v-else-if="config.fieldType === 'Dropdown'">
             <select v-model="config.value" :id="config.fieldName">
               <option
                 v-for="(option, index) in config.options"
                 :key="index"
-                :value="option._id"
+                :value="option.optionId"
               >
-                {{ option.name }}
+                {{ option.name || "Unnamed Option" }}
               </option>
             </select>
           </template>
 
-          <template v-else-if="config.fieldType === 'Color'">
+          <!-- Color field -->
+          <template v-else-if="config.fieldType === 'color'">
             <div class="color-dropdown">
               <div class="dropdown">
+                <!-- Geselecteerde optie -->
                 <div
                   class="dropdown-selected"
                   @click="toggleDropdown(config.fieldName)"
                 >
+                  <!-- Toon de geselecteerde kleur -->
                   <span
                     class="color-bullet"
                     :style="{
-                      backgroundColor: config.value
-                        ? config.options.find(
-                            (option) => option._id === config.value
-                          )?.backgroundColor
-                        : 'transparent',
+                      backgroundColor:
+                        config.options.find(
+                          (option) => option.name === config.value
+                        )?.backgroundColor || 'transparent',
                     }"
                   ></span>
+                  <!-- Toon de naam van de geselecteerde kleur -->
                   <p>
                     {{
                       config.options.find(
-                        (option) => option._id === config.value
+                        (option) => option.name === config.value
                       )?.name || "Select color"
                     }}
                   </p>
-                  <!-- Toon de naam -->
                 </div>
+
+                <!-- Dropdown opties -->
                 <div
                   v-if="dropdownStates[config.fieldName]"
                   class="dropdown-options"
@@ -477,6 +528,7 @@ const selectColor = (option, fieldName) => {
                     class="dropdown-option"
                     @click="selectColor(option, config.fieldName)"
                   >
+                    <!-- Kleurbol voor elke optie -->
                     <span
                       class="color-bullet"
                       :style="{
@@ -484,8 +536,8 @@ const selectColor = (option, fieldName) => {
                           option.backgroundColor || 'transparent',
                       }"
                     ></span>
+                    <!-- Naam van de optie -->
                     <p>{{ option.name || "Unnamed Color" }}</p>
-                    <!-- Toon de naam van de kleur -->
                   </div>
                 </div>
               </div>
