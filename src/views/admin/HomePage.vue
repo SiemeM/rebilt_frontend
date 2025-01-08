@@ -113,15 +113,10 @@ const fetchPartnerData = async () => {
   }
 };
 
-// Fetch initial data on mount
-onMounted(async () => {
-  await fetchUserProfile();
-  await fetchPartnerData();
-});
-
 // Provide the user data to all components
 provide("user", user); // Makes user data available to child components like Navigation
 
+// Fetch products data
 // Fetch products data
 // Fetch products data
 const fetchData = async () => {
@@ -144,6 +139,17 @@ const fetchData = async () => {
     data.value = result.data.products.filter(
       (product) => product.partnerId === partnerId
     );
+
+    // Bereken het aantal varianten voor elk product
+    data.value.forEach(async (product) => {
+      if (product.configurations && Array.isArray(product.configurations)) {
+        // Aantal varianten (opties) berekenen per product
+        const optionsCount = await fetchOptionNames(product);
+        product.variantsCount = optionsCount; // Sla het aantal varianten op
+      } else {
+        product.variantsCount = 0; // Geen varianten
+      }
+    });
   } catch (error) {
     console.error("Error fetching data:", error);
   }
@@ -209,10 +215,6 @@ const fetchPartnerConfigurations = async () => {
     console.error("Error fetching partner configurations:", error);
   }
 };
-
-// Initial data fetch
-onMounted(fetchData);
-onMounted(fetchPartnerConfigurations);
 
 // Computed properties
 const selectedTypeFilter = ref("All");
@@ -360,58 +362,68 @@ const generateSignature = (timestamp, publicId) => {
 // Verander deze regel van 'reactive' naar 'ref' voor de optie-namen
 const optionNames = ref({});
 
-// Aangepaste fetchOptionNames functie die optienamen bijwerkt
 async function fetchOptionNames(product) {
   console.log(product);
+
   if (!product || !product.configurations) {
-    console.warn("Product of configurations ontbreekt");
-    return;
+    console.warn("Product or configurations missing", product);
+    return 0; // Return 0 if no configurations are available
   }
 
   const customConfigs = product.configurations;
 
-  if (customConfigs.length === 0) {
-    console.log("Geen custom configuraties beschikbaar voor dit product");
-    return;
+  if (!Array.isArray(customConfigs) || customConfigs.length === 0) {
+    console.log("No custom configurations available for this product", product);
+    return 0; // Return 0 if no custom configurations available
   }
 
+  let totalOptionsCount = 0; // To accumulate the total number of options
+
   try {
-    // Gebruik Promise.all voor het ophalen van alle namen parallel
     await Promise.all(
       customConfigs.map(async (config) => {
-        if (config.selectedOption) {
+        if (config.configurationId) {
           try {
-            // API-call om optie naam op te halen
+            // Fetch the configuration details based on configurationId
             const response = await axios.get(
-              `${baseURL}/options/${config.selectedOption}`,
+              `${baseURL}/configurations/${config.configurationId}`,
               { headers: { Authorization: `Bearer ${token}` } }
             );
-            optionNames.value[config._id] = response.data.data.name;
+
+            // Assuming response.data.data.options contains the options array
+            const optionsCount = response.data.data?.options?.length || 0;
+
+            // Add the options count for this configuration to the total
+            totalOptionsCount += optionsCount;
+
+            // Update the optionNames object (you can customize this part further if needed)
+            optionNames.value = {
+              ...optionNames.value,
+              [config._id]: optionsCount,
+            };
           } catch (error) {
             console.error(
-              `Fout bij ophalen van optie met ID ${config.selectedOption}:`,
+              `Error fetching configuration options with ID ${config.configurationId}:`,
               error
             );
-            optionNames.value[config._id] = "Error bij ophalen van optie";
           }
-        } else {
-          optionNames.value[config._id] = "Geen optie geselecteerd";
         }
       })
     );
   } catch (error) {
-    console.error("Fout bij ophalen van opties:", error);
+    console.error("Error fetching options:", error);
   }
+
+  return totalOptionsCount; // Return the total options count for the product
 }
 
-// Pas de fetchProductLogica aan zodat de opties correct worden geladen
 onMounted(async () => {
   await fetchData();
   await fetchPartnerConfigurations();
 
-  // Laad optienamen voor elk product na data-fetch
+  // Load option names for each product after the data fetch
   data.value.forEach((product) => {
-    fetchOptionNames(product); // Hier wordt het product doorgegeven
+    fetchOptionNames(product); // Pass the product to fetch options
   });
 });
 </script>
@@ -483,7 +495,12 @@ onMounted(async () => {
           <div class="elements">
             <div class="text">
               <p class="name">{{ product.productName }}</p>
-              <p>1 variant</p>
+              <p>
+                {{ product.variantsCount }} variant{{
+                  product.variantsCount > 1 ? "s" : ""
+                }}
+              </p>
+              <!-- Weergeven van het aantal varianten -->
             </div>
             <div
               class="btn"
