@@ -63,6 +63,43 @@ const fetchPartnerData = async () => {
 const productId = ref(route.params.id);
 const savedOptions = ref({});
 
+const fetchOptionNames = async (optionsData) => {
+  try {
+    // Filter out undefined or empty IDs before making API calls
+    const validOptions = optionsData.filter(
+      (option) => option.optionId && option.optionId !== "undefined"
+    );
+
+    // If there are no valid optionIds, return an empty array or some default value
+    if (validOptions.length === 0) {
+      return optionsData.map(() => ({ name: "Unknown" })); // Return an object with name as 'Unknown'
+    }
+
+    // Fetch data from the API for each optionId using the correct URL structure
+    const responses = await Promise.all(
+      validOptions.map((option) =>
+        axios.get(`${baseURL}/options/${option.optionId}`, {
+          headers: { Authorization: `Bearer ${jwtToken}` },
+        })
+      )
+    );
+
+    // Map the responses to return option names (or use value as fallback)
+    return responses.map((res, index) => {
+      const optionData = res.data?.data;
+      return {
+        optionId: validOptions[index].optionId, // Make sure we retain the optionId
+        name: optionData?.name || "Unknown",
+      };
+    });
+  } catch (error) {
+    console.error("Error fetching option names:", error);
+    return optionsData.map(() => ({ name: "Unknown" })); // Return 'Unknown' for each optionId in case of an error
+  }
+};
+
+const selectedOption = ref(null); // Correcte initialisatie van selectedOption
+
 const fetchProductData = async () => {
   try {
     const response = await axios.get(`${baseURL}/products/${productId.value}`, {
@@ -72,7 +109,6 @@ const fetchProductData = async () => {
     });
 
     const productData = response.data?.data?.product;
-    console.log("Product data:", productData);
 
     if (productData) {
       // Vul de andere productinformatie in
@@ -82,24 +118,20 @@ const fetchProductData = async () => {
       brand.value = productData.brand;
       productPrice.value = productData.productPrice;
       description.value = productData.description;
-      images.value = productData.images || []; // Vul de afbeeldingen in
+      images.value = productData.images || [];
 
       // Vul partnerConfigurations in met productconfiguraties
       partnerConfigurations.value = productData.configurations.map((config) => {
-        // Wijzig de waarde van de savedOption ref
-        savedOption.value = config.selectedOption
-          ? config.selectedOption.name
-          : "";
-        console.log(savedOption.value);
-
-        // Zorg ervoor dat we de geselecteerde optie gebruiken
-        return {
-          ...config,
-          value: savedOption.value ? config.selectedOption._id : "", // Zorg ervoor dat _id is ingevuld
-        };
+        // Stel config.value in, gebruik de selectedOption als ID
+        config.value = config.selectedOption || ""; // Als geen selectedOption, stel in op een lege waarde
+        return config;
       });
 
-      console.log("Partner configurations:", partnerConfigurations.value);
+      // Stel selectedOption in voor de eerste configuratie
+      selectedOption.value = productData.configurations[0]?.selectedOption;
+      console.log("Geselecteerde optie:", selectedOption.value);
+    } else {
+      console.error("Geen productdata gevonden.");
     }
   } catch (error) {
     console.error("Error fetching product data:", error);
@@ -138,6 +170,8 @@ const fetchPartnerConfigurations = async () => {
           (config) => config._id === partnerConfig.configurationId
         );
 
+        console.log(matchingConfig);
+
         if (!matchingConfig) {
           console.warn(
             `No matching configuration found for ${partnerConfig.configurationId}`
@@ -159,23 +193,6 @@ const fetchPartnerConfigurations = async () => {
     );
   } catch (error) {
     console.error("Error fetching partner configurations:", error);
-  }
-};
-
-const fetchOptionNames = async (optionIds) => {
-  try {
-    const responses = await Promise.all(
-      optionIds.map((id) =>
-        axios.get(`${baseURL}/options/${id}`, {
-          headers: { Authorization: `Bearer ${jwtToken}` },
-        })
-      )
-    );
-
-    return responses.map((res) => res.data?.data || "Unknown"); // Zorg ervoor dat we een object met een _id terugkrijgen
-  } catch (error) {
-    console.error("Error fetching option names:", error);
-    return optionIds.map(() => "Unknown");
   }
 };
 
@@ -391,17 +408,20 @@ const toggleDropdown = (fieldName) => {
 
 // Functie voor het selecteren van kleuren
 const selectColor = (option, fieldName) => {
+  // Find the configuration object based on the fieldName (e.g., "Kleur")
   const selectedConfig = partnerConfigurations.value.find(
     (config) => config.fieldName === fieldName
   );
 
   if (selectedConfig) {
-    selectedConfig.value = option._id; // Sla alleen de _id op van de geselecteerde optie
-    savedOptions.value[fieldName] = option._id; // Sla de geselecteerde optie op in savedOptions
-    localStorage.setItem(`selectedOption_${fieldName}`, option._id); // Sla op in localStorage
+    // Set the selected option's ObjectId (optionId)
+    selectedConfig.value = option.optionId; // This will store the selected optionId (ObjectId)
+  } else {
+    console.warn(`No configuration found for ${fieldName}`);
   }
 
-  dropdownStates.value[fieldName] = false; // Sluit de dropdown
+  // Close the dropdown after selection
+  dropdownStates.value[fieldName] = false;
 };
 
 // Functie voor het herstellen van geselecteerde opties
@@ -409,8 +429,8 @@ const restoreSelectedOption = () => {
   partnerConfigurations.value.forEach((config) => {
     const saved = localStorage.getItem(`selectedOption_${config.fieldName}`);
     if (saved) {
-      savedOptions.value[config.fieldName] = saved; // Zet de waarde uit localStorage in savedOptions
-      config.value = saved; // Herstel de waarde van de configuratie
+      savedOptions.value[config.fieldName] = saved; // Set the value from localStorage in savedOptions
+      config.value = saved; // Restore the configuration value
     }
   });
 };
@@ -475,8 +495,6 @@ onMounted(() => {
       </div>
 
       <!-- Dynamically render partner configurations -->
-      <!-- Dynamically render partner configurations -->
-
       <div
         v-for="config in partnerConfigurations"
         :key="config._id"
@@ -484,27 +502,41 @@ onMounted(() => {
       >
         <div class="column">
           <label :for="config.fieldName">{{ config.fieldName }}:</label>
+
+          <!-- Text field -->
           <template v-if="config.fieldType === 'Text'">
-            <input v-model="config.value" :id="config.fieldName" type="text" />
+            <input
+              v-model="config.value"
+              :id="config.fieldName"
+              type="text"
+              :placeholder="config.value || 'Enter text here'"
+            />
           </template>
 
+          <!-- Dropdown field -->
           <template v-else-if="config.fieldType === 'Dropdown'">
             <select v-model="config.value" :id="config.fieldName">
-              <!-- Display a default option if no selectedOption is set -->
-              <option disabled value="">
-                {{ savedOption }}
+              <option value="" disabled>
+                {{
+                  config.value
+                    ? config.options.find(
+                        (option) => option.optionId === config.value
+                      )?.name
+                    : "Select an option"
+                }}
               </option>
               <option
-                v-for="(option, index) in config.options || []"
+                v-for="(option, index) in config.options"
                 :key="index"
-                :value="option._id"
+                :value="option.optionId"
               >
                 {{ option.name || "Unnamed Option" }}
               </option>
             </select>
           </template>
 
-          <template v-else-if="config.fieldType === 'Color'">
+          <!-- Color field -->
+          <template v-else-if="config.fieldType === 'color'">
             <div class="color-dropdown">
               <div class="dropdown">
                 <div
@@ -514,17 +546,27 @@ onMounted(() => {
                   <span
                     class="color-bullet"
                     :style="{
-                      backgroundColor: savedOption
-                        ? config.options.find(
-                            (option) => option._id === savedOption
-                          )?.backgroundColor
-                        : 'transparent',
+                      backgroundColor:
+                        config.options.find(
+                          (option) => option.optionId === config.value
+                        )?.backgroundColor || 'transparent',
                     }"
                   ></span>
                   <p>
-                    {{ savedOption || "Select color" }}
+                    {{
+                      config.options.find(
+                        (option) => option.optionId === config.value
+                      )?.name ||
+                      (selectedOption && selectedOption._id
+                        ? config.options.find(
+                            (option) => option.optionId === selectedOption._id
+                          )?.name || "Select color"
+                        : "Select color")
+                    }}
                   </p>
                 </div>
+
+                <!-- Dropdown options -->
                 <div
                   v-if="dropdownStates[config.fieldName]"
                   class="dropdown-options"
