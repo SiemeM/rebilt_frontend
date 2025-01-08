@@ -560,6 +560,91 @@ async function fetchProductData(productCode) {
   }
 }
 
+async function previousPage() {
+  const pages = document.querySelectorAll(".config-ui__page");
+  const overview = document.querySelector(".overview");
+  const summary = document.querySelector(".summary");
+  const nextButton = document.querySelector(".nextButton");
+  const backButton = document.querySelector(".backButton");
+
+  // Zorg ervoor dat er pagina's zijn
+  if (!pages || pages.length === 0) {
+    console.warn("No config-ui__page elements found.");
+    return;
+  }
+
+  // Als we op de overzichtspagina zitten (pagina 0)
+  if (currentPageIndex.value === 0) {
+    // Maak de overzichtspagina zichtbaar
+    if (overview) {
+      overview.style.display = "flex"; // 'overview' wordt zichtbaar
+      pages.forEach((page) => page.classList.remove("active"));
+    }
+
+    // Maak de 'next' knop zichtbaar
+    if (nextButton) {
+      nextButton.style.visibility = "visible"; // 'next' knop zichtbaar
+    }
+
+    // Verberg de 'back' knop
+    if (backButton) {
+      backButton.style.visibility = "hidden"; // 'back' knop wordt verborgen
+    }
+
+    if (summary && summary.style.display == "flex") {
+      overview.style.display = "none"; // 'overview' wordt zichtbaar
+      pages.forEach((page) => page.classList.remove("active"));
+      pages[currentPageIndex.value].classList.add("active");
+      backButton.style.visibility = "visible"; // 'back' knop wordt verborgen
+    }
+
+    // Verberg de samenvatting
+    if (summary) {
+      summary.style.display = "none"; // Verberg summary als we terug naar overview gaan
+    }
+  }
+
+  // Als we op de summary pagina zitten, verberg de summary en ga naar de vorige pagina
+  if (summary) {
+    summary.style.display = "none"; // Verberg de summary pagina
+    // Log naar de console als we van summary naar configuratiepagina gaan
+  }
+
+  // Als we op een configuratiepagina zitten, toon de vorige configuratiepagina
+  if (currentPageIndex.value > 0) {
+    // Verwijder de 'active' klasse van de huidige configuratiepagina
+    pages[currentPageIndex.value].classList.remove("active");
+
+    // Ga naar de vorige pagina
+    currentPageIndex.value--;
+
+    // Zet de 'active' klasse op de vorige configuratiepagina
+    pages[currentPageIndex.value].classList.add("active");
+
+    // Verberg de overzichtspagina
+    if (overview) {
+      overview.style.display = "none"; // 'overview' wordt verborgen
+    }
+
+    // Maak de 'back' knop zichtbaar
+    if (backButton) {
+      backButton.style.visibility = "visible"; // Toon de 'back' knop
+    }
+
+    // Als we op de eerste configuratiepagina zitten, verberg de 'back' knop
+    if (currentPageIndex.value === 0) {
+      if (backButton) {
+        backButton.style.visibility = "hidden"; // Verberg de 'back' knop op de eerste pagina
+      }
+    }
+
+    // Maak de 'next' knop zichtbaar (tenzij we op de laatste pagina zitten)
+    if (nextButton) {
+      nextButton.style.visibility = "visible"; // 'next' knop wordt zichtbaar
+    }
+  }
+}
+
 async function nextPage() {
   const overview = document.querySelector(".overview");
   const summary = document.querySelector(".summary");
@@ -571,13 +656,16 @@ async function nextPage() {
     return;
   }
 
-  // Als de overzichtspagina wordt weergegeven
+  // Als we op de overzichtspagina zitten
   if (overview && overview.style.display !== "none") {
     // Verberg overzicht en zet de eerste pagina als actief
     overview.style.display = "none";
     currentPageIndex.value = 0;
     pages.forEach((page) => page.classList.remove("active"));
     pages[currentPageIndex.value].classList.add("active");
+
+    // Maak de back-knop zichtbaar
+    document.querySelector(".backButton").style.visibility = "visible";
   } else {
     // Verwijder de 'active' klasse van de huidige pagina
     pages[currentPageIndex.value].classList.remove("active");
@@ -629,40 +717,6 @@ async function nextPage() {
         console.error("Error fetching product data:", err.message);
       }
     }
-  }
-}
-
-async function previousPage() {
-  const pages = document.querySelectorAll(".config-ui__page");
-  const overview = document.querySelector(".overview");
-  const summary = document.querySelector(".summary");
-  const nextButton = document.querySelector(".nextButton");
-
-  if (!pages || pages.length === 0) {
-    console.warn("No config-ui__page elements found.");
-    return;
-  }
-
-  if (currentPageIndex.value === 0) {
-    if (overview) {
-      overview.style.display = "flex";
-    }
-    if (nextButton) {
-      nextButton.style.visibility = "visible";
-    }
-    pages[currentPageIndex.value].classList.remove("active");
-    return;
-  }
-
-  pages[currentPageIndex.value].classList.remove("active");
-
-  if (currentPageIndex.value > 0) {
-    currentPageIndex.value--;
-    pages[currentPageIndex.value].classList.add("active");
-  }
-
-  if (summary) {
-    summary.style.display = "none";
   }
 }
 
