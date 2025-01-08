@@ -61,10 +61,12 @@ const fetchProducts = async () => {
   try {
     loading.value = true;
 
-    // Stap 1: Haal de producten op
+    // Bouw de query op basis van partnerName (indien aanwezig)
     const partnerQuery = partnerName.value
       ? `?partnerName=${partnerName.value}`
       : "";
+
+    // Haal de producten op via de API
     const response = await fetch(`${baseURL}/products/${partnerQuery}`, {
       method: "GET",
       headers: {
@@ -78,64 +80,17 @@ const fetchProducts = async () => {
 
     const result = await response.json();
 
-    // Stap 2: Verwerk de producten en haal configuraties op
-    const fetchedProducts = result.data.products;
-    const enrichedProducts = await Promise.all(
-      fetchedProducts.map(async (product) => {
-        // Controleer of het product een configurationID heeft
-        if (product.configurations[0].configurationId) {
-          try {
-            // Haal configuratie op via configurationID
-            const configResponse = await fetch(
-              `${baseURL}/configurations/${product.configurations[0].configurationId}`,
-              {
-                method: "GET",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-              }
-            );
+    // Zet de opgehaalde producten
+    products.value = result.data.products;
 
-            if (!configResponse.ok) {
-              throw new Error(
-                `Configuration fetch error! Status: ${configResponse.status}`
-              );
-            }
-
-            const configResult = await configResponse.json();
-
-            // Verzamel afbeeldingen uit de opties van de configuratie
-            const configImages = configResult.data.options.flatMap(
-              (option) => option.images?.map((img) => img.url) || []
-            );
-
-            // Voeg afbeeldingen toe aan het product
-            return {
-              ...product,
-              images: configImages,
-            };
-          } catch (err) {
-            console.error(
-              `Error fetching configuration for product ${product._id}:`,
-              err.message
-            );
-            return { ...product, images: [] }; // Voeg lege array toe als fallback
-          }
-        } else {
-          return { ...product, images: [] }; // Geen configuratie, voeg lege array toe
-        }
-      })
-    );
-
-    // Stap 3: Opslaan van verrijkte producten
-    products.value = enrichedProducts;
-
-    error.value = null; // Reset foutmelding
+    // Reset eventuele foutmeldingen
+    error.value = null;
   } catch (err) {
     console.error("Error fetching products:", err.message);
     error.value = "Er is een fout opgetreden bij het ophalen van de producten.";
   } finally {
-    loading.value = false; // Stop de laadindicator
+    // Stop de laadindicator
+    loading.value = false;
   }
 };
 
@@ -183,11 +138,13 @@ const fetchFilters = async () => {
 
 // Filter products based on the active filter
 const filteredProducts = computed(() => {
-  return activeFilter.value === "All"
-    ? products.value // Return all products if "All" is selected
-    : products.value.filter(
-        (product) => product.productType === activeFilter.value.toLowerCase()
-      );
+  if (!activeFilter.value || activeFilter.value === "All") {
+    return products.value; // Return all products if no filter is applied
+  }
+  return products.value.filter(
+    (product) =>
+      product.productType?.toLowerCase() === activeFilter.value.toLowerCase()
+  );
 });
 
 const setActiveFilter = (filter) => {
@@ -249,7 +206,8 @@ onMounted(() => {
       <div class="row">
         <h2>{{ activeFilter }}</h2>
         <p>
-          <span>{{ filteredProducts.length }}</span> items
+          <span>{{ filteredProducts ? filteredProducts.length : 0 }}</span>
+          items
         </p>
       </div>
       <div class="product-grid">
@@ -261,11 +219,9 @@ onMounted(() => {
         >
           <div class="product-image-container">
             <div
-              v-if="product.images.length > 0"
+              v-if="product.images?.length > 0"
               class="product-image"
-              :style="{
-                backgroundImage: 'url(' + product.images[0] + ')',
-              }"
+              :style="{ backgroundImage: 'url(' + product.images[0] + ')' }"
             ></div>
             <div v-else class="no-image-message">
               Geen afbeelding beschikbaar
