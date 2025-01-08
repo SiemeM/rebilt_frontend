@@ -487,9 +487,9 @@ onMounted(async () => {
             </div>
             <div
               class="btn"
-              :class="{ active: product.activeUnactive === 'active' }"
+              :class="{ active: product.activeInactive === 'active' }"
             >
-              <p>{{ product.activeUnactive }}</p>
+              <p>{{ product.activeInactive }}</p>
             </div>
           </div>
         </router-link>

@@ -115,12 +115,12 @@ const fetchProductData = async () => {
       productCode.value = productData.productCode;
       productName.value = productData.productName;
       productType.value = productData.productType;
+      activeInactive.value = productData.activeInactive;
       brand.value = productData.brand;
       productPrice.value = productData.productPrice;
       description.value = productData.description;
       images.value = productData.images || [];
 
-      // Vul partnerConfigurations in met productconfiguraties
       partnerConfigurations.value = productData.configurations.map((config) => {
         // Stel config.value in, gebruik de selectedOption als ID
         config.value = config.selectedOption || ""; // Als geen selectedOption, stel in op een lege waarde
@@ -130,6 +130,7 @@ const fetchProductData = async () => {
       // Stel selectedOption in voor de eerste configuratie
       selectedOption.value = productData.configurations[0]?.selectedOption;
       console.log("Geselecteerde optie:", selectedOption.value);
+      console.log("Product data voor update:", productData);
     } else {
       console.error("Geen productdata gevonden.");
     }
@@ -197,66 +198,104 @@ const fetchPartnerConfigurations = async () => {
 };
 
 import mongoose from "mongoose";
+const productConfigurations = ref([]);
+
+const loadProductConfigurations = () => {
+  axios
+    .get(`${baseURL}/products/${productId.value}`)
+    .then((response) => {
+      const productData = response.data.data.product;
+      console.log("Volledige productdata:", productData);
+      console.log("Configurations:", productData.configurations);
+
+      if (
+        productData.configurations &&
+        Array.isArray(productData.configurations)
+      ) {
+        // Zorg ervoor dat we de selectedOption van de API-respons gebruiken
+        productConfigurations.value = productData.configurations.map(
+          (config) => {
+            const selectedOption = config.selectedOption || null;
+            console.log(
+              `Configuratie ${config.fieldName} geselecteerde optie:`,
+              selectedOption
+            );
+
+            return {
+              ...config,
+              selectedOption: selectedOption,
+            };
+          }
+        );
+        console.log(
+          "Geleverde configuraties in productConfigurations:",
+          productConfigurations.value
+        );
+      } else {
+        console.error("Geen geldige configuraties gevonden in productdata.");
+        productConfigurations.value = [];
+      }
+    })
+    .catch((error) => {
+      console.error("Error bij het laden van het product:", error);
+    });
+};
 
 const editProduct = async () => {
-  // Verifieer of alle verplichte velden zijn ingevuld
-  if (!productCode.value || !productName.value || !productPrice.value) {
-    errorMessage.value = "Vul alle verplichte velden in.";
-    return;
-  }
-
-  // Zorg ervoor dat de productprijs een geldige waarde is
-  if (isNaN(productPrice.value) || productPrice.value <= 0) {
-    errorMessage.value = "Voer een geldige prijs in.";
-    return;
-  }
-
-  // Maak een array van geselecteerde configuraties
   const selectedConfigurations = partnerConfigurations.value
     .map((config) => {
-      const configurationId = config.configurationId;
+      console.log("Configuratie:", config);
 
-      // Controleer of de configurationId een geldige ObjectId is
-      if (!mongoose.Types.ObjectId.isValid(configurationId)) {
-        console.error("Ongeldige configurationId:", configurationId);
-        errorMessage.value = `Ongeldige configurationId: ${configurationId}`;
+      const configurationId = config.configurationId;
+      console.log("Configuratie ID:", configurationId);
+
+      // Zoek de juiste configuratie in productConfigurations
+      const matchingConfig = productConfigurations.value.find(
+        (productConfig) => productConfig.configurationId._id === configurationId
+      );
+
+      console.log("matchingConfig:", matchingConfig);
+
+      if (!matchingConfig) {
+        console.warn(
+          `Geen match gevonden voor configurationId: ${configurationId}`
+        );
         return null;
       }
 
-      // Controleer of de selectedOption een geldige waarde heeft
-      const selectedOption = config.value;
-      console.log("dededede", selectedOption);
-      if (!selectedOption || !mongoose.Types.ObjectId.isValid(selectedOption)) {
+      // Gebruik de geselecteerde optie uit matchingConfig
+      const selectedOption = matchingConfig.selectedOption
+        ? matchingConfig.selectedOption._id // Haal de ID van de geselecteerde optie op
+        : null;
+
+      console.log("Gevonden selectedOption:", selectedOption);
+
+      if (!selectedOption) {
         console.warn(
-          `Invalid or missing selectedOption for ${config.fieldName}`
+          `Geen selectedOption gevonden voor configuratie ${config.fieldName}`
         );
-        errorMessage.value = `Invalid or missing selectedOption for ${config.fieldName}`;
-        return null; // Do not include invalid configurations
       }
 
       return {
-        configurationId: configurationId,
-        selectedOption: selectedOption, // Now this is the valid ObjectId (optionId)
+        configurationId,
+        selectedOption, // Zet selectedOption naar de juiste waarde of null
       };
     })
-    .filter((config) => config !== null); // Filter ongeldige configuraties uit
+    .filter((config) => config !== null && config.selectedOption !== null); // Filter configuraties zonder geldige selectedOption
 
   console.log("Geselecteerde configuraties:", selectedConfigurations);
 
-  // Als er geen geldige configuraties zijn, geef een foutmelding weer
   if (selectedConfigurations.length === 0) {
     errorMessage.value = "Geen geldige configuraties geselecteerd.";
     return;
   }
 
-  const partnerId = tokenPayload?.companyId || null;
-
-  // Bereid de productdata voor, inclusief configuraties
   const productData = {
     productCode: productCode.value,
     productName: productName.value,
     productPrice: productPrice.value,
     productType: productType.value,
+    activeInactive: activeInactive.value,
     description: description.value,
     brand: brand.value,
     images:
@@ -266,61 +305,57 @@ const editProduct = async () => {
               uploadImageToCloudinary(file, productName.value)
             )
           )
-        : [],
-    partnerId: partnerId, // Use the extracted userCompanyId here
-    configurations: selectedConfigurations, // Voeg de geselecteerde configuraties toe
+        : [], // Zorg ervoor dat je afbeeldingen uploadt naar Cloudinary
+    partnerId: partnerId,
+    configurations: selectedConfigurations, // Dit is waar je geselecteerde configuraties worden doorgestuurd
   };
 
-  try {
-    // Maak de API-aanroep om het product bij te werken
-    const response = await axios.put(
-      `${baseURL}/products/${productId.value}`,
-      productData,
-      {
-        headers: {
-          Authorization: `Bearer ${jwtToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+  console.log("Product data voor update:", productData);
 
-    // Controleer of de API-aanroep succesvol was
+  // Voeg een log toe voor de daadwerkelijke PUT-aanroep
+  const requestConfig = {
+    method: "PUT",
+    url: `${baseURL}/products/${productId.value}`,
+    data: productData,
+    headers: {
+      Authorization: `Bearer ${jwtToken}`,
+      "Content-Type": "application/json",
+    },
+  };
+
+  // Log de volledige PUT-aanroep (method, URL, data, headers)
+  console.log("Verstuurde PUT-aanroep:", requestConfig);
+
+  try {
+    const response = await axios(requestConfig);
+
+    // Log de volledige response van de server
+    console.log("Response van server:", response);
+
     if (response.status === 200) {
       console.log("Product succesvol bijgewerkt.");
       router.push("/admin");
     } else {
-      console.error(
-        "Fout bij het bijwerken van het product. Status:",
-        response.status
-      );
+      console.error("Fout bij het bijwerken van het product:", response.status);
       errorMessage.value = "Fout bij het bijwerken van het product.";
     }
   } catch (error) {
-    console.error("Fout bij het bewerken van het product:", error);
-    if (error.response) {
-      console.error("Server response error:", error.response.data);
-      errorMessage.value = `Fout: ${
-        error.response.data.message || "Onbekende fout"
-      }`;
-    } else if (error.request) {
-      console.error("Geen reactie ontvangen:", error.request);
-      errorMessage.value = "Geen reactie van de server.";
-    } else {
-      console.error("Fout tijdens het verzoek:", error.message);
-      errorMessage.value = "Fout tijdens het verzoek.";
-    }
+    console.error("Error bij het bewerken van het product:", error);
+    errorMessage.value =
+      "Er is een fout opgetreden bij het bewerken van het product.";
   }
 };
 
-// Lifecycle hook voor het ophalen van partnergegevens
 onMounted(() => {
   checkToken();
   fetchPartnerData(); // Haal partnergegevens op zodra de component gemonteerd is
+  loadProductConfigurations();
 });
 
 // Product-informatie refs
 const productCode = ref("");
 const productType = ref("sneaker");
+const activeInactive = ref("");
 const productName = ref("");
 const brand = ref("");
 const productPrice = ref("");
@@ -400,22 +435,19 @@ const toggleDropdown = (fieldName) => {
 
 // Functie voor het selecteren van kleuren
 const selectColor = (option, fieldName) => {
-  // Zoek de configuratie op basis van het fieldName (bijv. "Kleur")
   const selectedConfig = partnerConfigurations.value.find(
     (config) => config.fieldName === fieldName
   );
 
   if (selectedConfig) {
-    // Zorg ervoor dat de selectedOption correct wordt ingesteld
-    selectedConfig.value = option.optionId; // Sla de geselecteerde optionId op
-    selectedConfig.selectedOption = option; // Bewaar de volledige optie
-    console.log("Geselecteerde kleur:", option); // Debugging
+    selectedConfig.selectedOption = option; // Bewaar de volledige geselecteerde optie
+    selectedConfig.value = option.optionId; // Bewaar de optie ID
+    localStorage.setItem(`selectedOption_${fieldName}`, option.optionId); // Bewaar de selectie in localStorage
   } else {
     console.warn(`Geen configuratie gevonden voor ${fieldName}`);
   }
 
-  // Sluit de dropdown na de selectie
-  dropdownStates.value[fieldName] = false;
+  dropdownStates.value[fieldName] = false; // Sluit de dropdown
 };
 
 // Functie voor het herstellen van geselecteerde opties
@@ -423,8 +455,10 @@ const restoreSelectedOption = () => {
   partnerConfigurations.value.forEach((config) => {
     const saved = localStorage.getItem(`selectedOption_${config.fieldName}`);
     if (saved) {
-      savedOptions.value[config.fieldName] = saved; // Set the value from localStorage in savedOptions
-      config.value = saved; // Restore the configuration value
+      config.selectedOption = saved; // Herstel de geselecteerde optie
+      config.value = saved; // Herstel ook de waarde
+    } else {
+      config.selectedOption = config.value || ""; // Als geen opgeslagen waarde, neem de standaardwaarde
     }
   });
 };
@@ -485,6 +519,17 @@ onMounted(() => {
         <div class="column">
           <label for="description">Description:</label>
           <textarea v-model="description" id="description" required></textarea>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="column">
+          <label for="activeInactive">Active/Inactive:</label>
+          <select v-model="activeInactive" id="activeInactive">
+            <option value="" disabled>Maak een keuze</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
         </div>
       </div>
 
