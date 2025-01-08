@@ -320,8 +320,6 @@ function selectOption(index) {
               (item) => item.configurationId === selectedConfigId
             );
 
-            console.log(selectedItems.value);
-
             if (existingConfigIndex !== -1) {
               selectedItems.value[existingConfigIndex].selectedItem = {
                 optionName: optionName,
@@ -351,22 +349,15 @@ function selectOption(index) {
         })
       );
 
+      // Zet de geselecteerde afbeeldingen in productImages
+      productImages.value = selectedOptionImages;
+
+      // Zet de eerste afbeelding als selectedImage
       if (selectedOptionImages.length > 0) {
         selectedImage.value = selectedOptionImages[0];
       }
 
-      const selectedImageContainer = document.getElementById("image-container");
-      if (selectedImageContainer) {
-        selectedImageContainer.innerHTML = "";
-        selectedOptionImages.forEach((imageUrl) => {
-          const img = document.createElement("img");
-          img.src = imageUrl;
-          img.alt = "Afbeelding";
-          img.style.width = "200px";
-          selectedImageContainer.appendChild(img);
-        });
-      }
-
+      // Update productData
       productData.value = {
         productName: product.productName,
         productCode: product.productCode,
@@ -374,8 +365,6 @@ function selectOption(index) {
         images: selectedOptionImages,
         configurations: enrichedConfigurations,
       };
-
-      productImages.value = selectedOptionImages;
 
       const partnerId = product.partnerId;
       if (partnerId) {
@@ -483,18 +472,15 @@ async function fetchProductData(productCode) {
     // Haal en verrijk configuraties voor dit product
     const configurations = product.configurations || []; // Default to an empty array if configurations is missing
 
-    // Check if there are configurations and enrich them
     const enrichedConfigurations = await Promise.all(
       configurations.map(async (config) => {
         let selectedConfigId = config.configurationId;
         await loadOptionsForConfig(selectedConfigId._id);
 
-        // Check if configurationId is an object and extract the _id
         if (typeof selectedConfigId === "object") {
-          selectedConfigId = selectedConfigId._id; // Extract the _id property
+          selectedConfigId = selectedConfigId._id;
         }
 
-        // Fetch configuration data for the given ID
         const configUrl = `${baseURL}/configurations/${selectedConfigId}`;
 
         try {
@@ -536,7 +522,6 @@ async function fetchProductData(productCode) {
       })
     );
 
-    // Combine all images from the product and configurations
     const configImages = enrichedConfigurations.flatMap(
       (config) => config.images
     );
@@ -552,13 +537,10 @@ async function fetchProductData(productCode) {
       configurations: enrichedConfigurations, // Add enriched configurations
     };
 
-    // Combine all product and configuration images in productImages
-    productImages.value = [
-      ...(product.images || []).map((img) => img.url),
-      ...configImages,
-    ];
-
-    // Fetch partner data if partnerId is available
+    // Stel de eerste configuratie af met de eerste 2 afbeeldingen van de optie
+    const selectedOption = enrichedConfigurations[0]?.options[0] || {};
+    const selectedOptionImages = selectedOption.images?.slice(0, 2) || [];
+    productImages.value = selectedOptionImages.map((img) => img.url);
     const partnerId = product.partnerId;
     const productId = product._id;
     if (partnerId) {
@@ -568,7 +550,6 @@ async function fetchProductData(productCode) {
       await fetchLogoUrl(partnerId);
       await fetchPartnerConfigurations(partnerId, product);
     }
-
     error.value = null;
   } catch (err) {
     console.error("Error fetching product data:", err.message);
@@ -939,9 +920,7 @@ function setSelectedImage(image) {
         <div
           class="bigImage"
           :style="{ backgroundImage: `url(${selectedImage})` }"
-        >
-          <p class="altText">{{ selectedImage.altText }}</p>
-        </div>
+        ></div>
 
         <!-- Thumbnail Images -->
         <div class="images">
@@ -1057,7 +1036,7 @@ function setSelectedImage(image) {
 
         <!-- Personal info form -->
         <h3>Personal info</h3>
-        <form @submit.prevent="submitOrder">
+        <!-- <form @submit.prevent="submitOrder">
           <p style="display: none">{{ productCode }}</p>
           <div class="row">
             <div class="column">
@@ -1164,7 +1143,7 @@ function setSelectedImage(image) {
           <button type="submit" class="btn active">Checkout</button>
           <p class="errorMessage"></p>
           <p class="successMessage"></p>
-        </form>
+        </form> -->
       </div>
       <div class="links">
         <a
