@@ -813,6 +813,10 @@ function showNextImage() {
     selectedImage.value = productImages.value[currentIndex + 1];
   }
 }
+
+function setSelectedImage(image) {
+  selectedImage.value = image; // Zorg dat dit een object is
+}
 </script>
 
 <template>
@@ -931,24 +935,23 @@ function showNextImage() {
         </div>
       </div>
       <div class="bigImageWithImages">
+        <!-- Big Image Display -->
         <div
           class="bigImage"
-          style="
-            background-image: url('https://res.cloudinary.com/dzempjvto/image/upload/v1736262373/Configurations/Kleur/Blauw/wgog3irgrnqnkseh9ubg.jpg');
-          "
-        ></div>
+          :style="{ backgroundImage: `url(${selectedImage})` }"
+        >
+          <p class="altText">{{ selectedImage.altText }}</p>
+        </div>
+
+        <!-- Thumbnail Images -->
         <div class="images">
           <div
-            class="image active"
-            style="
-              background-image: url('https://res.cloudinary.com/dzempjvto/image/upload/v1736262373/Configurations/Kleur/Blauw/wgog3irgrnqnkseh9ubg.jpg');
-            "
-          ></div>
-          <div
+            v-for="(image, index) in productImages"
+            :key="image._id"
             class="image"
-            style="
-              background-image: url('https://res.cloudinary.com/dzempjvto/image/upload/v1736262373/Configurations/Kleur/Blauw/nl9ll2prnglj9k8iwtll.jpg');
-            "
+            :class="{ active: image.url === selectedImage }"
+            :style="{ backgroundImage: `url(${image})` }"
+            @click="setSelectedImage(image)"
           ></div>
         </div>
       </div>
