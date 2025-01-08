@@ -8,7 +8,6 @@ import DynamicStyle from "../../components/DynamicStyle.vue";
 // Router en JWT-token ophalen
 const router = useRouter();
 const jwtToken = localStorage.getItem("jwtToken");
-console.log(jwtToken);
 const errorMessage = ref("");
 
 // Basis-URL bepalen afhankelijk van de omgeving
@@ -90,7 +89,6 @@ const fetchPartnerConfigurations = async () => {
         const matchingConfig = configurations.find(
           (config) => config._id === partnerConfig.configurationId
         );
-        console.log("matched config", matchingConfig);
 
         // Extract optionIds and their related objects from the options array
         const optionsData =
@@ -101,7 +99,6 @@ const fetchPartnerConfigurations = async () => {
             };
           }) || [];
 
-        console.log("Options Data:", optionsData); // Controleer wat hier uitkomt
         // Fetch the option names using the extracted optionIds
         const options =
           optionsData.length > 0 ? await fetchOptionNames(optionsData) : [];
@@ -115,8 +112,6 @@ const fetchPartnerConfigurations = async () => {
         };
       })
     );
-
-    console.log("Partner Configurations:", partnerConfigurations.value); // Log de configuraties na het ophalen
   } catch (error) {
     console.error("Error fetching partner configurations:", error);
   }
@@ -143,24 +138,48 @@ const fetchOptionNames = async (optionsData) => {
       )
     );
 
-    console.log("optionIds", validOptions);
-
     // Map the responses to return option names (or use value as fallback)
     return responses.map((res, index) => {
       const optionData = res.data?.data;
-      console.log(optionData?.name);
       return {
-        name: optionData?.name,
+        optionId: validOptions[index].optionId, // Make sure we retain the optionId
+        name: optionData?.name || "Unknown",
       };
     });
   } catch (error) {
     console.error("Error fetching option names:", error);
-    return optionsData.map(() => ({ name: "Unknown" })); // Return 'Unknown' voor elk optionId in geval van fout
+    return optionsData.map(() => ({ name: "Unknown" })); // Return 'Unknown' for each optionId in case of an error
   }
 };
 
 import mongoose from "mongoose";
 
+const checkProductCodeUniqueness = async (productCode) => {
+  try {
+    const response = await axios.get(
+      `${baseURL}/products?productCode=${productCode}`,
+      {
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+        },
+      }
+    );
+
+    // If the product already exists, show an error and prevent submission
+    if (response.data?.data?.length > 0) {
+      errorMessage.value = `Product code "${productCode}" already exists. Please choose another one.`;
+      return false; // Return false to indicate that the product code is not unique
+    }
+
+    return true; // Product code is unique
+  } catch (error) {
+    console.error("Error checking product code:", error);
+    errorMessage.value = "Error checking product code uniqueness.";
+    return false;
+  }
+};
+
+// In the addProduct method, call this function before proceeding
 const addProduct = async () => {
   // Validate required fields
   if (
@@ -174,28 +193,12 @@ const addProduct = async () => {
     return;
   }
 
-  // Check JWT token
-  if (!jwtToken) {
-    console.error("JWT Token is missing!");
-    errorMessage.value = "Authorization token is missing.";
-    return;
-  }
-
-  let userCompanyId = null;
-  try {
-    const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1])); // Decode token
-    userCompanyId = tokenPayload.companyId;
-  } catch (error) {
-    console.error("Error decoding token", error);
-    errorMessage.value = "Invalid token.";
-    return;
-  }
-
-  // Ensure userCompanyId exists before proceeding
-  if (!userCompanyId) {
-    console.error("Company ID not found in token payload.");
-    errorMessage.value = "Company ID not found.";
-    return;
+  // Check for unique product code
+  const isProductCodeUnique = await checkProductCodeUniqueness(
+    productCode.value
+  );
+  if (!isProductCodeUnique) {
+    return; // Stop the function if the product code is not unique
   }
 
   // Prepare selected configurations and validate selectedOption
@@ -211,44 +214,30 @@ const addProduct = async () => {
       }
 
       // Ensure that selectedOption is a valid ObjectId or set to null if empty
-      const selectedOption = config.value;
+      const selectedOption = config.value; // Get the selectedOption (optionId) from selectedConfig
+
       if (!selectedOption || !mongoose.Types.ObjectId.isValid(selectedOption)) {
         console.warn(
           `Invalid or missing selectedOption for ${config.fieldName}`
         );
+        errorMessage.value = `Invalid or missing selectedOption for ${config.fieldName}`;
         return null; // Do not include invalid configurations
       }
 
       return {
         configurationId: configurationId,
-        selectedOption: selectedOption, // Ensure this is a valid ObjectId
+        selectedOption: selectedOption, // Now this is the valid ObjectId (optionId)
       };
     })
     .filter((config) => config !== null); // Filter out invalid configurations
 
-  // Prepare custom configurations with ObjectIds
-  const customConfigurations = partnerConfigurations.value
-    .map((config) => {
-      if (config.value) {
-        // Ensure selectedOption is a valid ObjectId (it will now store the _id)
-        const selectedOption = config.value;
+  // Check if configurations are empty (e.g., missing options)
+  if (selectedConfigurations.length === 0) {
+    errorMessage.value = "No valid configurations selected.";
+    return;
+  }
 
-        // Ensure selectedOption is a valid ObjectId
-        if (!mongoose.Types.ObjectId.isValid(selectedOption)) {
-          console.error("Invalid selectedOption:", selectedOption);
-          errorMessage.value = `Invalid selectedOption: ${selectedOption}`;
-          return null;
-        }
-
-        return {
-          fieldName: config.fieldName, // Field name (e.g., 'Size', 'Color')
-          fieldType: config.fieldType, // Field type (e.g., 'Select', 'Text')
-          selectedOption: selectedOption, // Now this is the valid ObjectId
-        };
-      }
-      return null;
-    })
-    .filter((config) => config !== null); // Filter out invalid custom configurations
+  const partnerId = tokenPayload?.companyId || null;
 
   const productData = {
     productCode: productCode.value,
@@ -265,9 +254,8 @@ const addProduct = async () => {
             )
           )
         : [],
-    partnerId: userCompanyId, // Use the extracted userCompanyId here
-    configurations: selectedConfigurations, // Send the valid configurations
-    customConfigurations: customConfigurations, // Ensure custom configurations use ObjectIds
+    partnerId: partnerId, // Use the extracted userCompanyId here
+    configurations: selectedConfigurations,
   };
 
   try {
@@ -277,8 +265,6 @@ const addProduct = async () => {
         "Content-Type": "application/json",
       },
     });
-
-    console.log("Response from server:", response.data);
 
     if (response.status === 201) {
       router.push("/admin");
@@ -390,23 +376,19 @@ const toggleDropdown = (fieldName) => {
 };
 
 const selectColor = (option, fieldName) => {
-  // Zoek de configuratie object op basis van het fieldName
+  // Find the configuration object based on the fieldName (e.g., "Kleur")
   const selectedConfig = partnerConfigurations.value.find(
     (config) => config.fieldName === fieldName
   );
 
   if (selectedConfig) {
-    // Wijzig de waarde
-    console.log(option);
-    selectedConfig.value = option.name;
-    console.log(selectedConfig.value);
-
-    console.log(`Geselecteerde optie voor ${fieldName}:`, option.name);
+    // Set the selected option's ObjectId (optionId)
+    selectedConfig.value = option.optionId; // This will store the selected optionId (ObjectId)
   } else {
-    console.warn(`Geen configuratie gevonden voor ${fieldName}`);
+    console.warn(`No configuration found for ${fieldName}`);
   }
 
-  // Sluit de dropdown na het selecteren van de kleur
+  // Close the dropdown after selection
   dropdownStates.value[fieldName] = false;
 };
 </script>
@@ -503,7 +485,7 @@ const selectColor = (option, fieldName) => {
                     :style="{
                       backgroundColor:
                         config.options.find(
-                          (option) => option.name === config.value
+                          (option) => option.optionId === config.value
                         )?.backgroundColor || 'transparent',
                     }"
                   ></span>
@@ -511,7 +493,7 @@ const selectColor = (option, fieldName) => {
                   <p>
                     {{
                       config.options.find(
-                        (option) => option.name === config.value
+                        (option) => option.optionId === config.value
                       )?.name || "Select color"
                     }}
                   </p>
