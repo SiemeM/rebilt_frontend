@@ -199,73 +199,59 @@ const fetchPartnerConfigurations = async () => {
 import mongoose from "mongoose";
 
 const editProduct = async () => {
-  // Validate required fields
-  if (
-    !productCode.value ||
-    !productName.value ||
-    !productPrice.value ||
-    !description.value ||
-    !brand.value
-  ) {
-    errorMessage.value = "Please fill in all required fields.";
+  // Verifieer of alle verplichte velden zijn ingevuld
+  if (!productCode.value || !productName.value || !productPrice.value) {
+    errorMessage.value = "Vul alle verplichte velden in.";
     return;
   }
 
-  // Check JWT token
-  if (!jwtToken) {
-    console.error("JWT Token is missing!");
-    errorMessage.value = "Authorization token is missing.";
+  // Zorg ervoor dat de productprijs een geldige waarde is
+  if (isNaN(productPrice.value) || productPrice.value <= 0) {
+    errorMessage.value = "Voer een geldige prijs in.";
     return;
   }
 
-  let userCompanyId = null;
-  try {
-    const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1])); // Decode token
-    userCompanyId = tokenPayload.companyId;
-  } catch (error) {
-    console.error("Error decoding token", error);
-    errorMessage.value = "Invalid token.";
-    return;
-  }
-
-  // Prepare selected configurations and validate selectedOption
+  // Maak een array van geselecteerde configuraties
   const selectedConfigurations = partnerConfigurations.value
     .map((config) => {
       const configurationId = config.configurationId;
 
-      // Ensure the configurationId is a valid ObjectId
+      // Controleer of de configurationId een geldige ObjectId is
       if (!mongoose.Types.ObjectId.isValid(configurationId)) {
-        console.error("Invalid ObjectId:", configurationId);
-        errorMessage.value = `Invalid configurationId: ${configurationId}`;
+        console.error("Ongeldige configurationId:", configurationId);
+        errorMessage.value = `Ongeldige configurationId: ${configurationId}`;
         return null;
       }
 
-      // Ensure that selectedOption is a valid ObjectId or set to null if empty
-      const selectedOption =
-        config.selectedOption ||
-        config.options?.find((option) => option._id === config.value);
-
-      console.log("Selected option:", selectedOption);
-      if (
-        !selectedOption ||
-        !mongoose.Types.ObjectId.isValid(selectedOption._id)
-      ) {
+      // Controleer of de selectedOption een geldige waarde heeft
+      const selectedOption = config.value;
+      console.log("dededede", selectedOption);
+      if (!selectedOption || !mongoose.Types.ObjectId.isValid(selectedOption)) {
         console.warn(
           `Invalid or missing selectedOption for ${config.fieldName}`
         );
+        errorMessage.value = `Invalid or missing selectedOption for ${config.fieldName}`;
         return null; // Do not include invalid configurations
       }
 
       return {
         configurationId: configurationId,
-        selectedOption: selectedOption._id, // Ensure this is a valid ObjectId
+        selectedOption: selectedOption, // Now this is the valid ObjectId (optionId)
       };
     })
-    .filter((config) => config !== null); // Filter out invalid configurations
+    .filter((config) => config !== null); // Filter ongeldige configuraties uit
 
-  console.log("Selected configurations:", selectedConfigurations);
+  console.log("Geselecteerde configuraties:", selectedConfigurations);
 
-  // Prepare product data with configurations
+  // Als er geen geldige configuraties zijn, geef een foutmelding weer
+  if (selectedConfigurations.length === 0) {
+    errorMessage.value = "Geen geldige configuraties geselecteerd.";
+    return;
+  }
+
+  const partnerId = tokenPayload?.companyId || null;
+
+  // Bereid de productdata voor, inclusief configuraties
   const productData = {
     productCode: productCode.value,
     productName: productName.value,
@@ -281,11 +267,12 @@ const editProduct = async () => {
             )
           )
         : [],
-    partnerId: userCompanyId,
-    configurations: selectedConfigurations, // Send the valid configurations
+    partnerId: partnerId, // Use the extracted userCompanyId here
+    configurations: selectedConfigurations, // Voeg de geselecteerde configuraties toe
   };
 
   try {
+    // Maak de API-aanroep om het product bij te werken
     const response = await axios.put(
       `${baseURL}/products/${productId.value}`,
       productData,
@@ -297,25 +284,30 @@ const editProduct = async () => {
       }
     );
 
+    // Controleer of de API-aanroep succesvol was
     if (response.status === 200) {
+      console.log("Product succesvol bijgewerkt.");
       router.push("/admin");
     } else {
-      console.error("Failed to edit product. Status:", response.status);
-      errorMessage.value = "Failed to edit product.";
+      console.error(
+        "Fout bij het bijwerken van het product. Status:",
+        response.status
+      );
+      errorMessage.value = "Fout bij het bijwerken van het product.";
     }
   } catch (error) {
-    console.error("Error editing product:", error);
+    console.error("Fout bij het bewerken van het product:", error);
     if (error.response) {
       console.error("Server response error:", error.response.data);
-      errorMessage.value = `Error: ${
-        error.response.data.message || "Unknown error"
+      errorMessage.value = `Fout: ${
+        error.response.data.message || "Onbekende fout"
       }`;
     } else if (error.request) {
-      console.error("No response received:", error.request);
-      errorMessage.value = "No response from server.";
+      console.error("Geen reactie ontvangen:", error.request);
+      errorMessage.value = "Geen reactie van de server.";
     } else {
-      console.error("Error during request:", error.message);
-      errorMessage.value = "Error during request.";
+      console.error("Fout tijdens het verzoek:", error.message);
+      errorMessage.value = "Fout tijdens het verzoek.";
     }
   }
 };
@@ -408,19 +400,21 @@ const toggleDropdown = (fieldName) => {
 
 // Functie voor het selecteren van kleuren
 const selectColor = (option, fieldName) => {
-  // Find the configuration object based on the fieldName (e.g., "Kleur")
+  // Zoek de configuratie op basis van het fieldName (bijv. "Kleur")
   const selectedConfig = partnerConfigurations.value.find(
     (config) => config.fieldName === fieldName
   );
 
   if (selectedConfig) {
-    // Set the selected option's ObjectId (optionId)
-    selectedConfig.value = option.optionId; // This will store the selected optionId (ObjectId)
+    // Zorg ervoor dat de selectedOption correct wordt ingesteld
+    selectedConfig.value = option.optionId; // Sla de geselecteerde optionId op
+    selectedConfig.selectedOption = option; // Bewaar de volledige optie
+    console.log("Geselecteerde kleur:", option); // Debugging
   } else {
-    console.warn(`No configuration found for ${fieldName}`);
+    console.warn(`Geen configuratie gevonden voor ${fieldName}`);
   }
 
-  // Close the dropdown after selection
+  // Sluit de dropdown na de selectie
   dropdownStates.value[fieldName] = false;
 };
 
