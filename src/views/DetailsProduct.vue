@@ -3,6 +3,7 @@ import { ref, onMounted, watch, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
+import DynamicStyle from "../components/DynamicStyle.vue";
 
 const sizes = ref([]);
 const materials = ref([]);
@@ -855,6 +856,7 @@ function setSelectedImage(image) {
 </script>
 
 <template>
+  <DynamicStyle />
   <div class="container">
     <div
       class="logoConfigurator"
