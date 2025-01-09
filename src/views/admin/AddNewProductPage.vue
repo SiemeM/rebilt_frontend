@@ -186,33 +186,6 @@ const fetchOptionNames = async (optionsData) => {
   }
 };
 
-import mongoose from "mongoose";
-
-const checkProductCodeUniqueness = async (productCode) => {
-  try {
-    const response = await axios.get(
-      `${baseURL}/products?productCode=${productCode}`,
-      {
-        headers: {
-          Authorization: `Bearer ${jwtToken}`,
-        },
-      }
-    );
-
-    // If the product already exists, show an error and prevent submission
-    if (response.data?.data?.length > 0) {
-      errorMessage.value = `Product code "${productCode}" already exists. Please choose another one.`;
-      return false; // Return false to indicate that the product code is not unique
-    }
-
-    return true; // Product code is unique
-  } catch (error) {
-    console.error("Error checking product code:", error);
-    errorMessage.value = "Error checking product code uniqueness.";
-    return false;
-  }
-};
-
 // In the addProduct method, call this function before proceeding
 const addProduct = async () => {
   // Controleer of er minstens één kleur is
@@ -284,9 +257,6 @@ const productName = ref("");
 const brand = ref("");
 const productPrice = ref("");
 const description = ref("");
-const newColor = ref(""); // Dit wordt gebruikt voor het kleurinvoerveld
-const images = ref([]);
-const image = ref(""); // Dit moet initialisatie zijn
 
 const partnerConfigurations = ref([]);
 
@@ -325,27 +295,18 @@ const uploadImageToCloudinary = async (file, productName) => {
   }
 };
 
-// Functie om de verborgen file input te triggeren
 const triggerFileInput = (index) => {
   const fileInput = document.getElementById(`images-${index}`);
+  console.log(fileInput); // Controleer of het bestandselement gevonden is
   if (fileInput) {
     fileInput.click();
+  } else {
+    console.warn("File input niet gevonden");
   }
 };
 
 // Meerdere kleuren beheren
 const colorUploads = ref([]); // Array om kleuren en bijbehorende afbeeldingen bij te houden
-
-// Functie om een kleur toe te voegen
-const addColor = () => {
-  const newColorObject = { colorId: "", images: [] };
-  colorUploads.value.push(newColorObject);
-};
-
-// Functie om een kleur te verwijderen
-const removeColor = (index) => {
-  colorUploads.value.splice(index, 1);
-};
 
 // Dropdown states beheren
 const dropdownStates = ref({});
@@ -362,24 +323,6 @@ const toggleDropdown = (fieldName) => {
   dropdownStates.value[fieldName] = !dropdownStates.value[fieldName];
 };
 
-// Functie om een kleur uit de dropdown te selecteren
-const selectColor = (option, fieldName) => {
-  // Find the configuration object based on the fieldName (e.g., "Kleur")
-  const selectedConfig = partnerConfigurations.value.find(
-    (config) => config.fieldName === fieldName
-  );
-
-  if (selectedConfig) {
-    // Set the selected option's ObjectId (optionId)
-    selectedConfig.value = option.optionId; // This will store the selected optionId (ObjectId)
-  } else {
-    console.warn(`No configuration found for ${fieldName}`);
-  }
-
-  // Close the dropdown after selection
-  dropdownStates.value[fieldName] = false;
-};
-
 // Afbeeldingen uploaden per kleur
 const handleColorImageUpload = (event, index) => {
   if (!event || !event.target || !event.target.files) {
@@ -389,6 +332,11 @@ const handleColorImageUpload = (event, index) => {
     return;
   }
 
+  // Zorg ervoor dat colorUploads[index] bestaat en een images array bevat
+  if (!colorUploads.value[index]) {
+    colorUploads.value[index] = { images: [] }; // Initialiseer het object als het nog niet bestaat
+  }
+
   const files = Array.from(event.target.files).filter(
     (file) => file instanceof File
   );
@@ -396,18 +344,6 @@ const handleColorImageUpload = (event, index) => {
   if (files.length > 0) {
     colorUploads.value[index].images.push(...files);
   }
-};
-
-// Voorbeeld-URLs bijhouden voor uploads
-const previewColorImages = (images) =>
-  images.map((file) => URL.createObjectURL(file));
-
-// Functie om kleuren als array te verwerken (indien nodig)
-const parseInputToArray = (input) => {
-  return input
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
 };
 
 const toggleColorSelection = (option, fieldName) => {
@@ -445,18 +381,6 @@ const getColorNameById = (colorId) => {
   }
   return "Unnamed Color"; // Geef "Unnamed Color" terug als geen match is gevonden
 };
-
-// Exporteer functies en variabelen voor gebruik in de template
-// onMounted(() => {
-//   addColor();
-//   removeColor();
-//   toggleDropdown();
-//   selectColor();
-//   handleColorImageUpload();
-//   previewColorImages();
-//   dropdownStates();
-//   triggerFileInput();
-// });
 </script>
 
 <template>
@@ -609,10 +533,10 @@ const getColorNameById = (colorId) => {
 
                 <input
                   type="file"
-                  :id="'images-' + colorId"
-                  multiple
+                  :id="'images-' + index"
                   style="display: none"
-                  @change="(e) => handleColorImageUpload(e, index)"
+                  multiple
+                  @change="handleColorImageUpload($event, index)"
                 />
 
                 <div
