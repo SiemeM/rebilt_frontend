@@ -111,6 +111,8 @@ const fetchPartnerConfigurations = async () => {
     );
 
     const partnerConfigs = partnerResponse.data?.data || [];
+    console.log("partnerConfigs", partnerConfigs);
+
     const configurationsResponse = await axios.get(
       `${baseURL}/configurations`,
       {
@@ -119,35 +121,56 @@ const fetchPartnerConfigurations = async () => {
     );
 
     const configurations = configurationsResponse.data?.data || [];
+    console.log("configurations", configurations);
 
     partnerConfigurations.value = await Promise.all(
       partnerConfigs.map(async (partnerConfig) => {
+        // Zoek naar een overeenkomstige configuratie
         const matchingConfig = configurations.find(
-          (config) => config._id === partnerConfig.configurationId
+          (config) => config._id === partnerConfig?.configurationId?._id // Zorg voor veilige toegang
         );
 
-        // Extract optionIds and their related objects from the options array
-        const optionsData =
-          matchingConfig?.options?.map((option) => {
-            return {
-              optionId: option.optionId, // Behoud de optionId
-              ...option, // Voeg de rest van de option toe (images, _id, etc.)
-            };
-          }) || [];
+        if (!matchingConfig) {
+          console.warn(
+            `No matching configuration found for configurationId: ${partnerConfig.configurationId?._id}`
+          );
+          return {
+            ...partnerConfig,
+            options: [], // Geen opties beschikbaar
+            fieldName: "Unknown",
+            fieldType: "Unknown",
+            value: "",
+          };
+        }
 
-        // Fetch the option names using the extracted optionIds
+        console.log("Found matchingConfig:", matchingConfig);
+
+        // Extract optionIds en andere gerelateerde data
+        const optionsData =
+          partnerConfig.options?.map((option) => ({
+            optionId: option.optionId,
+            ...option,
+          })) || [];
+
+        console.log("optionsData", optionsData);
+
+        // Haal de optie-namen op
         const options =
           optionsData.length > 0 ? await fetchOptionNames(optionsData) : [];
 
+        console.log("options", options);
+
         return {
           ...partnerConfig,
-          fieldName: matchingConfig?.fieldName,
-          fieldType: matchingConfig?.fieldType,
+          fieldName: matchingConfig.fieldName,
+          fieldType: matchingConfig.fieldType,
           options, // Ingevulde opties met namen
           value: "",
         };
       })
     );
+
+    console.log(partnerConfigurations.value);
   } catch (error) {
     console.error("Error fetching partner configurations:", error);
   }
@@ -168,7 +191,7 @@ const fetchOptionNames = async (optionsData) => {
     // Fetch data from the API for each optionId using the correct URL structure
     const responses = await Promise.all(
       validOptions.map((option) =>
-        axios.get(`${baseURL}/options/${option.optionId}`, {
+        axios.get(`${baseURL}/options/${option.optionId._id}`, {
           headers: { Authorization: `Bearer ${jwtToken}` },
         })
       )
@@ -179,7 +202,7 @@ const fetchOptionNames = async (optionsData) => {
       const optionData = res.data?.data;
       return {
         optionId: validOptions[index].optionId, // Make sure we retain the optionId
-        name: optionData?.name || "Unknown",
+        name: optionData?.name,
       };
     });
   } catch (error) {
@@ -189,81 +212,69 @@ const fetchOptionNames = async (optionsData) => {
 };
 
 const addProduct = async () => {
-  // Controleer of er minstens één kleur is
-  if (colorUploads.value.length === 0) {
-    errorMessage.value = "Please add at least one color.";
-    return;
-  }
-
-  // Verwerk kleuren en hun afbeeldingen
-  const colorsWithImages = await Promise.all(
-    colorUploads.value.map(async (colorItem) => {
-      const uploadedImages = await Promise.all(
-        colorItem.images.map((file) =>
-          uploadImageToCloudinary(
-            file,
-            `${productName.value}-${colorItem.color}`
-          )
-        )
-      );
-
-      return {
-        color: colorItem.color,
-        images: uploadedImages, // Images for each color
-      };
-    })
-  );
-
-  // Log geselecteerde kleuren (selectedColors.value) voor debugging
-  console.log("Selected Colors:", selectedColors.value);
-
-  // Controleer of selectedColors.value bestaat en gevuld is
-  const configurations =
-    selectedColors.value && selectedColors.value.length > 0
-      ? selectedColors.value
-          .map((selectedColorId) => {
-            // Find the configuration corresponding to the selected color
-            const selectedConfiguration = partnerConfigurations.value.find(
-              (config) =>
-                config.options.some(
-                  (option) => option.optionId === selectedColorId
-                )
-            );
-
-            // Ensure we find the configuration with the selected color
-            if (selectedConfiguration) {
-              return {
-                configurationId: selectedConfiguration.configurationId, // Use the correct configurationId
-                selectedOption: selectedColorId, // The selected color optionId
-              };
-            } else {
-              console.error(
-                `Configuration for color ${selectedColorId} not found.`
-              );
-              return null; // Handle cases where configuration is not found
-            }
-          })
-          .filter((config) => config !== null) // Remove null configurations
-      : [];
-
-  console.log("Configurations after mapping:", configurations); // Log de configuraties na de mapping
-
-  // Construct the product data with all the required fields
-  const productData = {
-    productCode: productCode.value,
-    productName: productName.value,
-    productPrice: productPrice.value,
-    productType: productType.value,
-    description: description.value,
-    brand: brand.value,
-    activeInactive: "active", // Set product status to "active"
-    partnerId: tokenPayload?.companyId || null,
-    configurations: configurations, // Add the correct configurations
-  };
-
   try {
-    console.log("Product Data to be sent:", productData); // Log de product data voor verzending
+    if (!productName.value || !productPrice.value) {
+      errorMessage.value = "Product name and price are required.";
+      return;
+    }
 
+    // Verwerk kleuren en hun afbeeldingen
+    const colorsWithImages = await Promise.all(
+      colorUploads.value.map(async (colorItem, index) => {
+        const uploadedImages = await Promise.all(
+          (colorItem.images || []).map((file) =>
+            uploadImageToCloudinary(file, `${productName.value}-${index}`)
+          )
+        );
+
+        return {
+          color: colorItem.color,
+          images: uploadedImages,
+        };
+      })
+    );
+
+    // Dynamisch configuraties verwerken
+    console.log(partnerConfigurations.value);
+    const configurations = partnerConfigurations.value.map((config) => {
+      let selectedOption = config.value; // Dit bevat de geselecteerde waarde
+      console.log(selectedOption);
+      if (config.fieldType === "color") {
+        console.log("selectedColor", selectedColors.value);
+        // Bij kleur haal je de geselecteerde kleuren en afbeeldingen
+        selectedOption = selectedColors.value.map((colorId) => {
+          const colorData = colorsWithImages.find(
+            (color) => color.color === colorId
+          );
+          return {
+            colorId,
+            images: colorData ? colorData.images : [],
+          };
+        });
+      }
+      return {
+        configurationId: config._id, // De configuratie-ID
+        fieldName: config.fieldName, // Naam van het veld
+        selectedOption,
+      };
+    });
+
+    // Product data samenstellen
+    const productData = {
+      productCode: productCode.value,
+      productName: productName.value,
+      productType: selectedType.value,
+      brand: brand.value,
+      description: description.value,
+      productPrice: productPrice.value,
+      activeInactive: "active",
+      partnerId,
+      configurations, // Toevoegen van dynamische configuraties
+    };
+
+    console.log("Product Data:", productData);
+
+    // API-aanroep om het product toe te voegen
     const response = await axios.post(`${baseURL}/products`, productData, {
       headers: {
         Authorization: `Bearer ${jwtToken}`,
@@ -386,6 +397,7 @@ const handleColorImageUpload = (event, index) => {
 };
 
 const toggleColorSelection = (option, fieldName) => {
+  console.log("selectedColor", selectedColors.value);
   const index = selectedColors.value.indexOf(option.optionId);
   if (index === -1) {
     // Voeg de kleur toe aan de selectie
@@ -410,6 +422,7 @@ const previewImages = (images) => {
 // Functie om de naam van de kleur op te halen aan de hand van de optionId
 const getColorNameById = (colorId) => {
   // Loop door partnerConfigurations om de juiste configuratie te vinden
+  console.log(partnerConfigurations.value);
   for (const partnerConfig of partnerConfigurations.value) {
     const colorOption = partnerConfig.options.find(
       (option) => option.optionId === colorId
