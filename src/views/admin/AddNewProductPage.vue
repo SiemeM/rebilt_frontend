@@ -558,6 +558,7 @@ const getColorNameById = (colorId) => {
                     <span
                       v-for="(colorId, index) in selectedColors"
                       :key="index"
+                      style="color: {{ index }}"
                     >
                       {{ getColorNameById(colorId) }}
                       <span v-if="index !== selectedColors.length - 1">, </span>
@@ -598,13 +599,13 @@ const getColorNameById = (colorId) => {
                 :key="colorId"
                 class="color-upload-section"
               >
-                <h3>
+                <p>
                   Upload images for:
                   {{
                     config.options.find((option) => option.optionId === colorId)
                       ?.name || "Unnamed Color"
                   }}
-                </h3>
+                </p>
 
                 <input
                   type="file"
@@ -674,7 +675,8 @@ const getColorNameById = (colorId) => {
   margin-bottom: 72px;
 }
 
-form {
+form,
+.color-dropdown {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -682,14 +684,9 @@ form {
   width: 100%;
 }
 
-form .row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-}
-
-form .column {
+form .row,
+form .column,
+.color-upload-section {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -770,6 +767,10 @@ button {
   align-items: center;
   cursor: pointer;
   width: 100%;
+}
+
+.dropdown-selected span {
+  color: var(--text-color);
 }
 
 .color-bullet {
