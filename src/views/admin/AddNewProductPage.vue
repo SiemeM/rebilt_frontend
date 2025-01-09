@@ -101,7 +101,6 @@ const fetchPartnerConfigurations = async () => {
   }
 
   try {
-    // Haal de partnerconfiguraties op
     const partnerResponse = await axios.get(
       `${baseURL}/partnerConfigurations`,
       {
@@ -111,7 +110,6 @@ const fetchPartnerConfigurations = async () => {
     );
 
     const partnerConfigs = partnerResponse.data?.data || [];
-    console.log("partnerConfigs", partnerConfigs);
 
     const configurationsResponse = await axios.get(
       `${baseURL}/configurations`,
@@ -121,13 +119,11 @@ const fetchPartnerConfigurations = async () => {
     );
 
     const configurations = configurationsResponse.data?.data || [];
-    console.log("configurations", configurations);
 
     partnerConfigurations.value = await Promise.all(
       partnerConfigs.map(async (partnerConfig) => {
-        // Zoek naar een overeenkomstige configuratie
         const matchingConfig = configurations.find(
-          (config) => config._id === partnerConfig?.configurationId?._id // Zorg voor veilige toegang
+          (config) => config._id === partnerConfig?.configurationId?._id
         );
 
         if (!matchingConfig) {
@@ -136,41 +132,31 @@ const fetchPartnerConfigurations = async () => {
           );
           return {
             ...partnerConfig,
-            options: [], // Geen opties beschikbaar
+            options: [],
             fieldName: "Unknown",
             fieldType: "Unknown",
             value: "",
           };
         }
 
-        console.log("Found matchingConfig:", matchingConfig);
-
-        // Extract optionIds en andere gerelateerde data
         const optionsData =
           partnerConfig.options?.map((option) => ({
             optionId: option.optionId,
             ...option,
           })) || [];
 
-        console.log("optionsData", optionsData);
-
-        // Haal de optie-namen op
         const options =
           optionsData.length > 0 ? await fetchOptionNames(optionsData) : [];
-
-        console.log("options", options);
 
         return {
           ...partnerConfig,
           fieldName: matchingConfig.fieldName,
           fieldType: matchingConfig.fieldType,
-          options, // Ingevulde opties met namen
+          options,
           value: "",
         };
       })
     );
-
-    console.log(partnerConfigurations.value);
   } catch (error) {
     console.error("Error fetching partner configurations:", error);
   }
@@ -218,63 +204,54 @@ const addProduct = async () => {
       return;
     }
 
-    // Verwerk kleuren en hun afbeeldingen
-    const colorsWithImages = await Promise.all(
-      colorUploads.value.map(async (colorItem, index) => {
-        const uploadedImages = await Promise.all(
-          (colorItem.images || []).map((file) =>
-            uploadImageToCloudinary(file, `${productName.value}-${index}`)
-          )
-        );
+    if (
+      !partnerConfigurations.value ||
+      partnerConfigurations.value.length === 0
+    ) {
+      errorMessage.value = "No configurations available.";
+      return;
+    }
 
-        return {
-          color: colorItem.color,
-          images: uploadedImages,
-        };
-      })
-    );
-
-    // Dynamisch configuraties verwerken
-    console.log(partnerConfigurations.value);
     const configurations = partnerConfigurations.value.map((config) => {
-      let selectedOption = config.value; // Dit bevat de geselecteerde waarde
-      console.log(selectedOption);
+      console.log(config);
+      let selectedOption = config.value;
+
       if (config.fieldType === "color") {
-        console.log("selectedColor", selectedColors.value);
-        // Bij kleur haal je de geselecteerde kleuren en afbeeldingen
-        selectedOption = selectedColors.value.map((colorId) => {
-          const colorData = colorsWithImages.find(
-            (color) => color.color === colorId
-          );
-          return {
-            colorId,
-            images: colorData ? colorData.images : [],
-          };
-        });
+        console.log(selectedColors.value);
+
+        // Handle selected colors correctly
+        selectedOption =
+          selectedColors.value.length > 0 ? selectedColors.value[0]._id : null;
+      } else if (selectedOption && typeof selectedOption === "object") {
+        selectedOption = selectedOption._id;
       }
+
+      if (!selectedOption) {
+        console.warn(
+          `No valid selectedOption found for configuration: ${config.fieldName}`
+        );
+      }
+
       return {
-        configurationId: config._id, // De configuratie-ID
-        fieldName: config.fieldName, // Naam van het veld
-        selectedOption,
+        configurationId: config.configurationId._id, // Ensure that _id is available
+        selectedOption, // Ensure that selectedOption is a valid ID
       };
     });
 
-    // Product data samenstellen
     const productData = {
       productCode: productCode.value,
       productName: productName.value,
-      productType: selectedType.value,
+      productType: selectedType.value || "sunglasses",
       brand: brand.value,
       description: description.value,
       productPrice: productPrice.value,
       activeInactive: "active",
       partnerId,
-      configurations, // Toevoegen van dynamische configuraties
+      configurations,
     };
 
-    console.log("Product Data:", productData);
+    console.log("Product data before POST request:", productData);
 
-    // API-aanroep om het product toe te voegen
     const response = await axios.post(`${baseURL}/products`, productData, {
       headers: {
         Authorization: `Bearer ${jwtToken}`,
@@ -347,7 +324,6 @@ const uploadImageToCloudinary = async (file, productName) => {
 
 const triggerFileInput = (index) => {
   const fileInput = document.getElementById(`images-${index}`);
-  console.log(fileInput); // Controleer of het bestandselement gevonden is
   if (fileInput) {
     fileInput.click();
   } else {
@@ -397,7 +373,7 @@ const handleColorImageUpload = (event, index) => {
 };
 
 const toggleColorSelection = (option, fieldName) => {
-  console.log("selectedColor", selectedColors.value);
+  console.log(selectedColors.value);
   const index = selectedColors.value.indexOf(option.optionId);
   if (index === -1) {
     // Voeg de kleur toe aan de selectie
@@ -422,7 +398,6 @@ const previewImages = (images) => {
 // Functie om de naam van de kleur op te halen aan de hand van de optionId
 const getColorNameById = (colorId) => {
   // Loop door partnerConfigurations om de juiste configuratie te vinden
-  console.log(partnerConfigurations.value);
   for (const partnerConfig of partnerConfigurations.value) {
     const colorOption = partnerConfig.options.find(
       (option) => option.optionId === colorId
