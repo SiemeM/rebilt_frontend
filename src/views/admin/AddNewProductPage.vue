@@ -410,7 +410,7 @@ const parseInputToArray = (input) => {
     .filter(Boolean);
 };
 
-const toggleColorSelection = (option) => {
+const toggleColorSelection = (option, fieldName) => {
   const index = selectedColors.value.indexOf(option.optionId);
   if (index === -1) {
     // Voeg de kleur toe aan de selectie
@@ -419,6 +419,9 @@ const toggleColorSelection = (option) => {
     // Verwijder de kleur uit de selectie
     selectedColors.value.splice(index, 1);
   }
+
+  // Sluit de dropdown na selectie
+  dropdownStates.value[fieldName] = false;
 };
 
 const previewImages = (images) => {
@@ -572,7 +575,7 @@ const getColorNameById = (colorId) => {
                     v-for="(option, index) in config.options"
                     :key="index"
                     class="dropdown-option"
-                    @click="toggleColorSelection(option)"
+                    @click="toggleColorSelection(option, config.fieldName)"
                   >
                     <!-- Checkbox voor het selecteren van kleuren -->
                     <input
