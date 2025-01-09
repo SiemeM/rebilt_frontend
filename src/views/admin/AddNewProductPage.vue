@@ -429,6 +429,20 @@ const previewImages = (images) => {
   return images.map((file) => URL.createObjectURL(file));
 };
 
+// Functie om de naam van de kleur op te halen aan de hand van de optionId
+const getColorNameById = (colorId) => {
+  // Loop door partnerConfigurations om de juiste configuratie te vinden
+  for (const partnerConfig of partnerConfigurations.value) {
+    const colorOption = partnerConfig.options.find(
+      (option) => option.optionId === colorId
+    );
+    if (colorOption) {
+      return colorOption.name; // Geef de naam van de kleur terug als gevonden
+    }
+  }
+  return "Unnamed Color"; // Geef "Unnamed Color" terug als geen match is gevonden
+};
+
 // Exporteer functies en variabelen voor gebruik in de template
 // onMounted(() => {
 //   addColor();
@@ -535,8 +549,21 @@ const previewImages = (images) => {
                   class="dropdown-selected"
                   @click="toggleDropdown(config.fieldName)"
                 >
-                  <p>Select colors</p>
+                  <!-- Toon de geselecteerde kleuren in de dropdown -->
+                  <p v-if="selectedColors.length > 0">
+                    Selected colors:
+                    <span
+                      v-for="(colorId, index) in selectedColors"
+                      :key="index"
+                    >
+                      {{ getColorNameById(colorId) }}
+                      <span v-if="index !== selectedColors.length - 1">, </span>
+                    </span>
+                  </p>
+
+                  <p v-else>Select colors</p>
                 </div>
+
                 <div
                   v-if="dropdownStates[config.fieldName]"
                   class="dropdown-options"
@@ -555,9 +582,7 @@ const previewImages = (images) => {
                     />
                     <span
                       class="color-bullet"
-                      :style="{
-                        backgroundColor: option.name || 'transparent',
-                      }"
+                      :style="{ backgroundColor: option.name || 'transparent' }"
                     ></span>
                     <p>{{ option.name || "Unnamed Color" }}</p>
                   </div>
