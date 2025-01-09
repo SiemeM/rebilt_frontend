@@ -18,6 +18,10 @@ const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
+const productTypes = ref([]); // Om de producttypes op te slaan
+const filteredProducts = ref([]);
+const selectedType = ref(""); // Om het geselecteerde producttype bij te houden
+
 // Functie om te controleren of de gebruiker is ingelogd
 const checkToken = () => {
   if (!jwtToken) {
@@ -99,6 +103,36 @@ const fetchOptionNames = async (optionsData) => {
 };
 
 const selectedOption = ref(null); // Correcte initialisatie van selectedOption
+
+const fetchProducts = async () => {
+  try {
+    const response = await axios.get(`${baseURL}/products`, {
+      params: { partnerId },
+    });
+
+    const products = response.data?.data?.products || [];
+
+    // Haal de unieke producttypes op
+    const types = [...new Set(products.map((product) => product.productType))];
+
+    productTypes.value = types; // Sla de unieke producttypes op
+    filteredProducts.value = products; // Begin met alle producten
+  } catch (error) {
+    console.error("Error fetching products:", error);
+  }
+};
+
+// Functie om producten te filteren op basis van het geselecteerde type
+const filterProductsByType = () => {
+  if (selectedType.value) {
+    filteredProducts.value = filteredProducts.value.filter(
+      (product) => product.productType === selectedType.value
+    );
+  } else {
+    // Als er geen type is geselecteerd, toon dan alle producten
+    fetchProducts();
+  }
+};
 
 const fetchProductData = async () => {
   try {
@@ -447,6 +481,7 @@ onMounted(() => {
   checkToken();
   fetchPartnerData(); // Fetch partner data
   fetchProductData(); // Fetch product data
+  fetchProducts(); // Haal producten op
   restoreSelectedOption(); // Restore selected options
 });
 </script>
@@ -471,12 +506,27 @@ onMounted(() => {
       <div class="row">
         <div class="column">
           <label for="productType">Type Of Product:</label>
-          <select v-model="productType" id="productType">
-            <option value="sneaker">Sneaker</option>
-            <option value="boot">Boot</option>
-            <option value="sandals">Sandals</option>
-            <option value="formal">Formal</option>
-            <option value="slippers">Slippers</option>
+          <select
+            v-model="productType"
+            id="productType"
+            @change="filterProductsByType"
+          >
+            <!-- Controleer of productData bestaat en toon de placeholder indien nodig -->
+            <option value="" disabled selected>
+              {{
+                productData && productData.productType
+                  ? productData.productType
+                  : "Select Product Type"
+              }}
+            </option>
+
+            <option
+              v-for="(type, index) in productTypes"
+              :key="index"
+              :value="type"
+            >
+              {{ type }}
+            </option>
           </select>
         </div>
         <div class="column">
