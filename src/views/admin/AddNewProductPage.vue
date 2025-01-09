@@ -17,7 +17,7 @@ const baseURL = isProduction
   : "http://localhost:3000/api/v1";
 
 const filteredProducts = ref([]);
-
+const selectedColors = ref([]);
 // Functie om te controleren of de gebruiker is ingelogd
 const checkToken = () => {
   if (!jwtToken) {
@@ -215,63 +215,30 @@ const checkProductCodeUniqueness = async (productCode) => {
 
 // In the addProduct method, call this function before proceeding
 const addProduct = async () => {
-  // Validate required fields
-  if (
-    !productCode.value ||
-    !productName.value ||
-    !productPrice.value ||
-    !description.value ||
-    !brand.value
-  ) {
-    errorMessage.value = "Please fill in all required fields.";
+  // Controleer of er minstens één kleur is
+  if (colorUploads.value.length === 0) {
+    errorMessage.value = "Please add at least one color.";
     return;
   }
 
-  // Check for unique product code
-  const isProductCodeUnique = await checkProductCodeUniqueness(
-    productCode.value
-  );
-  if (!isProductCodeUnique) {
-    return; // Stop the function if the product code is not unique
-  }
-
-  // Prepare selected configurations and validate selectedOption
-  const selectedConfigurations = partnerConfigurations.value
-    .map((config) => {
-      const configurationId = config.configurationId;
-
-      // Ensure the configurationId is a valid ObjectId
-      if (!mongoose.Types.ObjectId.isValid(configurationId)) {
-        console.error("Invalid ObjectId:", configurationId);
-        errorMessage.value = `Invalid configurationId: ${configurationId}`;
-        return null;
-      }
-
-      // Ensure that selectedOption is a valid ObjectId or set to null if empty
-      const selectedOption = config.value; // Get the selectedOption (optionId) from selectedConfig
-
-      if (!selectedOption || !mongoose.Types.ObjectId.isValid(selectedOption)) {
-        console.warn(
-          `Invalid or missing selectedOption for ${config.fieldName}`
-        );
-        errorMessage.value = `Invalid or missing selectedOption for ${config.fieldName}`;
-        return null; // Do not include invalid configurations
-      }
+  // Verwerk kleuren en hun afbeeldingen
+  const colorsWithImages = await Promise.all(
+    colorUploads.value.map(async (colorItem) => {
+      const uploadedImages = await Promise.all(
+        colorItem.images.map((file) =>
+          uploadImageToCloudinary(
+            file,
+            `${productName.value}-${colorItem.color}`
+          )
+        )
+      );
 
       return {
-        configurationId: configurationId,
-        selectedOption: selectedOption, // Now this is the valid ObjectId (optionId)
+        color: colorItem.color,
+        images: uploadedImages,
       };
     })
-    .filter((config) => config !== null); // Filter out invalid configurations
-
-  // Check if configurations are empty (e.g., missing options)
-  if (selectedConfigurations.length === 0) {
-    errorMessage.value = "No valid configurations selected.";
-    return;
-  }
-
-  const partnerId = tokenPayload?.companyId || null;
+  );
 
   const productData = {
     productCode: productCode.value,
@@ -280,15 +247,8 @@ const addProduct = async () => {
     productType: productType.value,
     description: description.value,
     brand: brand.value,
-    images:
-      images.value.length > 0
-        ? await Promise.all(
-            images.value.map((file) =>
-              uploadImageToCloudinary(file, productName.value)
-            )
-          )
-        : [],
-    partnerId: partnerId, // Use the extracted userCompanyId here
+    colors: colorsWithImages,
+    partnerId: tokenPayload?.companyId || null,
     configurations: selectedConfigurations,
   };
 
@@ -303,23 +263,10 @@ const addProduct = async () => {
     if (response.status === 201) {
       router.push("/admin");
     } else {
-      console.error("Failed to add product. Status:", response.status);
       errorMessage.value = "Failed to add product.";
     }
   } catch (error) {
-    console.error("Error adding product:", error);
-    if (error.response) {
-      console.error("Server response error:", error.response.data);
-      errorMessage.value = `Error: ${
-        error.response.data.message || "Unknown error"
-      }`;
-    } else if (error.request) {
-      console.error("No response received:", error.request);
-      errorMessage.value = "No response from server.";
-    } else {
-      console.error("Error during request:", error.message);
-      errorMessage.value = "Error during request.";
-    }
+    errorMessage.value = error.response?.data?.message || "Unknown error.";
   }
 };
 
@@ -379,50 +326,43 @@ const uploadImageToCloudinary = async (file, productName) => {
 };
 
 // Functie om de verborgen file input te triggeren
-const triggerFileInput = () => {
-  document.getElementById("images").click();
-};
-
-const previewImages = ref([]);
-
-const handleImageUpload = (event) => {
-  if (event.target.files && event.target.files.length > 0) {
-    const newImages = Array.from(event.target.files).filter(
-      (file) => file instanceof File
-    );
-
-    // Voeg de nieuwe afbeeldingen toe
-    images.value.push(...newImages);
-
-    // Voeg tijdelijke URLs toe voor preview
-    previewImages.value.push(
-      ...newImages.map((file) => URL.createObjectURL(file))
-    );
+const triggerFileInput = (index) => {
+  const fileInput = document.getElementById(`images-${index}`);
+  if (fileInput) {
+    fileInput.click();
   }
 };
 
-// Functie om kleurvelden en maatopties als arrays te verwerken
-const parseInputToArray = (input) => {
-  return input
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
+// Meerdere kleuren beheren
+const colorUploads = ref([]); // Array om kleuren en bijbehorende afbeeldingen bij te houden
+
+// Functie om een kleur toe te voegen
+const addColor = () => {
+  const newColorObject = { colorId: "", images: [] };
+  colorUploads.value.push(newColorObject);
 };
 
-const dropdownOpen = ref(false);
+// Functie om een kleur te verwijderen
+const removeColor = (index) => {
+  colorUploads.value.splice(index, 1);
+};
+
+// Dropdown states beheren
 const dropdownStates = ref({});
 
+// Functie om een dropdown te toggelen
 const toggleDropdown = (fieldName) => {
-  // Sluit alle dropdowns door de status op false te zetten
+  // Sluit alle andere dropdowns
   for (const key in dropdownStates.value) {
     if (key !== fieldName) {
       dropdownStates.value[key] = false;
     }
   }
-  // Toggle de status van de geselecteerde dropdown
+  // Toggle de huidige dropdown
   dropdownStates.value[fieldName] = !dropdownStates.value[fieldName];
 };
 
+// Functie om een kleur uit de dropdown te selecteren
 const selectColor = (option, fieldName) => {
   // Find the configuration object based on the fieldName (e.g., "Kleur")
   const selectedConfig = partnerConfigurations.value.find(
@@ -439,6 +379,67 @@ const selectColor = (option, fieldName) => {
   // Close the dropdown after selection
   dropdownStates.value[fieldName] = false;
 };
+
+// Afbeeldingen uploaden per kleur
+const handleColorImageUpload = (event, index) => {
+  if (!event || !event.target || !event.target.files) {
+    console.warn(
+      "Geen geldig event object gevonden bij handleColorImageUpload"
+    );
+    return;
+  }
+
+  const files = Array.from(event.target.files).filter(
+    (file) => file instanceof File
+  );
+
+  if (files.length > 0) {
+    colorUploads.value[index].images.push(...files);
+  }
+};
+
+// Voorbeeld-URLs bijhouden voor uploads
+const previewColorImages = (images) =>
+  images.map((file) => URL.createObjectURL(file));
+
+// Functie om kleuren als array te verwerken (indien nodig)
+const parseInputToArray = (input) => {
+  return input
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const toggleColorSelection = (option) => {
+  const index = selectedColors.value.indexOf(option.optionId);
+  if (index === -1) {
+    // Voeg de kleur toe aan de selectie
+    selectedColors.value.push(option.optionId);
+  } else {
+    // Verwijder de kleur uit de selectie
+    selectedColors.value.splice(index, 1);
+  }
+};
+
+const previewImages = (images) => {
+  // Zorg ervoor dat 'images' een array is
+  if (!Array.isArray(images)) {
+    return []; // Return een lege array als 'images' niet gedefinieerd is
+  }
+  return images.map((file) => URL.createObjectURL(file));
+};
+
+// Exporteer functies en variabelen voor gebruik in de template
+// onMounted(() => {
+//   addColor();
+//   removeColor();
+//   toggleDropdown();
+//   selectColor();
+//   handleColorImageUpload();
+//   previewColorImages();
+//   dropdownStates();
+//   triggerFileInput();
+// });
 </script>
 
 <template>
@@ -528,33 +529,14 @@ const selectColor = (option, fieldName) => {
           <!-- Color field -->
           <template v-else-if="config.fieldType === 'color'">
             <div class="color-dropdown">
+              <!-- Dropdown opties voor kleuren -->
               <div class="dropdown">
-                <!-- Geselecteerde optie -->
                 <div
                   class="dropdown-selected"
                   @click="toggleDropdown(config.fieldName)"
                 >
-                  <!-- Toon de geselecteerde kleur -->
-                  <span
-                    class="color-bullet"
-                    :style="{
-                      backgroundColor:
-                        config.options.find(
-                          (option) => option.optionId === config.value
-                        )?.backgroundColor || 'transparent',
-                    }"
-                  ></span>
-                  <!-- Toon de naam van de geselecteerde kleur -->
-                  <p>
-                    {{
-                      config.options.find(
-                        (option) => option.optionId === config.value
-                      )?.name || "Select color"
-                    }}
-                  </p>
+                  <p>Select colors</p>
                 </div>
-
-                <!-- Dropdown opties -->
                 <div
                   v-if="dropdownStates[config.fieldName]"
                   class="dropdown-options"
@@ -563,58 +545,89 @@ const selectColor = (option, fieldName) => {
                     v-for="(option, index) in config.options"
                     :key="index"
                     class="dropdown-option"
-                    @click="selectColor(option, config.fieldName)"
+                    @click="toggleColorSelection(option)"
                   >
-                    <!-- Kleurbol voor elke optie -->
+                    <!-- Checkbox voor het selecteren van kleuren -->
+                    <input
+                      type="checkbox"
+                      :value="option.optionId"
+                      v-model="selectedColors"
+                    />
                     <span
                       class="color-bullet"
                       :style="{
-                        backgroundColor:
-                          option.backgroundColor || 'transparent',
+                        backgroundColor: option.name || 'transparent',
                       }"
                     ></span>
-                    <!-- Naam van de optie -->
                     <p>{{ option.name || "Unnamed Color" }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sectie voor afbeeldingsuploads per geselecteerde kleur -->
+              <div
+                v-for="(colorId, index) in selectedColors"
+                :key="colorId"
+                class="color-upload-section"
+              >
+                <h3>
+                  Upload images for:
+                  {{
+                    config.options.find((option) => option.optionId === colorId)
+                      ?.name || "Unnamed Color"
+                  }}
+                </h3>
+
+                <input
+                  type="file"
+                  :id="'images-' + colorId"
+                  multiple
+                  style="display: none"
+                  @change="(e) => handleColorImageUpload(e, index)"
+                />
+
+                <div
+                  class="uploadImage"
+                  @click="() => triggerFileInput(index)"
+                  :style="{
+                    flexDirection:
+                      colorUploads[index]?.images?.length > 0
+                        ? 'row'
+                        : 'column',
+                    flexWrap:
+                      colorUploads[index]?.images?.length > 0
+                        ? 'wrap'
+                        : 'no-wrap',
+                    justifyContent:
+                      colorUploads[index]?.images?.length > 0
+                        ? 'flex-start'
+                        : 'center',
+                  }"
+                >
+                  <div v-if="!colorUploads[index]?.images?.length" class="text">
+                    <img
+                      src="../../assets/icons/image-add.svg"
+                      alt="image-add"
+                    />
+                    <p>Afbeeldingen, video's of 3D-modellen toevoegen</p>
+                  </div>
+
+                  <div
+                    v-for="(previewUrl, imgIndex) in previewImages(
+                      colorUploads[index]?.images
+                    )"
+                    :key="imgIndex"
+                  >
+                    <img
+                      :src="previewUrl"
+                      alt="Uploaded image preview"
+                      width="100"
+                    />
                   </div>
                 </div>
               </div>
             </div>
           </template>
-        </div>
-      </div>
-
-      <div class="row">
-        <div class="column">
-          <label for="images">Upload Images:</label>
-          <!-- Verborgen file input -->
-          <input
-            type="file"
-            id="images"
-            multiple
-            style="display: none"
-            @change="handleImageUpload"
-          />
-
-          <!-- Klikbare uploadImage-div met dynamische stijl -->
-          <div
-            class="uploadImage"
-            @click="triggerFileInput"
-            :style="{
-              flexDirection: images.length > 0 ? 'row' : 'column',
-              flexWrap: images.length > 0 ? 'wrap' : 'no-wrap',
-              justifyContent: images.length > 0 ? 'flex-start' : 'center',
-            }"
-          >
-            <!-- Toon de afbeelding en tekst alleen als er geen afbeeldingen zijn -->
-            <div v-if="images.length === 0" class="text">
-              <img src="../../assets/icons/image-add.svg" alt="image-add" />
-              <p>Afbeeldingen, video's of 3D-modellen toevoegen</p>
-            </div>
-
-            <div v-for="(previewUrl, index) in previewImages" :key="index">
-              <img :src="previewUrl" alt="Uploaded image preview" width="100" />
-            </div>
-          </div>
         </div>
       </div>
 
@@ -735,7 +748,6 @@ button {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  margin-right: 8px;
   background-color: transparent;
 }
 
@@ -755,10 +767,16 @@ button {
 
 .dropdown-option {
   display: flex;
+  flex-direction: row;
   align-items: center;
+  gap: 0.5rem;
   padding: 8px;
   color: white;
   cursor: pointer;
+}
+
+.dropdown-option input {
+  width: auto;
 }
 
 .dropdown-option:hover {
