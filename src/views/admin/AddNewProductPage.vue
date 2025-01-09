@@ -18,6 +18,8 @@ const baseURL = isProduction
 
 const filteredProducts = ref([]);
 const selectedColors = ref([]);
+const selectedConfigurations = ref([]);
+
 // Functie om te controleren of de gebruiker is ingelogd
 const checkToken = () => {
   if (!jwtToken) {
@@ -186,7 +188,6 @@ const fetchOptionNames = async (optionsData) => {
   }
 };
 
-// In the addProduct method, call this function before proceeding
 const addProduct = async () => {
   // Controleer of er minstens één kleur is
   if (colorUploads.value.length === 0) {
@@ -208,11 +209,46 @@ const addProduct = async () => {
 
       return {
         color: colorItem.color,
-        images: uploadedImages,
+        images: uploadedImages, // Images for each color
       };
     })
   );
 
+  // Log geselecteerde kleuren (selectedColors.value) voor debugging
+  console.log("Selected Colors:", selectedColors.value);
+
+  // Controleer of selectedColors.value bestaat en gevuld is
+  const configurations =
+    selectedColors.value && selectedColors.value.length > 0
+      ? selectedColors.value
+          .map((selectedColorId) => {
+            // Find the configuration corresponding to the selected color
+            const selectedConfiguration = partnerConfigurations.value.find(
+              (config) =>
+                config.options.some(
+                  (option) => option.optionId === selectedColorId
+                )
+            );
+
+            // Ensure we find the configuration with the selected color
+            if (selectedConfiguration) {
+              return {
+                configurationId: selectedConfiguration.configurationId, // Use the correct configurationId
+                selectedOption: selectedColorId, // The selected color optionId
+              };
+            } else {
+              console.error(
+                `Configuration for color ${selectedColorId} not found.`
+              );
+              return null; // Handle cases where configuration is not found
+            }
+          })
+          .filter((config) => config !== null) // Remove null configurations
+      : [];
+
+  console.log("Configurations after mapping:", configurations); // Log de configuraties na de mapping
+
+  // Construct the product data with all the required fields
   const productData = {
     productCode: productCode.value,
     productName: productName.value,
@@ -220,12 +256,14 @@ const addProduct = async () => {
     productType: productType.value,
     description: description.value,
     brand: brand.value,
-    colors: colorsWithImages,
+    activeInactive: "active", // Set product status to "active"
     partnerId: tokenPayload?.companyId || null,
-    configurations: selectedConfigurations,
+    configurations: configurations, // Add the correct configurations
   };
 
   try {
+    console.log("Product Data to be sent:", productData); // Log de product data voor verzending
+
     const response = await axios.post(`${baseURL}/products`, productData, {
       headers: {
         Authorization: `Bearer ${jwtToken}`,
@@ -239,6 +277,7 @@ const addProduct = async () => {
       errorMessage.value = "Failed to add product.";
     }
   } catch (error) {
+    console.error("Error adding product:", error);
     errorMessage.value = error.response?.data?.message || "Unknown error.";
   }
 };
