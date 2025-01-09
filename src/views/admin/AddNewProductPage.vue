@@ -16,6 +16,8 @@ const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
+const filteredProducts = ref([]);
+
 // Functie om te controleren of de gebruiker is ingelogd
 const checkToken = () => {
   if (!jwtToken) {
@@ -27,6 +29,8 @@ const checkToken = () => {
 const partnerName = ref("");
 const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1])); // Decode token
 const partnerId = tokenPayload.companyId;
+const productTypes = ref([]); // Om de producttypes op te slaan
+const selectedType = ref(""); // Om het geselecteerde producttype bij te houden
 
 // Functie om partnergegevens op te halen en partnernaam dynamisch in te stellen
 const fetchPartnerData = async () => {
@@ -55,6 +59,36 @@ const fetchPartnerData = async () => {
   } catch (error) {
     console.error("Error fetching partner data:", error.response || error);
     partnerName.value = "Default";
+  }
+};
+
+const fetchProducts = async () => {
+  try {
+    const response = await axios.get(`${baseURL}/products`, {
+      params: { partnerId }, // Voeg het partnerId toe aan de queryparameters
+    });
+
+    const products = response.data?.data?.products || [];
+
+    // Haal de unieke producttypes op
+    const types = [...new Set(products.map((product) => product.productType))];
+
+    productTypes.value = types; // Sla de unieke producttypes op
+    filteredProducts.value = products; // Begin met alle producten
+  } catch (error) {
+    console.error("Error fetching products:", error);
+  }
+};
+
+// Functie om producten te filteren op basis van het geselecteerde type
+const filterProductsByType = () => {
+  if (selectedType.value) {
+    filteredProducts.value = filteredProducts.value.filter(
+      (product) => product.productType === selectedType.value
+    );
+  } else {
+    // Als er geen type is geselecteerd, toon dan alle producten
+    fetchProducts();
   }
 };
 
@@ -293,6 +327,7 @@ const addProduct = async () => {
 onMounted(() => {
   checkToken();
   fetchPartnerData(); // Haal partnergegevens op zodra de component gemonteerd is
+  fetchProducts();
 });
 
 // Product-informatie refs
@@ -426,12 +461,19 @@ const selectColor = (option, fieldName) => {
       <div class="row">
         <div class="column">
           <label for="productType">Type Of Product:</label>
-          <select v-model="productType" id="productType">
-            <option value="sneaker">Sneaker</option>
-            <option value="boot">Boot</option>
-            <option value="sandals">Sandals</option>
-            <option value="formal">Formal</option>
-            <option value="slippers">Slippers</option>
+          <select
+            v-model="selectedType"
+            id="productType"
+            @change="filterProductsByType"
+          >
+            <option value="">Select Product Type</option>
+            <option
+              v-for="(type, index) in productTypes"
+              :key="index"
+              :value="type"
+            >
+              {{ type }}
+            </option>
           </select>
         </div>
         <div class="column">
