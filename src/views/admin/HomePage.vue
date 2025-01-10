@@ -425,6 +425,8 @@ onMounted(async () => {
   data.value.forEach((product) => {
     fetchOptionNames(product); // Pass the product to fetch options
   });
+
+  console.log(data.value);
 });
 </script>
 
@@ -489,9 +491,12 @@ onMounted(async () => {
             class="image"
             :style="{
               backgroundImage:
-                'url(http://localhost:5173/src/assets/images/Odette_lunettes.webp)',
+                'url(' +
+                product.configurations[0].selectedOptions[0].images[0] +
+                ')',
             }"
           ></div>
+
           <div class="elements">
             <div class="text">
               <p class="name">{{ product.productName }}</p>
