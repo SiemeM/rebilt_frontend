@@ -468,82 +468,47 @@ async function fetchProductData(productCode) {
 
     const result = await response.json();
     const product = result.data.product;
-    productName.value = result.data.product.productName;
+    productName.value = product.productName;
 
-    // Haal en verrijk configuraties voor dit product
+    // Haal de configuraties voor dit product op
     const configurations = product.configurations || []; // Default to an empty array if configurations is missing
 
-    const enrichedConfigurations = await Promise.all(
-      configurations.map(async (config) => {
-        let selectedConfigId = config.configurationId;
-        await loadOptionsForConfig(selectedConfigId._id);
+    // Collect images from selectedOptions[0].images[0] (adjusted path)
+    const configImages = configurations.flatMap((config) => {
+      // Check if selectedOptions exist and if they have images
+      const selectedImages = config.selectedOptions?.[0]?.images || [];
+      return selectedImages.map((img) => img); // Collect all image URLs from the selected options
+    });
 
-        if (typeof selectedConfigId === "object") {
-          selectedConfigId = selectedConfigId._id;
-        }
-
-        const configUrl = `${baseURL}/configurations/${selectedConfigId}`;
-
-        try {
-          const configResponse = await fetch(configUrl, {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
-
-          if (!configResponse.ok) {
-            throw new Error(
-              `Configuration fetch error! Status: ${configResponse.status}`
-            );
-          }
-
-          const configResult = await configResponse.json();
-          const options = configResult.data.options || [];
-
-          // Collect images from the options
-          const configImages = options.flatMap(
-            (option) => option.images?.map((img) => img.url) || []
-          );
-
-          selectedImage.value = configImages[0];
-
-          return {
-            ...config,
-            images: configImages,
-            options, // Include options in the enriched configuration
-          };
-        } catch (err) {
-          console.error(
-            `Error fetching configuration for ID ${selectedConfigId}:`,
-            err.message
-          );
-          return { ...config, images: [], options: [] };
-        }
-      })
-    );
-
-    const configImages = enrichedConfigurations.flatMap(
-      (config) => config.images
-    );
-
+    // Combine product images and configuration images
     productData.value = {
       productName: product.productName,
       productCode: product.productCode,
       productPrice: product.productPrice,
-      images: [
-        ...(product.images || []).map((img) => img.url),
-        ...configImages,
-      ],
-      configurations: enrichedConfigurations, // Add enriched configurations
+      images: configImages, // All images from selectedOptions[0].images
+      configurations, // Add configurations to the product data
     };
 
+    // Log to verify images
+    console.log("All images combined:", productData.value.images);
+
     // Stel de eerste configuratie af met de eerste 2 afbeeldingen van de optie
-    const selectedOption = enrichedConfigurations[0]?.options[0] || {};
-    const selectedOptionImages = selectedOption.images?.slice(0, 2) || [];
-    productImages.value = selectedOptionImages.map((img) => img.url);
+    const selectedOptionImages = configImages.slice(0, 2); // Select first 2 images
+
+    // Log selected option images
+    console.log("Selected option images:", selectedOptionImages);
+
+    // Update the image array
+    productImages.value = selectedOptionImages.map((img) => img);
+
+    // Set the first image as the selected image
+    if (selectedOptionImages.length > 0) {
+      selectedImage.value = selectedOptionImages[0];
+    }
+
     const partnerId = product.partnerId;
     const productId = product._id;
+
     if (partnerId) {
       await fetchPartnerName(partnerId);
       await fetchPartnerPackage(partnerId);
@@ -551,6 +516,7 @@ async function fetchProductData(productCode) {
       await fetchLogoUrl(partnerId);
       await fetchPartnerConfigurations(partnerId, product);
     }
+
     error.value = null;
   } catch (err) {
     console.error("Error fetching product data:", err.message);
