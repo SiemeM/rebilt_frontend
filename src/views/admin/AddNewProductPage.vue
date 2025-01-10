@@ -204,40 +204,54 @@ const addProduct = async () => {
       return;
     }
 
-    if (
-      !partnerConfigurations.value ||
-      partnerConfigurations.value.length === 0
-    ) {
-      errorMessage.value = "No configurations available.";
-      return;
-    }
-
-    const configurations = partnerConfigurations.value.map((config) => {
-      console.log(config);
-      let selectedOption = config.value;
-
-      if (config.fieldType === "color") {
-        console.log(selectedColors.value);
-
-        // Handle selected colors correctly
-        selectedOption =
-          selectedColors.value.length > 0 ? selectedColors.value[0]._id : null;
-      } else if (selectedOption && typeof selectedOption === "object") {
-        selectedOption = selectedOption._id;
-      }
-
-      if (!selectedOption) {
-        console.warn(
-          `No valid selectedOption found for configuration: ${config.fieldName}`
+    // Verwerk de kleuren en hun afbeeldingen
+    console.log("Processing colors...");
+    const colorsWithImages = await Promise.all(
+      selectedColors.value.map(async (colorItem, index) => {
+        console.log("Processing color:", colorItem);
+        const uploadedImages = await Promise.all(
+          (colorUploads.value[index]?.images || []).map((file) =>
+            uploadImageToCloudinary(file, `${productName.value}-${index}`)
+          )
         );
-      }
+        console.log("Uploaded images for color:", uploadedImages);
+        return {
+          color: colorItem,
+          images: uploadedImages,
+        };
+      })
+    );
+    console.log("Colors with images:", colorsWithImages);
 
+    // Configuraties verwerken
+    const configurations = partnerConfigurations.value.map((config) => {
+      const selectedOptions = [];
+      console.log("Processing configuration:", config);
+      if (config.fieldType === "color" && selectedColors.value.length > 0) {
+        selectedColors.value.forEach((selectedColor) => {
+          const selectedOptionId = selectedColor._id;
+          const images =
+            colorsWithImages.find(
+              (color) => color.color._id === selectedColor._id
+            )?.images || [];
+          console.log("Selected color and images:", selectedColor, images);
+
+          selectedOptions.push({
+            optionId: selectedOptionId,
+            images,
+            _id: `${selectedOptionId}-${Date.now()}`,
+          });
+        });
+      }
+      console.log("Selected options for configuration:", selectedOptions);
       return {
-        configurationId: config.configurationId._id, // Ensure that _id is available
-        selectedOption, // Ensure that selectedOption is a valid ID
+        configurationId: config.configurationId._id,
+        selectedOptions,
       };
     });
+    console.log("Configurations after processing:", configurations);
 
+    // Het productdata object opstellen
     const productData = {
       productCode: productCode.value,
       productName: productName.value,
@@ -249,15 +263,16 @@ const addProduct = async () => {
       partnerId,
       configurations,
     };
+    console.log("Final product data before POST request:", productData);
 
-    console.log("Product data before POST request:", productData);
-
+    // Verstuur het product naar de API
     const response = await axios.post(`${baseURL}/products`, productData, {
       headers: {
         Authorization: `Bearer ${jwtToken}`,
         "Content-Type": "application/json",
       },
     });
+    console.log("Server response:", response);
 
     if (response.status === 201) {
       router.push("/admin");
@@ -266,6 +281,12 @@ const addProduct = async () => {
     }
   } catch (error) {
     console.error("Error adding product:", error);
+    if (error.response) {
+      console.error("Response data:", error.response.data);
+      console.error("Response status:", error.response.status);
+    } else {
+      console.error("Error message:", error.message);
+    }
     errorMessage.value = error.response?.data?.message || "Unknown error.";
   }
 };
