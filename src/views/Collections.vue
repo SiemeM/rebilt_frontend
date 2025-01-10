@@ -219,9 +219,17 @@ onMounted(() => {
         >
           <div class="product-image-container">
             <div
-              v-if="product.images?.length > 0"
+              v-if="
+                product.configurations?.length > 0 &&
+                product.configurations[0].selectedOptions?.length > 0
+              "
               class="product-image"
-              :style="{ backgroundImage: 'url(' + product.images[0] + ')' }"
+              :style="{
+                backgroundImage:
+                  'url(' +
+                  product.configurations[0].selectedOptions[0].images[0] +
+                  ')',
+              }"
             ></div>
             <div v-else class="no-image-message">
               Geen afbeelding beschikbaar
