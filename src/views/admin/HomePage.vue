@@ -141,11 +141,19 @@ const fetchData = async () => {
     );
 
     // Bereken het aantal varianten voor elk product
-    data.value.forEach(async (product) => {
+    // Bereken het aantal varianten op basis van selectedOptions lengte
+    data.value.forEach((product) => {
       if (product.configurations && Array.isArray(product.configurations)) {
-        // Aantal varianten (opties) berekenen per product
-        const optionsCount = await fetchOptionNames(product);
-        product.variantsCount = optionsCount; // Sla het aantal varianten op
+        // Aantal varianten (op basis van geselecteerde opties)
+        product.variantsCount = product.configurations.reduce(
+          (count, config) => {
+            return (
+              count +
+              (config.selectedOptions ? config.selectedOptions.length : 0)
+            );
+          },
+          0
+        );
       } else {
         product.variantsCount = 0; // Geen varianten
       }
@@ -209,8 +217,6 @@ const fetchPartnerConfigurations = async () => {
         partnerConfig.fieldName = matchingConfig.fieldName; // Voeg het fieldName toe
       }
     });
-
-    console.log(partnerConfigurations.value);
   } catch (error) {
     console.error("Error fetching partner configurations:", error);
   }
@@ -363,19 +369,12 @@ const generateSignature = (timestamp, publicId) => {
 const optionNames = ref({});
 
 async function fetchOptionNames(product) {
-  console.log(product);
-
   if (!product || !product.configurations) {
     console.warn("Product or configurations missing", product);
     return 0; // Return 0 if no configurations are available
   }
 
   const customConfigs = product.configurations;
-
-  if (!Array.isArray(customConfigs) || customConfigs.length === 0) {
-    console.log("No custom configurations available for this product", product);
-    return 0; // Return 0 if no custom configurations available
-  }
 
   let totalOptionsCount = 0; // To accumulate the total number of options
 
@@ -425,8 +424,6 @@ onMounted(async () => {
   data.value.forEach((product) => {
     fetchOptionNames(product); // Pass the product to fetch options
   });
-
-  console.log(data.value);
 });
 </script>
 
@@ -501,8 +498,10 @@ onMounted(async () => {
             <div class="text">
               <p class="name">{{ product.productName }}</p>
               <p>
-                {{ product.variantsCount }} variant{{
-                  product.variantsCount > 1 ? "s" : ""
+                {{ product.configurations[0].selectedOptions.length }} variant{{
+                  product.configurations[0].selectedOptions.length > 1
+                    ? "s"
+                    : ""
                 }}
               </p>
               <!-- Weergeven van het aantal varianten -->
