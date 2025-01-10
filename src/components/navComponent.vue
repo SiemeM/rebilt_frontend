@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, computed, onMounted, inject } from "vue";
+import { reactive, ref, computed, onMounted, inject } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 
@@ -135,6 +135,17 @@ const profileImage = computed(() => {
     new URL("../assets/images/Odette_lunettes.webp", import.meta.url).href
   );
 });
+
+// Reactieve variabele om bij te houden welk label moet worden weergegeven
+const hoveredLabel = ref("");
+
+function showLabel(label) {
+  hoveredLabel.value = label;
+}
+
+function hideLabel() {
+  hoveredLabel.value = "";
+}
 </script>
 
 <template>
@@ -144,50 +155,82 @@ const profileImage = computed(() => {
       to="/admin"
       exact-active-class="active"
     >
-      <img
-        :src="getActiveIcon('products', '../assets/icons/tag.svg')"
-        alt="icon"
-      />
-      <p>Products</p>
+      <div
+        class="menu-item"
+        @mouseover="showLabel('Products')"
+        @mouseleave="hideLabel"
+      >
+        <img
+          :src="getActiveIcon('products', '../assets/icons/tag.svg')"
+          alt="icon"
+        />
+        <p>Products</p>
+        <span class="label" v-show="hoveredLabel === 'Products'">Products</span>
+      </div>
     </router-link>
     <router-link
       v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
       to="/admin/orders"
       exact-active-class="active"
     >
-      <img
-        :src="getActiveIcon('orders', '../assets/icons/inbox.svg')"
-        alt="icon"
-      />
-      <p>Orders</p>
+      <div
+        class="menu-item"
+        @mouseover="showLabel('Orders')"
+        @mouseleave="hideLabel"
+      >
+        <img
+          :src="getActiveIcon('orders', '../assets/icons/inbox.svg')"
+          alt="icon"
+        />
+        <p>Orders</p>
+        <span class="label" v-show="hoveredLabel === 'Orders'">Orders</span>
+      </div>
     </router-link>
     <router-link
       v-if="user.role === 'platform_admin'"
       to="/admin/partners"
       exact-active-class="active"
     >
-      <img
-        :src="getActiveIcon('partners', '../assets/icons/partners.svg')"
-        alt="icon"
-      />
-      <p>Partners</p>
+      <div
+        class="menu-item"
+        @mouseover="showLabel('Partners')"
+        @mouseleave="hideLabel"
+      >
+        <img
+          :src="getActiveIcon('partners', '../assets/icons/partners.svg')"
+          alt="icon"
+        />
+        <p>Partners</p>
+        <span class="label" v-show="hoveredLabel === 'Partners'">Partners</span>
+      </div>
     </router-link>
     <router-link
       v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
       to="/admin/users"
       exact-active-class="active"
     >
-      <img
-        :src="getActiveIcon('users', '../assets/icons/users.svg')"
-        alt="icon"
-      />
-      <p>Users</p>
+      <div
+        class="menu-item"
+        @mouseover="showLabel('Users')"
+        @mouseleave="hideLabel"
+      >
+        <img
+          :src="getActiveIcon('users', '../assets/icons/users.svg')"
+          alt="icon"
+        />
+        <p>Users</p>
+        <span class="label" v-show="hoveredLabel === 'Users'">Users</span>
+      </div>
     </router-link>
     <router-link to="/admin/settings" exact-active-class="active">
       <div
-        class="profilePicture"
+        class="menu-item profilePicture"
+        @mouseover="showLabel('Settings')"
+        @mouseleave="hideLabel"
         :style="{ backgroundImage: 'url(' + profileImage + ')' }"
-      ></div>
+      >
+        <span class="label" v-show="hoveredLabel === 'Settings'">Settings</span>
+      </div>
     </router-link>
   </nav>
 
@@ -203,70 +246,110 @@ const profileImage = computed(() => {
           to="/admin"
           exact-active-class="active"
         >
-          <img
-            :src="getActiveIcon('products', '../assets/icons/package.svg')"
-            alt="icon"
-          />
+          <div
+            class="menu-item"
+            @mouseover="showLabel('Products')"
+            @mouseleave="hideLabel"
+          >
+            <img
+              :src="getActiveIcon('products', '../assets/icons/package.svg')"
+              alt="icon"
+            />
+            <span class="label" v-show="hoveredLabel === 'Products'"
+              >Products</span
+            >
+          </div>
         </router-link>
         <router-link
           v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
           to="/admin/orders"
           exact-active-class="active"
         >
-          <img
-            :src="getActiveIcon('orders', '../assets/icons/order.svg')"
-            alt="icon"
-          />
+          <div
+            class="menu-item"
+            @mouseover="showLabel('Orders')"
+            @mouseleave="hideLabel"
+          >
+            <img
+              :src="getActiveIcon('orders', '../assets/icons/order.svg')"
+              alt="icon"
+            />
+            <span class="label" v-show="hoveredLabel === 'Orders'">Orders</span>
+          </div>
         </router-link>
         <router-link
           v-if="user.role === 'partner_owner'"
           to="/admin/styling"
           exact-active-class="active"
         >
-          <img
-            :src="getActiveIcon('styling', '../assets/icons/styling.svg')"
-            alt="icon"
-          />
+          <div
+            class="menu-item"
+            @mouseover="showLabel('Styling')"
+            @mouseleave="hideLabel"
+          >
+            <img
+              :src="getActiveIcon('styling', '../assets/icons/styling.svg')"
+              alt="icon"
+            />
+            <span class="label" v-show="hoveredLabel === 'Styling'"
+              >Styling</span
+            >
+          </div>
         </router-link>
         <router-link
           v-if="user.role === 'platform_admin'"
           to="/admin/partners"
           exact-active-class="active"
         >
-          <img
-            :src="getActiveIcon('partners', '../assets/icons/users.svg')"
-            alt="icon"
-          />
+          <div
+            class="menu-item"
+            @mouseover="showLabel('Partners')"
+            @mouseleave="hideLabel"
+          >
+            <img
+              :src="getActiveIcon('partners', '../assets/icons/users.svg')"
+              alt="icon"
+            />
+            <span class="label" v-show="hoveredLabel === 'Partners'"
+              >Partners</span
+            >
+          </div>
         </router-link>
         <router-link
           v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
           to="/admin/users"
           exact-active-class="active"
         >
-          <img
-            :src="getActiveIcon('users', '../assets/icons/users.svg')"
-            alt="icon"
-          />
+          <div
+            class="menu-item"
+            @mouseover="showLabel('Users')"
+            @mouseleave="hideLabel"
+          >
+            <img
+              :src="getActiveIcon('users', '../assets/icons/users.svg')"
+              alt="icon"
+            />
+            <span class="label" v-show="hoveredLabel === 'Users'">Users</span>
+          </div>
         </router-link>
         <router-link
           v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
           to="/admin/myconfigurations"
           exact-active-class="active"
         >
-          <img
-            :src="getActiveIcon('settings', '../assets/icons/settings.svg')"
-            alt="icon"
-          />
-        </router-link>
-        <router-link
-          v-if="user.role === 'platform_admin'"
-          to="/admin/manageconfigurations"
-          exact-active-class="active"
-        >
-          <img
-            :src="getActiveIcon('settings', '../assets/icons/settings.svg')"
-            alt="icon"
-          />
+          <div
+            class="menu-item"
+            @mouseover="showLabel('Configurations')"
+            @mouseleave="hideLabel"
+          >
+            <img
+              :src="getActiveIcon('settings', '../assets/icons/settings.svg')"
+              alt="icon"
+            />
+            <span class="label" v-show="hoveredLabel === 'Configurations'"
+              >Configurations</span
+            >
+          </div>
         </router-link>
       </div>
     </div>
@@ -353,6 +436,39 @@ const profileImage = computed(() => {
 
 .desktopNav .menu a p {
   color: var(--text-color);
+}
+
+.menu-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.menu-item .label {
+  position: absolute;
+  left: 64px;
+  top: 0; /* Past de afstand onder de afbeelding aan */
+  background-color: var(--primary-color);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 14px;
+  margin: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+  letter-spacing: 1px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.icons .icon:hover p {
+  opacity: 1;
+}
+
+.menu-item:hover .label {
+  opacity: 1;
 }
 
 @media (min-width: 768px) {
