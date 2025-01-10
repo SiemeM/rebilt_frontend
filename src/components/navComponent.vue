@@ -386,6 +386,28 @@ function hideLabel() {
   display: none;
 }
 
+nav .profile {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profilePicture {
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #dadbdd;
+}
+
+.desktopNav .profile div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .desktopNav {
   display: none;
   flex-direction: column;
