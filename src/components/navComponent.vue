@@ -75,7 +75,7 @@ const huisstijlData = reactive({
   textColor: "#ffffff",
   fontFamilyBodyText: "Work Sans",
   fontFamilyTitles: "Libre Barcode 128",
-  logo_url: "../../src/assets/images/REBILT-logo-white.svg",
+  logo_url: "../../src/assets/images/rebilt-favicon.svg",
 });
 
 // Fetch user data when component is mounted
@@ -110,6 +110,10 @@ const getActiveIcon = (routeName, defaultIcon) => {
       return currentRoute === "/admin/partners"
         ? "../src/assets/icons/partners_active.svg"
         : "../src/assets/icons/partners.svg";
+    case "styling":
+      return currentRoute === "/admin/styling"
+        ? "../src/assets/icons/styling_active.svg"
+        : "../src/assets/icons/styling.svg";
     case "users":
       return currentRoute === "/admin/users"
         ? "../src/assets/icons/users_active.svg"
@@ -188,111 +192,87 @@ const profileImage = computed(() => {
   </nav>
 
   <nav class="desktopNav">
-    <div
-      class="logo"
-      :style="{ backgroundImage: 'url(' + huisstijlData.logo_url + ')' }"
-    ></div>
-    <div class="profile">
+    <div class="elements">
       <div
-        class="profilePicture"
-        :style="{ backgroundImage: 'url(' + profileImage + ')' }"
+        class="logo"
+        :style="{ backgroundImage: 'url(' + huisstijlData.logo_url + ')' }"
       ></div>
-      <div>
-        <h3 v-if="user.firstName && user.lastName">
-          {{ user.firstName }} {{ user.lastName }}
-        </h3>
-        <p v-if="user.role">
-          {{ user.role }}
-        </p>
+      <div class="menu">
+        <router-link
+          v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
+          to="/admin"
+          exact-active-class="active"
+        >
+          <img
+            :src="getActiveIcon('products', '../assets/icons/package.svg')"
+            alt="icon"
+          />
+        </router-link>
+        <router-link
+          v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
+          to="/admin/orders"
+          exact-active-class="active"
+        >
+          <img
+            :src="getActiveIcon('orders', '../assets/icons/order.svg')"
+            alt="icon"
+          />
+        </router-link>
+        <router-link
+          v-if="user.role === 'partner_owner'"
+          to="/admin/styling"
+          exact-active-class="active"
+        >
+          <img
+            :src="getActiveIcon('styling', '../assets/icons/styling.svg')"
+            alt="icon"
+          />
+        </router-link>
+        <router-link
+          v-if="user.role === 'platform_admin'"
+          to="/admin/partners"
+          exact-active-class="active"
+        >
+          <img
+            :src="getActiveIcon('partners', '../assets/icons/users.svg')"
+            alt="icon"
+          />
+        </router-link>
+        <router-link
+          v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
+          to="/admin/users"
+          exact-active-class="active"
+        >
+          <img
+            :src="getActiveIcon('users', '../assets/icons/users.svg')"
+            alt="icon"
+          />
+        </router-link>
+        <router-link
+          v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
+          to="/admin/myconfigurations"
+          exact-active-class="active"
+        >
+          <img
+            :src="getActiveIcon('settings', '../assets/icons/settings.svg')"
+            alt="icon"
+          />
+        </router-link>
+        <router-link
+          v-if="user.role === 'platform_admin'"
+          to="/admin/manageconfigurations"
+          exact-active-class="active"
+        >
+          <img
+            :src="getActiveIcon('settings', '../assets/icons/settings.svg')"
+            alt="icon"
+          />
+        </router-link>
       </div>
     </div>
-    <div class="menu">
-      <router-link
-        v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
-        to="/admin"
-        exact-active-class="active"
-      >
-        <img
-          :src="getActiveIcon('products', '../assets/icons/package.svg')"
-          alt="icon"
-        />
-        <p>Products</p>
-      </router-link>
-      <router-link
-        v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
-        to="/admin/orders"
-        exact-active-class="active"
-      >
-        <img
-          :src="getActiveIcon('orders', '../assets/icons/order.svg')"
-          alt="icon"
-        />
-        <p>Orders</p>
-      </router-link>
-      <router-link
-        v-if="user.role === 'partner_owner'"
-        to="/admin/styling"
-        exact-active-class="active"
-      >
-        <img src="../assets/icons/paintbrush.svg" alt="icon" />
-        <p>Styling</p>
-      </router-link>
-      <router-link
-        v-if="user.role === 'platform_admin'"
-        to="/admin/partners"
-        exact-active-class="active"
-      >
-        <img
-          :src="getActiveIcon('partners', '../assets/icons/users.svg')"
-          alt="icon"
-        />
-        <p>Partners</p>
-      </router-link>
-      <router-link
-        v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
-        to="/admin/users"
-        exact-active-class="active"
-      >
-        <img
-          :src="getActiveIcon('users', '../assets/icons/users.svg')"
-          alt="icon"
-        />
-        <p>Users</p>
-      </router-link>
-      <router-link to="/admin/settings" exact-active-class="active">
-        <img
-          :src="getActiveIcon('settings', '../assets/icons/settings.svg')"
-          alt="icon"
-        />
-        <p>Settings</p>
-      </router-link>
-      <router-link
-        v-if="user.role === 'partner_owner' || user.role === 'partner_admin'"
-        to="/admin/myconfigurations"
-        exact-active-class="active"
-      >
-        <img
-          :src="getActiveIcon('settings', '../assets/icons/settings.svg')"
-          alt="icon"
-        />
-        <p>Configurations</p>
-      </router-link>
-      <router-link
-        v-if="user.role === 'platform_admin'"
-        to="/admin/manageconfigurations"
-        exact-active-class="active"
-      >
-        <img
-          :src="getActiveIcon('settings', '../assets/icons/settings.svg')"
-          alt="icon"
-        />
-        <p>Configurations</p>
-      </router-link>
-      <a @click.prevent="logout">
-        <img src="../assets/icons/logout.svg" alt="icon" />
-        <p>Logout</p>
-      </a>
-    </div>
+    <a @click.prevent="logout">
+      <img src="../assets/icons/logout.svg" alt="icon" />
+    </a>
   </nav>
 </template>
 
@@ -327,66 +307,44 @@ const profileImage = computed(() => {
   display: none;
   flex-direction: column;
   justify-content: space-between;
-  gap: 120px;
+  align-items: center;
   background: linear-gradient(
     -45deg,
     var(--primary-color),
     var(--background-color)
   );
-  height: 100vh;
-  padding: 48px 32px;
+  height: calc(100vh - 48px);
+  margin: 24px 0px 24px 24px;
+  padding: 24px;
   position: fixed;
+  border-radius: 1rem;
+}
+
+.desktopNav .elements {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 64px;
 }
 
 .desktopNav .logo {
   background-repeat: no-repeat;
   background-size: contain;
   background-position: left;
-  width: 80px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
 }
 
 .desktopNav .menu {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: 48px;
-}
-
-nav .profile {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.profilePicture {
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 1px solid #dadbdd;
 }
 
 .desktopNav .profile div {
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.desktopNav .menu a,
-.desktopNav .menu a.active {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-}
-
-.desktopNav .menu a.active {
-  background-color: var(--primary-color);
-  padding: 4px 12px;
-  border-radius: 8px;
 }
 
 .desktopNav .menu a img {

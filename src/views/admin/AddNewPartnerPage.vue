@@ -36,7 +36,7 @@ const defaultStyles = {
   background_color: "rgb(0, 0, 0)",
   fontFamilyTitles: "Syne, serif",
   fontFamilyBodyText: "DM Sans, sans-serif",
-  logo_url: "../../src/assets/images/REBILT-logo-white.svg",
+  logo_url: "../../src/assets/images/rebilt-favicon.svg",
 };
 
 // Validatie van het e-mailadres

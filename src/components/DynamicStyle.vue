@@ -14,7 +14,7 @@ const fallbackStyle = {
   text_color: "rgb(255, 255, 255)",
   titles_color: "rgb(0, 113, 227)",
   background_color: "rgb(0, 0, 0)",
-  logo_url: "../assets/images/REBILT-logo-white.svg",
+  logo_url: "../assets/images/rebilt-favicon.svg",
   fontFamilyTitles: "Syne, serif",
   fontFamilyBodyText: "DM Sans, sans-serif",
 };

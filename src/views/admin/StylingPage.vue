@@ -60,7 +60,7 @@ if (!userId) {
 
 // Partner related data
 const partnerPackage = ref(null);
-const fallbackLogo = "../../assets/images/REBILT-logo-white.svg";
+const fallbackLogo = "../../assets/images/rebilt-favicon.svg";
 
 // Base URL depending on environment
 const isProduction = window.location.hostname !== "localhost";
