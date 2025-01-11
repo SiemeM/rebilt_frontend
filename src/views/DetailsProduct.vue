@@ -130,16 +130,29 @@ function onMouseUp() {
   isMouseDown = false;
 }
 
+function logSceneLayers() {
+  // Doorloop alle objecten in de scene en log hun naam en type
+  if (!scene) {
+    console.error("Scene is niet geïnitialiseerd!");
+    return;
+  }
+
+  scene.traverse((object) => {
+    if (object instanceof THREE.Mesh) {
+      console.log(`Laag naam: ${object.name}, Type: ${object.type}`);
+    }
+  });
+}
+
+logSceneLayers();
+
 // Toevoegen van eventlisteners bij de initialisatie
 function initializeScene() {
   if (isSceneInitialized) {
-    console.log("Scene is already initialized.");
     return; // Voorkom herinitialisatie
   }
 
   try {
-    console.log("Initializing scene...");
-
     // Initialiseer de scene, camera en renderer
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(
@@ -217,8 +230,6 @@ function initializeScene() {
 
     // Start de animatie
     animate();
-
-    console.log("Scene succesvol geïnitialiseerd.");
   } catch (err) {
     console.error("Fout bij initialisatie van de scene:", err);
   }
@@ -239,6 +250,36 @@ function animate() {
     requestAnimationFrame(animate);
     rendererToUse.render(scene, camera);
   }
+}
+
+function extractMaterials(object) {
+  materials.value = [];
+  layers.value = [];
+  layersColors.value = [];
+
+  object.traverse((child) => {
+    if (child.isMesh) {
+      // Controleer of het een array van materialen is
+      if (Array.isArray(child.material)) {
+        child.material.forEach((material) => {
+          materials.value.push(material);
+          if (!layers.value.includes(material.name)) {
+            layers.value.push(material.name);
+            layersColors.value.push("#ffffff"); // Default kleur voor het materiaal
+          }
+        });
+      } else {
+        materials.value.push(child.material);
+        if (!layers.value.includes(child.material.name)) {
+          layers.value.push(child.material.name);
+          layersColors.value.push("#ffffff"); // Default kleur voor het materiaal
+        }
+      }
+    }
+  });
+
+  // Verwijder dubbele materialen
+  layers.value = [...new Set(layers.value)];
 }
 
 function load3DModel(filePath) {
@@ -275,34 +316,88 @@ function loadGLBModel(filePath) {
       model = object;
       isModelLoaded = true;
       extractMaterials(object);
-    },
-    (xhr) => {
-      console.log(`Model loading progress: ${(xhr.loaded / xhr.total) * 100}%`);
-    },
-    (error) => {
-      console.error("Error loading 3D model:", error);
+
+      // Log de lagen na het toevoegen van het model en materialen
+      logSceneLayers(); // Verplaats deze lijn hier
     }
   );
 }
 
 function loadOBJModel(filePath) {
-  objLoader.load(
-    filePath,
-    (object) => {
-      object.scale.set(10, 10, 10); // Pas de schaal aan
-      scene.add(object);
-      model = object;
-      isModelLoaded = true;
-      extractMaterials(object);
-    },
-    (xhr) => {
-      console.log(`Model loading progress: ${(xhr.loaded / xhr.total) * 100}%`);
-    },
-    (error) => {
-      console.error("Error loading OBJ model:", error);
-    }
-  );
+  objLoader.load(filePath, (object) => {
+    object.scale.set(10, 10, 10); // Pas de schaal aan
+    scene.add(object);
+    model = object;
+    isModelLoaded = true;
+    extractMaterials(object);
+  });
 }
+
+function applyColorToSpecificLayer(color, fieldName) {
+  if (!scene) {
+    console.error("Scene is niet geïnitialiseerd!");
+    return;
+  }
+
+  let colorApplied = false; // Flag om te controleren of de kleur is toegepast
+
+  // Zorg ervoor dat de kleur correct is (controleer op hex-kleur of naam van de laag)
+  const validColor = /^#[0-9A-Fa-f]{6}$/.test(color) ? color : "#FFFFFF"; // Standaardkleur als het geen geldige hex-kleur is
+
+  scene.traverse((object) => {
+    if (object instanceof THREE.Mesh) {
+      // Log de naam van het object en de configuratie
+      console.log(
+        `Controleren object: ${object.name}, Geselecteerde laag: ${fieldName}`
+      );
+
+      // Vergelijk de configuratienaam met de laagnaam
+      if (object.name.toLowerCase().includes(fieldName.toLowerCase())) {
+        if (object.material) {
+          if (object.material instanceof THREE.MeshStandardMaterial) {
+            // Pas de kleur toe op de eerste laag die overeenkomt met de configuratie
+            object.material.color.set(validColor); // Pas de kleur toe
+            console.log(
+              `Kleur aangepast voor laag ${object.name}: Nieuwe kleur: ${validColor}`
+            );
+            colorApplied = true; // Kleur is toegepast, stop met verder zoeken
+          } else {
+            console.warn(
+              `Object ${object.name} heeft geen MeshStandardMaterial, maar een ander materiaal: ${object.material.constructor.name}`
+            );
+          }
+        }
+      }
+    }
+  });
+
+  if (!colorApplied) {
+    console.log(
+      `Geen object gevonden voor laag ${fieldName} met kleur ${validColor}`
+    );
+  }
+}
+
+function getColorForLayer(layerName) {
+  const colorIndex = layers.value.indexOf(layerName);
+  if (colorIndex !== -1) {
+    return layersColors.value[colorIndex];
+  }
+  return "#FFFFFF"; // Default color
+}
+
+watch(selectedOptionName, (newLayer) => {
+  if (newLayer) {
+    // Gebruik newLayer zelf als kleur
+    const selectedColor = newLayer; // Dit haalt de naam van de laag op als kleur
+
+    // Pas de kleur toe op de specifieke laag
+    applyColorToSpecificLayer(newLayer, newLayer); // Hier wordt de laag en de kleur (beide newLayer) doorgegeven aan de functie
+
+    // Log de laag en de toegepaste kleur
+    console.log(`Laag: ${newLayer}, Kleur: ${newLayer}`); // Logt de laag en de kleur
+  }
+});
 
 /* ---- 2D ---- */
 async function fetchPartnerName(partnerId) {
@@ -322,7 +417,6 @@ async function fetchPartnerPackage(partnerId) {
     if (!response.ok) throw new Error("Network response was not ok");
     const data = await response.json();
     partnerPackage.value = data.data.partner.package || "";
-    console.log(partnerPackage.value);
   } catch (err) {
     console.error("Error fetching partner package:", err);
   }
@@ -371,7 +465,6 @@ async function fetchPartnerConfigurations(partnerId, product) {
     // Ensure product configurations exist
     if (product.configurations && product.configurations.length > 0) {
       productConfigs.value = product.configurations;
-      console.log("productConfigs", productConfigs.value);
     } else {
       console.error("No configurations available for the product.");
       productConfigs.value = [];
@@ -400,7 +493,6 @@ async function optionNameById(optionId) {
     const existing = optionNames.value.find(
       (item) => item.optionId === optionId
     );
-    console.log(existing);
     if (!existing) {
       optionNames.value.push({ optionId, name: data.data.name }); // Push the optionId and name pair
     }
@@ -411,7 +503,6 @@ async function optionNameById(optionId) {
     return null; // Return null in case of an error
   }
 }
-
 function selectOption(optionName) {
   const productId = route.params.productId;
 
@@ -464,8 +555,6 @@ function selectOption(optionName) {
             }
 
             const configResult = await configResponse.json();
-            console.log(configResult);
-
             const options = configResult.data.options || [];
 
             // Zoek de geselecteerde optie op basis van optionName
@@ -473,10 +562,12 @@ function selectOption(optionName) {
               (option) => option.optionId?.name === optionName
             );
 
+            // Log de volledige selectedOptionData voor debugging
+            console.log("selectedOptionData:", selectedOptionData);
+
             let optionNameFromApi = selectedOptionData?.name || optionName;
 
             if (!optionNameFromApi && selectedOptionData?.optionId) {
-              // Haal de naam op via de aparte API-call
               const optionUrl = `${baseURL}/options/${selectedOptionData.optionId._id}`;
               try {
                 const optionResponse = await fetch(optionUrl, {
@@ -504,9 +595,21 @@ function selectOption(optionName) {
 
             if (selectedOptionData?.images) {
               selectedOptionImages = selectedOptionData.images;
-              console.log(selectedOptionImages);
             } else {
               selectedOptionImages = [];
+            }
+
+            // Log de kleur voor debugging
+            const selectedLayerColor = selectedOptionData?.optionId.name;
+            console.log("selectedLayerColor:", selectedLayerColor);
+
+            if (selectedLayerColor) {
+              applyColorToSpecificLayer(
+                selectedLayerColor,
+                config.configurationId?.fieldName
+              );
+            } else {
+              console.warn("Geen kleur gevonden voor de geselecteerde optie.");
             }
 
             // Update selectedItems
@@ -543,15 +646,12 @@ function selectOption(optionName) {
         })
       );
 
-      // Zet de geselecteerde afbeeldingen in productImages
       productImages.value = selectedOptionImages;
 
-      // Zet de eerste afbeelding als selectedImage
       if (selectedOptionImages.length > 0) {
         selectedImage.value = selectedOptionImages[0];
       }
 
-      // Update productData
       productData.value = {
         productName: product.productName,
         productCode: product.productCode,
@@ -691,7 +791,6 @@ async function fetchProductData(productCode) {
           // Haal de afbeeldingen van de geselecteerde optie
           if (selectedOptionData?.images) {
             selectedOptionImages = selectedOptionData.images;
-            console.log("Selected option images:", selectedOptionImages);
           } else {
             selectedOptionImages = [];
           }
