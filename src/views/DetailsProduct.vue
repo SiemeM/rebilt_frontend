@@ -3,6 +3,8 @@ import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import DynamicStyle from "../components/DynamicStyle.vue";
 
 const sizes = ref([]);
@@ -30,299 +32,79 @@ const baseURL = isProduction
 const options = computed(() => optionNames.value);
 const partnerName = ref("");
 const partnerPackage = ref("");
-let scene, camera, renderer;
+let scene, camera, rendererMobile, rendererDesktop;
 const objLoader = new OBJLoader();
+const dracoLoader = new DRACOLoader();
+const gltfLoader = new GLTFLoader();
+dracoLoader.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+gltfLoader.setDRACOLoader(dracoLoader);
+
 let isModelLoaded = false;
 let model = null;
+let isSceneInitialized = false;
+let isRendererInitialized = false;
+let isMouseDown = false;
+let prevMouseX = 0;
+let prevMouseY = 0;
+const rotationSpeed = 0.005;
 const selectedOption = ref(0);
 const selectedOptionName = ref(null);
 const optionNames = ref([]);
 const selectedItems = ref([]);
 const productConfigs = ref([]);
-let isMouseDown = false;
-let prevMouseX = 0;
-let prevMouseY = 0;
-const rotationSpeed = 0.005;
-let isSceneInitialized = false; // Flag to track scene initialization
-let isRendererInitialized = false; // Flag to track renderer initialization
 const partnerConfigurationsCount = ref([]);
-let rendererMobile, rendererDesktop;
-
-/* ---- 3D ---- */
 
 onMounted(() => {
-  // Initialize the renderer, scene, and camera only once
   if (!isSceneInitialized) {
     initializeScene();
-    isSceneInitialized = true;
   }
-
-  // Start the animation loop only if the renderer is initialized
-  if (isRendererInitialized) {
-    animate();
-  }
-
-  // Add resize event listener to update the canvas size on window resize
-  window.addEventListener("resize", onWindowResize);
 });
 
 onUnmounted(() => {
-  cancelAnimationFrame(animationId);
-  window.removeEventListener("resize", onWindowResize); // Don't forget to remove the listener
+  window.removeEventListener("resize", onWindowResize);
 });
 
 function onWindowResize() {
   const container = document.querySelector(".model");
-  if (container && renderer) {
-    renderer.setSize(container.offsetWidth, container.offsetHeight);
+  if (container && rendererDesktop) {
+    rendererDesktop.setSize(container.offsetWidth, container.offsetHeight);
     camera.aspect = container.offsetWidth / container.offsetHeight;
     camera.updateProjectionMatrix();
   }
 }
 
-let animationId;
-
-function animate() {
-  // Check if either of the renderers is initialized
-  if (rendererMobile || rendererDesktop) {
-    // Choose the appropriate renderer based on the device (mobile or desktop)
-    const rendererToUse =
-      window.innerWidth <= 768 ? rendererMobile : rendererDesktop;
-
-    // Ensure the chosen renderer is initialized
-    if (rendererToUse) {
-      animationId = requestAnimationFrame(animate);
-      rendererToUse.render(scene, camera);
-    } else {
-      console.error("Renderer is not initialized yet!");
-    }
-  } else {
-    console.error("Neither renderer is initialized yet!");
-  }
-}
-
-function load3DModel() {
-  if (!isSceneInitialized) {
-    console.error("Scene is not initialized.");
-    return;
-  }
-
-  objLoader.load(
-    "../../public/models/ring.obj", // Correct path to public assets folder
-    (object) => {
-      const box = new THREE.Box3().setFromObject(object);
-      object.position.set(0, -12, 0);
-      object.scale.set(10, 10, 10);
-      scene.add(object);
-      model = object;
-      isModelLoaded = true;
-      extractMaterials(object);
-    },
-    (xhr) => {},
-    (error) => {
-      console.error("Error loading 3D model:", error);
-    }
-  );
-}
-
-onMounted(() => {
-  // Initialize the renderer, scene, and camera only once
-  if (!isSceneInitialized) {
-    initializeScene();
-  }
-});
-
-function initializeScene() {
-  if (isRendererInitialized) return; // Prevent re-initialization
-
-  try {
-    console.log("Initializing scene...");
-
-    // Initialize the scene
-    scene = new THREE.Scene();
-
-    // Initialize the camera
-    camera = new THREE.PerspectiveCamera(
-      75,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
-    );
-    camera.position.set(0, 0, 40);
-    camera.lookAt(0, 0, 0);
-
-    // Get both containers (model inside mobileElements and model desktop)
-    const containerModelMobile = document.querySelector(
-      ".mobileElements .model"
-    );
-    const containerModelDesktop = document.querySelector(".model.desktop");
-
-    if (!containerModelMobile) {
-      console.error("Mobile 3D container element not found!");
-      return;
-    }
-
-    if (!containerModelDesktop) {
-      console.error("Desktop 3D container element not found!");
-      return;
-    }
-
-    // Initialize the renderer for mobile (only if not already initialized)
-    if (!rendererMobile) {
-      rendererMobile = new THREE.WebGLRenderer();
-      rendererMobile.setSize(
-        containerModelMobile.offsetWidth,
-        containerModelMobile.offsetHeight
-      );
-      if (!containerModelMobile.contains(rendererMobile.domElement)) {
-        containerModelMobile.appendChild(rendererMobile.domElement);
-      }
-    }
-
-    // Initialize the renderer for desktop (only if not already initialized)
-    if (!rendererDesktop) {
-      rendererDesktop = new THREE.WebGLRenderer();
-      rendererDesktop.setSize(
-        containerModelDesktop.offsetWidth,
-        containerModelDesktop.offsetHeight
-      );
-      if (!containerModelDesktop.contains(rendererDesktop.domElement)) {
-        containerModelDesktop.appendChild(rendererDesktop.domElement);
-      }
-    }
-
-    // Add lights
-    const light = new THREE.PointLight(0xffffff, 1, 100);
-    light.position.set(50, 50, 50);
-    scene.add(light);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
-    directionalLight.position.set(10, 20, 10);
-    directionalLight.target.position.set(0, 0, 0);
-    scene.add(directionalLight);
-    scene.add(directionalLight.target);
-
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
-    scene.add(ambientLight);
-
-    // Add mouse and touch event listeners for both containers
-    containerModelMobile.addEventListener("mousedown", onMouseDown, false);
-    containerModelDesktop.addEventListener("mousedown", onMouseDown, false);
-
-    containerModelMobile.addEventListener("touchstart", onTouchStart, false);
-    containerModelDesktop.addEventListener("touchstart", onTouchStart, false);
-
-    window.addEventListener("mousemove", onMouseMove, false);
-    window.addEventListener("touchmove", onTouchMove, false);
-    window.addEventListener("mouseup", onMouseUp, false);
-    window.addEventListener("touchend", onTouchEnd, false);
-
-    // Set the flag for renderer initialization
-    isRendererInitialized = true;
-
-    // Start the animation loop after initialization
-    animate();
-
-    console.log("Scene initialized successfully.");
-  } catch (err) {
-    console.error("Error during scene initialization:", err);
-  }
-}
-
+// Functie voor het starten van een muis/touch-interactie
 function onTouchStart(event) {
-  event.preventDefault(); // Prevents touch scrolling
+  event.preventDefault(); // Voorkomt scrollen bij touch
   isMouseDown = true;
-  prevMouseX = event.touches[0].clientX;
-  prevMouseY = event.touches[0].clientY;
+  prevMouseX = event.touches ? event.touches[0].clientX : event.clientX;
+  prevMouseY = event.touches ? event.touches[0].clientY : event.clientY;
 }
 
+// Functie voor muis/touchbewegingen
 function onTouchMove(event) {
   if (!isMouseDown) return;
 
-  const deltaX = event.touches[0].clientX - prevMouseX;
-  const deltaY = event.touches[0].clientY - prevMouseY;
+  const deltaX =
+    (event.touches ? event.touches[0].clientX : event.clientX) - prevMouseX;
+  const deltaY =
+    (event.touches ? event.touches[0].clientY : event.clientY) - prevMouseY;
 
   if (model) {
     model.rotation.y += deltaX * rotationSpeed;
     model.rotation.x += deltaY * rotationSpeed;
   }
 
-  prevMouseX = event.touches[0].clientX;
-  prevMouseY = event.touches[0].clientY;
+  prevMouseX = event.touches ? event.touches[0].clientX : event.clientX;
+  prevMouseY = event.touches ? event.touches[0].clientY : event.clientY;
 }
 
+// Functie voor het beëindigen van de muis/touch-interactie
 function onTouchEnd() {
   isMouseDown = false;
 }
 
-function extractMaterials(object) {
-  materials.value = [];
-  layers.value = [];
-  layersColors.value = [];
-
-  object.traverse((child) => {
-    if (child.isMesh) {
-      if (Array.isArray(child.material)) {
-        child.material.forEach((material) => {
-          materials.value.push(material);
-          if (!layers.value.includes(material.name)) {
-            layers.value.push(material.name);
-            layersColors.value.push("#ffffff");
-          }
-        });
-      } else {
-        materials.value.push(child.material);
-        if (!layers.value.includes(child.material.name)) {
-          layers.value.push(child.material.name);
-          layersColors.value.push("#ffffff");
-        }
-      }
-    }
-  });
-
-  layers.value = [...new Set(layers.value)];
-}
-
-function applyColorToMaterial(material, color, opacity = 1) {
-  if (
-    material instanceof THREE.MeshStandardMaterial ||
-    material instanceof THREE.MeshBasicMaterial
-  ) {
-    material.color.set(color);
-    material.opacity = opacity;
-    material.transparent = opacity < 1;
-  } else if (material instanceof THREE.ShaderMaterial) {
-    if (material.uniforms && material.uniforms.color) {
-      material.uniforms.color.value.set(color);
-    }
-  } else {
-    material.emissive.set(color);
-  }
-}
-
-function applyColorToSpecificLayer(color, layerName) {
-  const material = materials.value.find((mat) => mat.name === layerName);
-
-  if (material) {
-    applyColorToMaterial(material, color);
-  } else {
-    console.warn(`Material with name ${layerName} not found.`);
-  }
-
-  // Update layersColors array with new color
-  const layerIndex = layers.value.indexOf(layerName);
-  if (layerIndex !== -1) {
-    layersColors.value[layerIndex] = color;
-  }
-
-  // Apply color to all matching materials in the scene
-  scene.traverse((child) => {
-    if (child.isMesh && child.material.name === layerName) {
-      applyColorToMaterial(child.material, color);
-    }
-  });
-}
-
+// Functies voor muisinteractie (voor desktop)
 function onMouseDown(event) {
   isMouseDown = true;
   prevMouseX = event.clientX;
@@ -346,6 +128,179 @@ function onMouseMove(event) {
 
 function onMouseUp() {
   isMouseDown = false;
+}
+
+// Toevoegen van eventlisteners bij de initialisatie
+function initializeScene() {
+  if (isSceneInitialized) {
+    console.log("Scene is already initialized.");
+    return; // Voorkom herinitialisatie
+  }
+
+  try {
+    console.log("Initializing scene...");
+
+    // Initialiseer de scene, camera en renderer
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
+    camera.position.set(0, 0, 40);
+    camera.lookAt(0, 0, 0);
+
+    // Verkrijg de container voor mobiel en desktop
+    const containerModelMobile = document.querySelector(
+      ".mobileElements .model"
+    );
+    const containerModelDesktop = document.querySelector(".model.desktop");
+
+    if (!containerModelMobile && !containerModelDesktop) {
+      console.error("3D container element niet gevonden!");
+      return;
+    }
+
+    // Renderers alleen toevoegen als ze nog niet bestaan
+    if (!rendererMobile && window.innerWidth <= 768 && containerModelMobile) {
+      rendererMobile = new THREE.WebGLRenderer();
+      rendererMobile.setSize(
+        containerModelMobile.offsetWidth,
+        containerModelMobile.offsetHeight
+      );
+      if (!containerModelMobile.contains(rendererMobile.domElement)) {
+        containerModelMobile.appendChild(rendererMobile.domElement);
+      }
+    }
+
+    if (!rendererDesktop && window.innerWidth > 768 && containerModelDesktop) {
+      rendererDesktop = new THREE.WebGLRenderer();
+      rendererDesktop.setSize(
+        containerModelDesktop.offsetWidth,
+        containerModelDesktop.offsetHeight
+      );
+      if (!containerModelDesktop.contains(rendererDesktop.domElement)) {
+        containerModelDesktop.appendChild(rendererDesktop.domElement);
+      }
+    }
+
+    // Voeg lichten toe aan de scene
+    const light = new THREE.PointLight(0xffffff, 1, 100);
+    light.position.set(50, 50, 50);
+    scene.add(light);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    directionalLight.position.set(10, 20, 10);
+    directionalLight.target.position.set(0, 0, 0);
+    scene.add(directionalLight);
+    scene.add(directionalLight.target);
+
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+    scene.add(ambientLight);
+
+    // Voeg eventlisteners toe voor zowel mobiele als desktop
+    containerModelMobile.addEventListener("mousedown", onMouseDown, false);
+    containerModelDesktop.addEventListener("mousedown", onMouseDown, false);
+
+    containerModelMobile.addEventListener("touchstart", onTouchStart, false);
+    containerModelDesktop.addEventListener("touchstart", onTouchStart, false);
+
+    window.addEventListener("mousemove", onMouseMove, false);
+    window.addEventListener("touchmove", onTouchMove, false);
+    window.addEventListener("mouseup", onMouseUp, false);
+    window.addEventListener("touchend", onTouchEnd, false);
+
+    // Initialiseer de scene en renderer
+    isRendererInitialized = true;
+    isSceneInitialized = true;
+
+    // Start de animatie
+    animate();
+
+    console.log("Scene succesvol geïnitialiseerd.");
+  } catch (err) {
+    console.error("Fout bij initialisatie van de scene:", err);
+  }
+}
+
+onMounted(() => {
+  // Zorg ervoor dat de scene wordt geïnitialiseerd wanneer de component wordt gemonteerd
+  if (!isSceneInitialized) {
+    initializeScene();
+  }
+});
+
+function animate() {
+  const rendererToUse =
+    window.innerWidth <= 768 ? rendererMobile : rendererDesktop;
+
+  if (rendererToUse) {
+    requestAnimationFrame(animate);
+    rendererToUse.render(scene, camera);
+  }
+}
+
+function load3DModel(filePath) {
+  if (!isSceneInitialized) {
+    console.error("Scene is not initialized.");
+    return;
+  }
+
+  const fileExtension = filePath.split(".").pop().toLowerCase();
+
+  if (fileExtension === "obj") {
+    loadOBJModel(filePath);
+  } else if (fileExtension === "glb") {
+    loadGLBModel(filePath);
+  } else {
+    console.error("Unsupported file type:", fileExtension);
+  }
+}
+
+function loadOBJModel(filePath) {
+  objLoader.load(
+    filePath,
+    (object) => {
+      const box = new THREE.Box3().setFromObject(object);
+      const center = box.getCenter(new THREE.Vector3());
+      object.position.set(-center.x, -center.y, -center.z);
+      object.scale.set(10, 10, 10);
+
+      scene.add(object);
+      model = object;
+      isModelLoaded = true;
+    },
+    (xhr) => {
+      console.log(`OBJ loading progress: ${(xhr.loaded / xhr.total) * 100}%`);
+    },
+    (error) => {
+      console.error("Error loading OBJ model:", error);
+    }
+  );
+}
+
+function loadGLBModel(filePath) {
+  gltfLoader.load(
+    filePath,
+    (gltf) => {
+      const object = gltf.scene;
+      const box = new THREE.Box3().setFromObject(object);
+      const center = box.getCenter(new THREE.Vector3());
+      object.position.set(-center.x, -center.y, -center.z);
+      object.scale.set(100, 100, 100);
+
+      scene.add(object);
+      model = object;
+      isModelLoaded = true;
+    },
+    (xhr) => {
+      console.log(`GLB loading progress: ${(xhr.loaded / xhr.total) * 100}%`);
+    },
+    (error) => {
+      console.error("Error loading GLB model:", error);
+    }
+  );
 }
 
 /* ---- 2D ---- */
@@ -1020,7 +975,8 @@ watch(
 
 watch(partnerPackage, (newPackage) => {
   if (newPackage === "pro" && !isModelLoaded) {
-    load3DModel();
+    const filePath = "/models/shoe.glb"; // Dit pad moet dynamisch worden ingesteld
+    load3DModel(filePath); // Laad het model op basis van filePath
   }
 });
 
