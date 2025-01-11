@@ -186,6 +186,7 @@ async function fetchPartnerConfigurations(partnerId, product) {
     // Ensure product configurations exist
     if (product.configurations && product.configurations.length > 0) {
       productConfigs.value = product.configurations;
+      console.log("productConfigs", productConfigs.value);
     } else {
       console.error("No configurations available for the product.");
       productConfigs.value = [];
@@ -1113,7 +1114,7 @@ function setSelectedImage(image) {
         </div>
       </div>
 
-      <div class="summary display">
+      <div class="summary">
         <h2>Summary</h2>
         <ul v-if="productConfigs.length > 0">
           <li
@@ -1148,7 +1149,9 @@ function setSelectedImage(image) {
 
               <!-- Als er geen geselecteerde optie is, toon dan een transparante border met configuratienaam -->
               <li v-else>
-                <p class="border" style="background-color: transparent"></p>
+                <p class="border" style="background-color: transparent">
+                  <span>No option selected</span>
+                </p>
               </li>
             </ul>
           </li>

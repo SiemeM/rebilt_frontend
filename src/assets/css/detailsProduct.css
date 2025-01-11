@@ -386,10 +386,6 @@ li svg {
   gap: 16px;
 }
 
-.config-wrapper .summary {
-  display: none;
-}
-
 .config-wrapper .summary .fontweight {
   color: var(--text-color);
 }
@@ -687,10 +683,6 @@ li svg {
   flex-direction: column;
   gap: 16px;
   width: 100%;
-}
-
-.config-wrapper .summary {
-  display: none;
 }
 
 .config-wrapper .summary .fontweight {
