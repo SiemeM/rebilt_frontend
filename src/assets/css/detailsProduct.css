@@ -13,6 +13,7 @@
   padding: 1.5rem;
 }
 
+.model.desktop,
 .icons.desktop {
   display: none;
 }
@@ -84,8 +85,10 @@
 
 .model {
   position: relative;
-  width: 100%;
-  height: 500px;
+}
+
+.model canvas {
+  background-color: #000;
 }
 
 .carousel {
@@ -152,28 +155,6 @@
   background-color: var(--primary-color);
   border-radius: 2px;
   transition: width 0.3s ease;
-}
-
-.model canvas {
-  background-color: #000;
-  width: 100%;
-  height: 100%;
-}
-
-.rotate-informer {
-  position: absolute;
-  top: 55%;
-  left: calc(75% / 2 - 12px);
-  z-index: 999;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  border-radius: 4px;
-  background-color: rgb(var(--secondary-color));
-  box-shadow: 0 0 8px #0006;
-  transition: transform 0.5s;
 }
 
 .icons {
@@ -527,17 +508,10 @@ li svg {
   background-position: center;
 }
 
-.model {
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  position: relative;
-}
-
 .rotate-informer {
   position: absolute;
-  top: 55%;
-  left: calc(75% / 2 - 12px);
+  top: 50%;
+  left: calc(34.2% - 3.28%);
   z-index: 999;
   display: flex;
   flex-direction: row;
@@ -734,11 +708,27 @@ li svg {
   visibility: hidden;
 }
 
+.model {
+  width: 100%;
+  height: 400px; /* Of een andere hoogte die geschikt is voor jouw ontwerp */
+}
+
+.model.desktop {
+  width: 75%;
+  height: 100%; /* Pas de hoogte aan voor desktop */
+}
+
+.mobileElements .model {
+  width: 100%;
+  height: 300px; /* Pas de hoogte aan voor mobiel */
+}
+
 @media (min-width: 1200px) {
   .mobileElements {
     display: none;
   }
 
+  .model.desktop,
   .icons.desktop,
   .carousel {
     display: flex;
@@ -782,10 +772,5 @@ li svg {
     overflow-y: auto;
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-  }
-
-  .model {
-    width: 75%;
-    height: 85%;
   }
 }

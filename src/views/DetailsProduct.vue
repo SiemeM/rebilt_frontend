@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch, computed } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
@@ -8,8 +8,6 @@ import DynamicStyle from "../components/DynamicStyle.vue";
 const sizes = ref([]);
 const materials = ref([]);
 const layers = ref([]);
-const partnerConfigurationsCount = ref(0);
-const count = ref(0);
 const layersColors = ref([]);
 const selectedThingsInLayers = ref([]);
 const colors = ref([]);
@@ -25,12 +23,11 @@ const productName = ref("");
 const isLoading = ref(true);
 const error = ref(null);
 const logoUrl = ref("");
-
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
-
+const options = computed(() => optionNames.value);
 const partnerName = ref("");
 const partnerPackage = ref("");
 let scene, camera, renderer;
@@ -39,9 +36,40 @@ let isModelLoaded = false;
 let model = null;
 const selectedOption = ref(0);
 const selectedOptionName = ref(null);
-
+const optionNames = ref([]);
 const selectedItems = ref([]);
 const productConfigs = ref([]);
+let isMouseDown = false;
+let prevMouseX = 0;
+let prevMouseY = 0;
+const rotationSpeed = 0.005;
+let isSceneInitialized = false; // Flag to track scene initialization
+let isRendererInitialized = false; // Flag to track renderer initialization
+const partnerConfigurationsCount = ref([]);
+let rendererMobile, rendererDesktop;
+
+/* ---- 3D ---- */
+
+onMounted(() => {
+  // Initialize the renderer, scene, and camera only once
+  if (!isSceneInitialized) {
+    initializeScene();
+    isSceneInitialized = true;
+  }
+
+  // Start the animation loop only if the renderer is initialized
+  if (isRendererInitialized) {
+    animate();
+  }
+
+  // Add resize event listener to update the canvas size on window resize
+  window.addEventListener("resize", onWindowResize);
+});
+
+onUnmounted(() => {
+  cancelAnimationFrame(animationId);
+  window.removeEventListener("resize", onWindowResize); // Don't forget to remove the listener
+});
 
 function onWindowResize() {
   const container = document.querySelector(".model");
@@ -52,19 +80,35 @@ function onWindowResize() {
   }
 }
 
+let animationId;
+
 function animate() {
-  requestAnimationFrame(animate);
-  renderer.render(scene, camera);
+  // Check if either of the renderers is initialized
+  if (rendererMobile || rendererDesktop) {
+    // Choose the appropriate renderer based on the device (mobile or desktop)
+    const rendererToUse =
+      window.innerWidth <= 768 ? rendererMobile : rendererDesktop;
+
+    // Ensure the chosen renderer is initialized
+    if (rendererToUse) {
+      animationId = requestAnimationFrame(animate);
+      rendererToUse.render(scene, camera);
+    } else {
+      console.error("Renderer is not initialized yet!");
+    }
+  } else {
+    console.error("Neither renderer is initialized yet!");
+  }
 }
 
 function load3DModel() {
-  if (!renderer) {
-    console.error("Renderer not initialized. Cannot load model.");
+  if (!isSceneInitialized) {
+    console.error("Scene is not initialized.");
     return;
   }
 
   objLoader.load(
-    "/models/ring.obj",
+    "../../public/models/ring.obj", // Correct path to public assets folder
     (object) => {
       const box = new THREE.Box3().setFromObject(object);
       object.position.set(0, -12, 0);
@@ -79,6 +123,136 @@ function load3DModel() {
       console.error("Error loading 3D model:", error);
     }
   );
+}
+
+onMounted(() => {
+  // Initialize the renderer, scene, and camera only once
+  if (!isSceneInitialized) {
+    initializeScene();
+  }
+});
+
+function initializeScene() {
+  if (isRendererInitialized) return; // Prevent re-initialization
+
+  try {
+    console.log("Initializing scene...");
+
+    // Initialize the scene
+    scene = new THREE.Scene();
+
+    // Initialize the camera
+    camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
+    camera.position.set(0, 0, 40);
+    camera.lookAt(0, 0, 0);
+
+    // Get both containers (model inside mobileElements and model desktop)
+    const containerModelMobile = document.querySelector(
+      ".mobileElements .model"
+    );
+    const containerModelDesktop = document.querySelector(".model.desktop");
+
+    if (!containerModelMobile) {
+      console.error("Mobile 3D container element not found!");
+      return;
+    }
+
+    if (!containerModelDesktop) {
+      console.error("Desktop 3D container element not found!");
+      return;
+    }
+
+    // Initialize the renderer for mobile (only if not already initialized)
+    if (!rendererMobile) {
+      rendererMobile = new THREE.WebGLRenderer();
+      rendererMobile.setSize(
+        containerModelMobile.offsetWidth,
+        containerModelMobile.offsetHeight
+      );
+      if (!containerModelMobile.contains(rendererMobile.domElement)) {
+        containerModelMobile.appendChild(rendererMobile.domElement);
+      }
+    }
+
+    // Initialize the renderer for desktop (only if not already initialized)
+    if (!rendererDesktop) {
+      rendererDesktop = new THREE.WebGLRenderer();
+      rendererDesktop.setSize(
+        containerModelDesktop.offsetWidth,
+        containerModelDesktop.offsetHeight
+      );
+      if (!containerModelDesktop.contains(rendererDesktop.domElement)) {
+        containerModelDesktop.appendChild(rendererDesktop.domElement);
+      }
+    }
+
+    // Add lights
+    const light = new THREE.PointLight(0xffffff, 1, 100);
+    light.position.set(50, 50, 50);
+    scene.add(light);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    directionalLight.position.set(10, 20, 10);
+    directionalLight.target.position.set(0, 0, 0);
+    scene.add(directionalLight);
+    scene.add(directionalLight.target);
+
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+    scene.add(ambientLight);
+
+    // Add mouse and touch event listeners for both containers
+    containerModelMobile.addEventListener("mousedown", onMouseDown, false);
+    containerModelDesktop.addEventListener("mousedown", onMouseDown, false);
+
+    containerModelMobile.addEventListener("touchstart", onTouchStart, false);
+    containerModelDesktop.addEventListener("touchstart", onTouchStart, false);
+
+    window.addEventListener("mousemove", onMouseMove, false);
+    window.addEventListener("touchmove", onTouchMove, false);
+    window.addEventListener("mouseup", onMouseUp, false);
+    window.addEventListener("touchend", onTouchEnd, false);
+
+    // Set the flag for renderer initialization
+    isRendererInitialized = true;
+
+    // Start the animation loop after initialization
+    animate();
+
+    console.log("Scene initialized successfully.");
+  } catch (err) {
+    console.error("Error during scene initialization:", err);
+  }
+}
+
+function onTouchStart(event) {
+  event.preventDefault(); // Prevents touch scrolling
+  isMouseDown = true;
+  prevMouseX = event.touches[0].clientX;
+  prevMouseY = event.touches[0].clientY;
+}
+
+function onTouchMove(event) {
+  if (!isMouseDown) return;
+
+  const deltaX = event.touches[0].clientX - prevMouseX;
+  const deltaY = event.touches[0].clientY - prevMouseY;
+
+  if (model) {
+    model.rotation.y += deltaX * rotationSpeed;
+    model.rotation.x += deltaY * rotationSpeed;
+  }
+
+  prevMouseX = event.touches[0].clientX;
+  prevMouseY = event.touches[0].clientY;
+}
+
+function onTouchEnd() {
+  isMouseDown = false;
 }
 
 function extractMaterials(object) {
@@ -109,6 +283,72 @@ function extractMaterials(object) {
   layers.value = [...new Set(layers.value)];
 }
 
+function applyColorToMaterial(material, color, opacity = 1) {
+  if (
+    material instanceof THREE.MeshStandardMaterial ||
+    material instanceof THREE.MeshBasicMaterial
+  ) {
+    material.color.set(color);
+    material.opacity = opacity;
+    material.transparent = opacity < 1;
+  } else if (material instanceof THREE.ShaderMaterial) {
+    if (material.uniforms && material.uniforms.color) {
+      material.uniforms.color.value.set(color);
+    }
+  } else {
+    material.emissive.set(color);
+  }
+}
+
+function applyColorToSpecificLayer(color, layerName) {
+  const material = materials.value.find((mat) => mat.name === layerName);
+
+  if (material) {
+    applyColorToMaterial(material, color);
+  } else {
+    console.warn(`Material with name ${layerName} not found.`);
+  }
+
+  // Update layersColors array with new color
+  const layerIndex = layers.value.indexOf(layerName);
+  if (layerIndex !== -1) {
+    layersColors.value[layerIndex] = color;
+  }
+
+  // Apply color to all matching materials in the scene
+  scene.traverse((child) => {
+    if (child.isMesh && child.material.name === layerName) {
+      applyColorToMaterial(child.material, color);
+    }
+  });
+}
+
+function onMouseDown(event) {
+  isMouseDown = true;
+  prevMouseX = event.clientX;
+  prevMouseY = event.clientY;
+}
+
+function onMouseMove(event) {
+  if (!isMouseDown) return;
+
+  const deltaX = event.clientX - prevMouseX;
+  const deltaY = event.clientY - prevMouseY;
+
+  if (model) {
+    model.rotation.y += deltaX * rotationSpeed;
+    model.rotation.x += deltaY * rotationSpeed;
+  }
+
+  prevMouseX = event.clientX;
+  prevMouseY = event.clientY;
+}
+
+function onMouseUp() {
+  isMouseDown = false;
+}
+
+/* ---- 2D ---- */
 async function fetchPartnerName(partnerId) {
   try {
     const response = await fetch(`${baseURL}/partners/${partnerId}`);
@@ -126,6 +366,7 @@ async function fetchPartnerPackage(partnerId) {
     if (!response.ok) throw new Error("Network response was not ok");
     const data = await response.json();
     partnerPackage.value = data.data.partner.package || "";
+    console.log(partnerPackage.value);
   } catch (err) {
     console.error("Error fetching partner package:", err);
   }
@@ -147,19 +388,6 @@ async function fetchNumberOfPartnerConfigurations(partnerId) {
     console.error("Error fetching partner configurations:", err);
   }
 }
-
-const configurations = ref([]);
-
-onMounted(async () => {
-  productId.value = route.params.productId; // Get productId from route params
-
-  if (!productId.value) {
-    console.error("No productId found in the route params!");
-    return;
-  }
-
-  await fetchProductData(productId.value); // Fetch the product data using productId
-});
 
 // Aangenomen dat je productgegevens en partnerconfiguraties al hebt
 
@@ -204,8 +432,6 @@ async function fetchPartnerConfigurations(partnerId, product) {
     return [];
   }
 }
-
-const optionNames = ref([]); // Array that holds optionId and name pairs
 
 // Function to fetch the option name by optionId
 async function optionNameById(optionId) {
@@ -414,49 +640,6 @@ async function loadOptionsForConfig(configId) {
     console.error("Error fetching configuration options:", error);
     return null;
   }
-}
-
-// Make `optionNames` reactive and accessible in the template
-const options = computed(() => optionNames.value);
-
-function applyColorToMaterial(material, color, opacity = 1) {
-  if (
-    material instanceof THREE.MeshStandardMaterial ||
-    material instanceof THREE.MeshBasicMaterial
-  ) {
-    material.color.set(color);
-    material.opacity = opacity;
-    material.transparent = opacity < 1;
-  } else if (material instanceof THREE.ShaderMaterial) {
-    if (material.uniforms && material.uniforms.color) {
-      material.uniforms.color.value.set(color);
-    }
-  } else {
-    material.emissive.set(color);
-  }
-}
-
-function applyColorToSpecificLayer(color, layerName) {
-  const material = materials.value.find((mat) => mat.name === layerName);
-
-  if (material) {
-    applyColorToMaterial(material, color);
-  } else {
-    console.warn(`Material with name ${layerName} not found.`);
-  }
-
-  // Update layersColors array with new color
-  const layerIndex = layers.value.indexOf(layerName);
-  if (layerIndex !== -1) {
-    layersColors.value[layerIndex] = color;
-  }
-
-  // Apply color to all matching materials in the scene
-  scene.traverse((child) => {
-    if (child.isMesh && child.material.name === layerName) {
-      applyColorToMaterial(child.material, color);
-    }
-  });
 }
 
 async function fetchProductData(productCode) {
@@ -791,106 +974,6 @@ async function nextPage() {
   }
 }
 
-watch(
-  () => route.params.productId,
-  async (newCode) => {
-    if (newCode && newCode !== productId.value) {
-      productId.value = newCode;
-      await fetchProductData(newCode);
-    }
-  },
-  { immediate: true }
-);
-
-watch(partnerPackage, (newPackage) => {
-  if (newPackage === "pro" && !isModelLoaded) {
-    load3DModel();
-  }
-});
-
-onMounted(async () => {
-  initializeScene();
-  if (route.params.productId) {
-    productId.value = route.params.productId;
-    await fetchProductData(productId.value);
-  }
-});
-
-function initializeScene() {
-  try {
-    scene = new THREE.Scene();
-
-    camera = new THREE.PerspectiveCamera(
-      75,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
-    );
-    camera.position.set(0, 0, 40);
-    camera.lookAt(0, 0, 0);
-
-    const container = document.querySelector(".model");
-    if (!container) {
-      console.error("3D container element not found!");
-      return;
-    }
-
-    renderer = new THREE.WebGLRenderer();
-    renderer.setSize(container.offsetWidth, container.offsetHeight);
-    container.appendChild(renderer.domElement);
-
-    const light = new THREE.PointLight(0xffffff, 1, 100);
-    light.position.set(10, 10, 10);
-    scene.add(light);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
-    directionalLight.position.set(10, 20, 10);
-    scene.add(directionalLight);
-
-    const ambientLight = new THREE.AmbientLight(0x404040);
-    scene.add(ambientLight);
-
-    container.addEventListener("mousedown", onMouseDown, false);
-    window.addEventListener("mousemove", onMouseMove, false);
-    window.addEventListener("mouseup", onMouseUp, false);
-
-    animate();
-    window.addEventListener("resize", onWindowResize, false);
-  } catch (err) {
-    console.error("Error during scene initialization:", err);
-  }
-}
-
-let isMouseDown = false;
-let prevMouseX = 0;
-let prevMouseY = 0;
-const rotationSpeed = 0.005;
-
-function onMouseDown(event) {
-  isMouseDown = true;
-  prevMouseX = event.clientX;
-  prevMouseY = event.clientY;
-}
-
-function onMouseMove(event) {
-  if (!isMouseDown) return;
-
-  const deltaX = event.clientX - prevMouseX;
-  const deltaY = event.clientY - prevMouseY;
-
-  if (model) {
-    model.rotation.y += deltaX * rotationSpeed;
-    model.rotation.x += deltaY * rotationSpeed;
-  }
-
-  prevMouseX = event.clientX;
-  prevMouseY = event.clientY;
-}
-
-function onMouseUp() {
-  isMouseDown = false;
-}
-
 async function fetchLogoUrl(partnerId) {
   try {
     const response = await fetch(`${baseURL}/partners/${partnerId}`);
@@ -923,6 +1006,32 @@ function showNextImage() {
 function setSelectedImage(image) {
   selectedImage.value = image; // Zorg dat dit een object is
 }
+
+watch(
+  () => route.params.productId,
+  async (newCode) => {
+    if (newCode && newCode !== productId.value) {
+      productId.value = newCode;
+      await fetchProductData(newCode);
+    }
+  },
+  { immediate: true }
+);
+
+watch(partnerPackage, (newPackage) => {
+  if (newPackage === "pro" && !isModelLoaded) {
+    load3DModel();
+  }
+});
+
+onMounted(() => {
+  const container = document.querySelector(".model");
+  if (container) {
+    initializeScene();
+  } else {
+    console.error("3D container not found!");
+  }
+});
 </script>
 
 <template>
@@ -973,7 +1082,7 @@ function setSelectedImage(image) {
       </div>
     </div>
 
-    <div class="model" v-if="partnerPackage === 'pro'"></div>
+    <div class="model desktop"></div>
     <div class="icons desktop">
       <router-link :to="`/`">
         <div class="icon">
@@ -1041,7 +1150,8 @@ function setSelectedImage(image) {
           </div>
         </div>
       </div>
-      <div class="bigImageWithImages">
+      <div class="model"></div>
+      <div class="bigImageWithImages" v-if="partnerPackage === 'standard'">
         <!-- Big Image Display -->
         <div
           class="bigImage"
@@ -1060,7 +1170,6 @@ function setSelectedImage(image) {
           ></div>
         </div>
       </div>
-      <div class="model" v-if="partnerPackage === 'pro'"></div>
 
       <div class="rotate-informer desktop" v-if="partnerPackage === 'pro'">
         <svg
