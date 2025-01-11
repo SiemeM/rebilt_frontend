@@ -38,6 +38,7 @@ const objLoader = new OBJLoader();
 let isModelLoaded = false;
 let model = null;
 const selectedOption = ref(0);
+const selectedOptionName = ref(null);
 
 const selectedItems = ref([]);
 const productConfigs = ref([]);
@@ -229,7 +230,7 @@ async function optionNameById(optionId) {
   }
 }
 
-function selectOption(index) {
+function selectOption(optionName) {
   const productId = route.params.productId;
 
   if (!productId) {
@@ -237,7 +238,10 @@ function selectOption(index) {
     return;
   }
 
-  selectedOption.value = index; // Update de geselecteerde optie
+  // Update de geselecteerde optie met de kleurwaarde (optionName)
+  selectedOption.value = optionName;
+  selectedOptionName.value = optionName; // Update selectedOptionName
+
   let selectedOptionImages = [];
 
   fetch(`${baseURL}/products/${productId}`, {
@@ -282,12 +286,14 @@ function selectOption(index) {
 
             const options = configResult.data.options || [];
 
-            // Gebruik de selectedOptions die er al zijn
-            const selectedOptionData = config.selectedOptions[index];
+            // Zoek de geselecteerde optie op basis van optionName
+            const selectedOptionData = config.selectedOptions.find(
+              (option) => option.optionId?.name === optionName
+            );
 
-            let optionName = selectedOptionData?.name;
+            let optionNameFromApi = selectedOptionData?.name || optionName;
 
-            if (!optionName && selectedOptionData?.optionId) {
+            if (!optionNameFromApi && selectedOptionData?.optionId) {
               // Haal de naam op via de aparte API-call
               const optionUrl = `${baseURL}/options/${selectedOptionData.optionId._id}`;
               try {
@@ -305,7 +311,7 @@ function selectOption(index) {
                 }
 
                 const optionResult = await optionResponse.json();
-                optionName = optionResult.data?.name || `Option ${index + 1}`; // Fallback
+                optionNameFromApi = optionResult.data?.name || optionName;
               } catch (err) {
                 console.error(
                   `Error fetching option name for optionId ${selectedOptionData.optionId._id}:`,
@@ -314,7 +320,6 @@ function selectOption(index) {
               }
             }
 
-            console.log(selectedOptionData);
             if (selectedOptionData?.images) {
               selectedOptionImages = selectedOptionData.images;
               console.log(selectedOptionImages);
@@ -329,14 +334,14 @@ function selectOption(index) {
 
             if (existingConfigIndex !== -1) {
               selectedItems.value[existingConfigIndex].selectedItem = {
-                optionName: optionName,
+                optionName: optionNameFromApi,
                 images: selectedOptionImages,
               };
             } else {
               selectedItems.value.push({
                 configurationId: selectedConfigId,
                 selectedItem: {
-                  optionName: optionName,
+                  optionName: optionNameFromApi,
                   images: selectedOptionImages,
                 },
               });
@@ -361,7 +366,7 @@ function selectOption(index) {
 
       // Zet de eerste afbeelding als selectedImage
       if (selectedOptionImages.length > 0) {
-        selectedImage.value = selectedOptionImages[0]; // Hier stellen we de eerste afbeelding in als de geselecteerde afbeelding
+        selectedImage.value = selectedOptionImages[0];
       }
 
       // Update productData
@@ -775,7 +780,7 @@ async function nextPage() {
         const count = await fetchNumberOfPartnerConfigurations(partnerId);
 
         // Als er meerdere configuraties zijn, toon de samenvatting
-        if (count >= 1) {
+        if (count <= 1) {
           summary.style.display = "flex";
           document.querySelector(".nextButton").style.visibility = "hidden";
         }
@@ -1103,14 +1108,16 @@ function setSelectedImage(image) {
 
         <div class="row">
           <div
-            v-for="(option, index) in optionNames"
+            v-for="(selectedOption, index) in configuration.selectedOptions"
             :key="index"
-            :class="{ active: selectedOption === index }"
-            @click="selectOption(index)"
-          >
-            <p>{{ option }}</p>
-            <!-- Toon de naam van de optie -->
-          </div>
+            :class="{
+              active:
+                selectedOption.optionId?.name === selectedOptionName ||
+                (index === 0 && !selectedOptionName),
+            }"
+            @click="selectOption(selectedOption.optionId?.name)"
+            :style="{ backgroundColor: selectedOption.optionId?.name }"
+          ></div>
         </div>
       </div>
 

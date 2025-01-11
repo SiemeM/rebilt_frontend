@@ -379,6 +379,10 @@ li svg {
   width: 100%;
 }
 
+.config-wrapper .summary {
+  display: none;
+}
+
 .config-wrapper .overview ul,
 .config-wrapper .summary ul {
   display: flex;
@@ -669,14 +673,6 @@ li svg {
 .config-wrapper .bullets .border {
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   width: 16px;
-}
-
-.config-wrapper .overview,
-.config-wrapper .summary {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
 }
 
 .config-wrapper .config-ui__page {
