@@ -216,6 +216,7 @@ async function optionNameById(optionId) {
     const existing = optionNames.value.find(
       (item) => item.optionId === optionId
     );
+    console.log(existing);
     if (!existing) {
       optionNames.value.push({ optionId, name: data.data.name }); // Push the optionId and name pair
     }
@@ -276,14 +277,18 @@ function selectOption(index) {
             }
 
             const configResult = await configResponse.json();
+            console.log(configResult);
+
             const options = configResult.data.options || [];
-            const selectedOptionData = options[index];
+
+            // Gebruik de selectedOptions die er al zijn
+            const selectedOptionData = config.selectedOptions[index];
 
             let optionName = selectedOptionData?.name;
 
             if (!optionName && selectedOptionData?.optionId) {
               // Haal de naam op via de aparte API-call
-              const optionUrl = `${baseURL}/options/${selectedOptionData.optionId}`;
+              const optionUrl = `${baseURL}/options/${selectedOptionData.optionId._id}`;
               try {
                 const optionResponse = await fetch(optionUrl, {
                   method: "GET",
@@ -302,16 +307,16 @@ function selectOption(index) {
                 optionName = optionResult.data?.name || `Option ${index + 1}`; // Fallback
               } catch (err) {
                 console.error(
-                  `Error fetching option name for optionId ${selectedOptionData.optionId}:`,
+                  `Error fetching option name for optionId ${selectedOptionData.optionId._id}:`,
                   err.message
                 );
               }
             }
 
+            console.log(selectedOptionData);
             if (selectedOptionData?.images) {
-              selectedOptionImages = selectedOptionData.images.map(
-                (img) => img.url
-              );
+              selectedOptionImages = selectedOptionData.images;
+              console.log(selectedOptionImages);
             } else {
               selectedOptionImages = [];
             }
@@ -355,7 +360,7 @@ function selectOption(index) {
 
       // Zet de eerste afbeelding als selectedImage
       if (selectedOptionImages.length > 0) {
-        selectedImage.value = selectedOptionImages[0];
+        selectedImage.value = selectedOptionImages[0]; // Hier stellen we de eerste afbeelding in als de geselecteerde afbeelding
       }
 
       // Update productData
@@ -392,7 +397,6 @@ async function loadOptionsForConfig(configId) {
     const response = await fetch(`${baseURL}/configurations/${configId}`);
     if (!response.ok) throw new Error("Network response was not ok");
     const data = await response.json();
-
     // For each option in the config, fetch its name
     for (const option of data.data.options) {
       await optionNameById(option.optionId);
@@ -473,42 +477,138 @@ async function fetchProductData(productCode) {
     // Haal de configuraties voor dit product op
     const configurations = product.configurations || []; // Default to an empty array if configurations is missing
 
-    // Collect images from selectedOptions[0].images[0] (adjusted path)
-    const configImages = configurations.flatMap((config) => {
-      // Check if selectedOptions exist and if they have images
-      const selectedImages = config.selectedOptions?.[0]?.images || [];
-      return selectedImages.map((img) => img); // Collect all image URLs from the selected options
-    });
+    // Maak een aparte array voor de namen van de opties
+    optionNames.value = [];
 
-    // Combine product images and configuration images
+    // Verzamel de afbeeldingen van de geselecteerde opties
+    let selectedOptionImages = [];
+    const enrichedConfigurations = await Promise.all(
+      configurations.map(async (config) => {
+        let selectedConfigId = config.configurationId;
+
+        if (typeof selectedConfigId === "object" && selectedConfigId._id) {
+          selectedConfigId = selectedConfigId._id;
+        }
+
+        await loadOptionsForConfig(selectedConfigId);
+
+        const configUrl = `${baseURL}/configurations/${selectedConfigId}`;
+
+        try {
+          const configResponse = await fetch(configUrl, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (!configResponse.ok) {
+            throw new Error(
+              `Configuration fetch error! Status: ${configResponse.status}`
+            );
+          }
+
+          const configResult = await configResponse.json();
+          const options = configResult.data.options || [];
+
+          // Gebruik de geselecteerde optie (bijvoorbeeld de eerste geselecteerde optie)
+          const selectedOptionData = config.selectedOptions[0]; // Hier kiezen we de eerste geselecteerde optie
+
+          let optionName = selectedOptionData?.name;
+
+          if (!optionName && selectedOptionData?.optionId) {
+            // Haal de naam op via de aparte API-call
+            const optionUrl = `${baseURL}/options/${selectedOptionData.optionId._id}`;
+            try {
+              const optionResponse = await fetch(optionUrl, {
+                method: "GET",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              });
+
+              if (!optionResponse.ok) {
+                throw new Error(
+                  `Option fetch error! Status: ${optionResponse.status}`
+                );
+              }
+
+              const optionResult = await optionResponse.json();
+              optionName = optionResult.data?.name || `Option 1`; // Fallback naam
+            } catch (err) {
+              console.error(
+                `Error fetching option name for optionId ${selectedOptionData.optionId._id}:`,
+                err.message
+              );
+            }
+          }
+
+          // Haal de afbeeldingen van de geselecteerde optie
+          if (selectedOptionData?.images) {
+            selectedOptionImages = selectedOptionData.images;
+            console.log("Selected option images:", selectedOptionImages);
+          } else {
+            selectedOptionImages = [];
+          }
+
+          // Update de geselecteerde configuratie met de geselecteerde optie
+          const existingConfigIndex = selectedItems.value.findIndex(
+            (item) => item.configurationId === selectedConfigId
+          );
+
+          if (existingConfigIndex !== -1) {
+            selectedItems.value[existingConfigIndex].selectedItem = {
+              optionName: optionName,
+              images: selectedOptionImages,
+            };
+          } else {
+            selectedItems.value.push({
+              configurationId: selectedConfigId,
+              selectedItem: {
+                optionName: optionName,
+                images: selectedOptionImages,
+              },
+            });
+          }
+
+          return {
+            ...config,
+            options,
+          };
+        } catch (err) {
+          console.error(
+            `Error fetching configuration for ID ${selectedConfigId}:`,
+            err.message
+          );
+          return { ...config, options: [] };
+        }
+      })
+    );
+
+    // Update de productImages met de afbeeldingen van de geselecteerde optie
+    productImages.value = selectedOptionImages;
+
+    // Stel de eerste afbeelding in als selectedImage
+    if (selectedOptionImages.length > 0) {
+      selectedImage.value = selectedOptionImages[0]; // De eerste afbeelding als geselecteerde afbeelding
+    }
+
+    // Update productData met de geselecteerde afbeeldingen en configuraties
     productData.value = {
       productName: product.productName,
       productCode: product.productCode,
       productPrice: product.productPrice,
-      images: configImages, // All images from selectedOptions[0].images
-      configurations, // Add configurations to the product data
+      images: selectedOptionImages, // Alleen de geselecteerde afbeeldingen van de eerste optie
+      configurations: enrichedConfigurations, // Voeg de verrijkte configuraties toe
     };
 
-    // Log to verify images
-    console.log("All images combined:", productData.value.images);
-
-    // Stel de eerste configuratie af met de eerste 2 afbeeldingen van de optie
-    const selectedOptionImages = configImages.slice(0, 2); // Select first 2 images
-
-    // Log selected option images
-    console.log("Selected option images:", selectedOptionImages);
-
-    // Update the image array
-    productImages.value = selectedOptionImages.map((img) => img);
-
-    // Set the first image as the selected image
-    if (selectedOptionImages.length > 0) {
-      selectedImage.value = selectedOptionImages[0];
-    }
+    // Werk de opties en geselecteerde items bij
+    const optionNamesList = enrichedConfigurations.flatMap((config) =>
+      config.selectedOptions.map((selectedOption) => selectedOption.optionName)
+    );
+    optionNames.value = optionNamesList;
 
     const partnerId = product.partnerId;
-    const productId = product._id;
-
     if (partnerId) {
       await fetchPartnerName(partnerId);
       await fetchPartnerPackage(partnerId);
@@ -516,8 +616,6 @@ async function fetchProductData(productCode) {
       await fetchLogoUrl(partnerId);
       await fetchPartnerConfigurations(partnerId, product);
     }
-
-    error.value = null;
   } catch (err) {
     console.error("Error fetching product data:", err.message);
     error.value =
@@ -1002,19 +1100,19 @@ function setSelectedImage(image) {
           {{ configuration.configurationId?.fieldName }}
         </h2>
 
-        <!-- Ensure productConfigs exist before proceeding -->
-
         <div class="row">
           <div
-            v-for="(option, index) in options"
+            v-for="(option, index) in optionNames"
             :key="index"
             :class="{ active: selectedOption === index }"
             @click="selectOption(index)"
           >
-            <p>{{ option.name }}</p>
+            <p>{{ option }}</p>
+            <!-- Toon de naam van de optie -->
           </div>
         </div>
       </div>
+
       <div class="summary display">
         <h2>Summary</h2>
         <ul v-if="productConfigs.length > 0">
