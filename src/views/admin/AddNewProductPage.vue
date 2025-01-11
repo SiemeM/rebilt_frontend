@@ -19,7 +19,7 @@ const baseURL = isProduction
 const filteredProducts = ref([]);
 const selectedColors = ref([]);
 const selectedConfigurations = ref([]);
-
+const partnerConfigurations = ref([]);
 // Functie om te controleren of de gebruiker is ingelogd
 const checkToken = () => {
   if (!jwtToken) {
@@ -205,28 +205,23 @@ const addProduct = async () => {
     }
 
     // Verwerk de kleuren en hun afbeeldingen
-    console.log("Processing colors...");
     const colorsWithImages = await Promise.all(
       selectedColors.value.map(async (colorItem, index) => {
-        console.log("Processing color:", colorItem);
         const uploadedImages = await Promise.all(
           (colorUploads.value[index]?.images || []).map((file) =>
             uploadFileToCloudinary(file, `${productName.value}-${index}`)
           )
         );
-        console.log("Uploaded images for color:", uploadedImages);
         return {
           color: colorItem,
           images: uploadedImages,
         };
       })
     );
-    console.log("Colors with images:", colorsWithImages);
 
     // Configuraties verwerken
     const configurations = partnerConfigurations.value.map((config) => {
       const selectedOptions = [];
-      console.log("Processing configuration:", config);
       if (config.fieldType === "color" && selectedColors.value.length > 0) {
         selectedColors.value.forEach((selectedColor) => {
           const selectedOptionId = selectedColor._id;
@@ -234,7 +229,6 @@ const addProduct = async () => {
             colorsWithImages.find(
               (color) => color.color._id === selectedColor._id
             )?.images || [];
-          console.log("Selected color and images:", selectedColor, images);
 
           selectedOptions.push({
             optionId: selectedOptionId,
@@ -243,13 +237,11 @@ const addProduct = async () => {
           });
         });
       }
-      console.log("Selected options for configuration:", selectedOptions);
       return {
         configurationId: config.configurationId._id,
         selectedOptions,
       };
     });
-    console.log("Configurations after processing:", configurations);
 
     // Het productdata object opstellen
     const productData = {
@@ -263,7 +255,6 @@ const addProduct = async () => {
       partnerId,
       configurations,
     };
-    console.log("Final product data before POST request:", productData);
 
     // Verstuur het product naar de API
     const response = await axios.post(`${baseURL}/products`, productData, {
@@ -272,7 +263,6 @@ const addProduct = async () => {
         "Content-Type": "application/json",
       },
     });
-    console.log("Server response:", response);
 
     if (response.status === 201) {
       router.push("/admin");
@@ -280,13 +270,6 @@ const addProduct = async () => {
       errorMessage.value = "Failed to add product.";
     }
   } catch (error) {
-    console.error("Error adding product:", error);
-    if (error.response) {
-      console.error("Response data:", error.response.data);
-      console.error("Response status:", error.response.status);
-    } else {
-      console.error("Error message:", error.message);
-    }
     errorMessage.value = error.response?.data?.message || "Unknown error.";
   }
 };
@@ -294,47 +277,124 @@ const addProduct = async () => {
 // Lifecycle hook voor het ophalen van partnergegevens
 onMounted(() => {
   checkToken();
+  fetchPartnerPackage();
   fetchPartnerData(); // Haal partnergegevens op zodra de component gemonteerd is
   fetchProducts();
 });
 
 // Product-informatie refs
 const productCode = ref("");
+const partnerPackage = ref("");
 const productType = ref("sneaker");
 const productName = ref("");
 const brand = ref("");
 const productPrice = ref("");
 const description = ref("");
+// Haal het pakket van de partner op
+async function fetchPartnerPackage() {
+  try {
+    const response = await fetch(`${baseURL}/partners/${partnerId}`);
+    if (!response.ok) throw new Error("Network response was not ok");
+    const data = await response.json();
+    partnerPackage.value = data.data.partner.package || "";
+  } catch (err) {
+    console.error("Error fetching partner package:", err);
+  }
+}
 
-const partnerConfigurations = ref([]);
-
-// Functie voor het uploaden van afbeeldingen naar Cloudinary
-const uploadFileToCloudinary = async (file, productName, partnerName) => {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", "ycy4zvmj");
-  formData.append("cloud_name", "dzempjvto");
-
-  const folderName = `${
-    partnerName || "DefaultFolder"
-  }/Products/${productName}`;
-  formData.append("folder", folderName);
-
-  // Bepaal de juiste API endpoint op basis van bestandstype
-  let uploadEndpoint;
-  const fileExtension = file.name.split(".").pop().toLowerCase();
-
-  if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(fileExtension)) {
-    // Als het een afbeeldingsbestand is
-    uploadEndpoint = "https://api.cloudinary.com/v1_1/dzempjvto/image/upload";
-  } else if (["glb", "gltf"].includes(fileExtension)) {
-    // Als het een GLB bestand is
-    uploadEndpoint = "https://api.cloudinary.com/v1_1/dzempjvto/raw/upload";
-  } else {
-    throw new Error("Unsupported file type");
+// Kleur-upload functie
+const handleColorImageUpload = (event, index) => {
+  if (!event?.target?.files) {
+    console.warn(
+      "Geen geldig event object gevonden bij handleColorImageUpload"
+    );
+    return;
   }
 
+  // Zorg ervoor dat colorUploads[index] bestaat en een images array bevat
+  if (!colorUploads.value[index]) {
+    colorUploads.value[index] = { images: [] }; // Initialiseer het object als het nog niet bestaat
+  }
+
+  const files = Array.from(event.target.files).filter(
+    (file) => file instanceof File
+  );
+
+  if (files.length > 0) {
+    const file = files[0]; // Neem het eerste bestand
+    const fileExtension = file.name.split(".").pop().toLowerCase(); // Controleer bestandstype
+
+    // Controleer of de gebruiker een Standard pakket heeft en of het bestandstype niet is toegestaan
+    if (
+      partnerPackage.value === "Standard" &&
+      ["glb", "gltf"].includes(fileExtension)
+    ) {
+      console.warn("GLB bestanden zijn alleen toegestaan voor Pro-gebruikers.");
+      alert(
+        "GLB bestanden zijn alleen toegestaan voor Pro-gebruikers. Je kunt alleen afbeeldingen uploaden."
+      );
+      return; // Stop de upload voor dit bestand
+    }
+
+    // Voeg het bestand toe aan colorUploads (als het bestandstype geldig is)
+    colorUploads.value[index].images.push(...files);
+  }
+};
+
+// Cloudinary upload functie
+// Functie voor het uploaden van bestanden naar Cloudinary
+const uploadFileToCloudinary = async (file, productName, partnerName) => {
   try {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "ycy4zvmj");
+    formData.append("cloud_name", "dzempjvto");
+
+    const folderName = `${
+      partnerName || "DefaultFolder"
+    }/Products/${productName}`;
+    formData.append("folder", folderName);
+
+    // Wacht totdat het partnerpakket is opgehaald
+    if (!partnerPackage.value) {
+      console.error("Partner package not available");
+      document.querySelector(".errorMessage").innerHTML =
+        "Er is een probleem met het ophalen van het partnerpakket."; // Foutmelding voor ontbrekend partnerpakket
+      return; // Stop de upload als het partnerpakket nog niet beschikbaar is
+    }
+
+    let uploadEndpoint;
+    const fileExtension = file.name.split(".").pop().toLowerCase();
+
+    // Check het pakket van de partner (Pro of Standard)
+    if (partnerPackage.value === "pro") {
+      if (
+        ["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(fileExtension)
+      ) {
+        uploadEndpoint =
+          "https://api.cloudinary.com/v1_1/dzempjvto/image/upload"; // Afbeelding upload
+      } else if (["glb", "gltf"].includes(fileExtension)) {
+        uploadEndpoint = "https://api.cloudinary.com/v1_1/dzempjvto/raw/upload"; // 3D-bestand upload
+      } else {
+        throw new Error("Unsupported file type");
+      }
+    } else if (partnerPackage.value === "standard") {
+      if (
+        ["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(fileExtension)
+      ) {
+        uploadEndpoint =
+          "https://api.cloudinary.com/v1_1/dzempjvto/image/upload"; // Afbeelding upload
+      } else {
+        // Toon foutmelding voor Standard gebruikers die een niet-ondersteund bestand proberen te uploaden
+        document.querySelector(".errorMessage").innerHTML =
+          "Standard plan users can only upload images.";
+        return; // Stop verdere verwerking
+      }
+    } else {
+      throw new Error("Invalid partner package");
+    }
+
+    // Upload bestand naar Cloudinary
     const response = await fetch(uploadEndpoint, {
       method: "POST",
       body: formData,
@@ -350,9 +410,17 @@ const uploadFileToCloudinary = async (file, productName, partnerName) => {
       throw new Error("No secure_url found in Cloudinary response");
     }
 
+    // Return de secure URL als de upload succesvol is
     return data.secure_url;
   } catch (error) {
+    // Log de fout naar de console
     console.error("Error uploading file:", error);
+
+    // Toon de foutmelding in de frontend
+    document.querySelector(".errorMessage").innerHTML =
+      error.message || "Er is een onbekende fout opgetreden."; // Toon generieke foutmelding als er geen specifieke fout is
+
+    // Gooi de fout verder om de aanroepende functie te informeren over het probleem
     throw error;
   }
 };
@@ -385,30 +453,8 @@ const toggleDropdown = (fieldName) => {
 };
 
 // Afbeeldingen uploaden per kleur
-const handleColorImageUpload = (event, index) => {
-  if (!event || !event.target || !event.target.files) {
-    console.warn(
-      "Geen geldig event object gevonden bij handleColorImageUpload"
-    );
-    return;
-  }
-
-  // Zorg ervoor dat colorUploads[index] bestaat en een images array bevat
-  if (!colorUploads.value[index]) {
-    colorUploads.value[index] = { images: [] }; // Initialiseer het object als het nog niet bestaat
-  }
-
-  const files = Array.from(event.target.files).filter(
-    (file) => file instanceof File
-  );
-
-  if (files.length > 0) {
-    colorUploads.value[index].images.push(...files);
-  }
-};
 
 const toggleColorSelection = (option, fieldName) => {
-  console.log(selectedColors.value);
   const index = selectedColors.value.indexOf(option.optionId);
   if (index === -1) {
     // Voeg de kleur toe aan de selectie
@@ -640,6 +686,9 @@ const getColorNameById = (colorId) => {
                     />
                   </div>
                 </div>
+
+                <!-- Voeg hier de waarschuwing toe voor Standard gebruikers die GLB-bestanden proberen te uploaden -->
+                <p class="errorMessage"></p>
               </div>
             </div>
           </template>
@@ -648,10 +697,6 @@ const getColorNameById = (colorId) => {
 
       <button type="submit" class="btn active">Add product</button>
     </form>
-
-    <div v-if="errorMessage" class="error-message">
-      {{ errorMessage }}
-    </div>
   </div>
 </template>
 
@@ -659,6 +704,15 @@ const getColorNameById = (colorId) => {
 .content {
   width: 100%;
   margin-bottom: 72px;
+}
+
+.error-message {
+  color: red;
+  font-weight: bold;
+  padding: 10px;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 5px;
 }
 
 form,
