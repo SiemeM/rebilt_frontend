@@ -211,7 +211,7 @@ const addProduct = async () => {
         console.log("Processing color:", colorItem);
         const uploadedImages = await Promise.all(
           (colorUploads.value[index]?.images || []).map((file) =>
-            uploadImageToCloudinary(file, `${productName.value}-${index}`)
+            uploadFileToCloudinary(file, `${productName.value}-${index}`)
           )
         );
         console.log("Uploaded images for color:", uploadedImages);
@@ -309,22 +309,36 @@ const description = ref("");
 const partnerConfigurations = ref([]);
 
 // Functie voor het uploaden van afbeeldingen naar Cloudinary
-const uploadImageToCloudinary = async (file, productName) => {
+const uploadFileToCloudinary = async (file, productName, partnerName) => {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("upload_preset", "ycy4zvmj");
   formData.append("cloud_name", "dzempjvto");
 
   const folderName = `${
-    partnerName.value || "DefaultFolder"
+    partnerName || "DefaultFolder"
   }/Products/${productName}`;
   formData.append("folder", folderName);
 
+  // Bepaal de juiste API endpoint op basis van bestandstype
+  let uploadEndpoint;
+  const fileExtension = file.name.split(".").pop().toLowerCase();
+
+  if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(fileExtension)) {
+    // Als het een afbeeldingsbestand is
+    uploadEndpoint = "https://api.cloudinary.com/v1_1/dzempjvto/image/upload";
+  } else if (["glb", "gltf"].includes(fileExtension)) {
+    // Als het een GLB bestand is
+    uploadEndpoint = "https://api.cloudinary.com/v1_1/dzempjvto/raw/upload";
+  } else {
+    throw new Error("Unsupported file type");
+  }
+
   try {
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/dzempjvto/image/upload`,
-      { method: "POST", body: formData }
-    );
+    const response = await fetch(uploadEndpoint, {
+      method: "POST",
+      body: formData,
+    });
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -338,7 +352,7 @@ const uploadImageToCloudinary = async (file, productName) => {
 
     return data.secure_url;
   } catch (error) {
-    console.error("Error uploading image:", error);
+    console.error("Error uploading file:", error);
     throw error;
   }
 };
