@@ -250,55 +250,56 @@ function load3DModel(filePath) {
   const fileExtension = filePath.split(".").pop().toLowerCase();
 
   if (fileExtension === "obj") {
-    loadOBJModel(filePath);
-  } else if (fileExtension === "glb") {
-    loadGLBModel(filePath);
+    loadOBJModel(filePath); // Laad .obj bestand
+  } else if (fileExtension === "glb" || fileExtension === "gltf") {
+    loadGLBModel(filePath); // Laad .glb of .gltf bestand
   } else {
     console.error("Unsupported file type:", fileExtension);
   }
+}
+
+function loadGLBModel(filePath) {
+  gltfLoader.load(
+    filePath, // Gebruik het bestandspad voor .glb of .gltf
+    (gltf) => {
+      const object = gltf.scene;
+
+      // Verplaats het model naar het midden van de scene
+      const box = new THREE.Box3().setFromObject(object);
+      const center = box.getCenter(new THREE.Vector3());
+      object.position.set(-center.x, -center.y, -center.z);
+      object.scale.set(100, 100, 100); // Vergroot het model
+
+      // Voeg het object toe aan de scene
+      scene.add(object);
+      model = object;
+      isModelLoaded = true;
+      extractMaterials(object);
+    },
+    (xhr) => {
+      console.log(`Model loading progress: ${(xhr.loaded / xhr.total) * 100}%`);
+    },
+    (error) => {
+      console.error("Error loading 3D model:", error);
+    }
+  );
 }
 
 function loadOBJModel(filePath) {
   objLoader.load(
     filePath,
     (object) => {
-      const box = new THREE.Box3().setFromObject(object);
-      const center = box.getCenter(new THREE.Vector3());
-      object.position.set(-center.x, -center.y, -center.z);
-      object.scale.set(10, 10, 10);
-
+      object.scale.set(10, 10, 10); // Pas de schaal aan
       scene.add(object);
       model = object;
       isModelLoaded = true;
+      extractMaterials(object);
     },
     (xhr) => {
-      console.log(`OBJ loading progress: ${(xhr.loaded / xhr.total) * 100}%`);
+      console.log(`Model loading progress: ${(xhr.loaded / xhr.total) * 100}%`);
     },
     (error) => {
       console.error("Error loading OBJ model:", error);
-    }
-  );
-}
-
-function loadGLBModel(filePath) {
-  gltfLoader.load(
-    filePath,
-    (gltf) => {
-      const object = gltf.scene;
-      const box = new THREE.Box3().setFromObject(object);
-      const center = box.getCenter(new THREE.Vector3());
-      object.position.set(-center.x, -center.y, -center.z);
-      object.scale.set(100, 100, 100);
-
-      scene.add(object);
-      model = object;
-      isModelLoaded = true;
-    },
-    (xhr) => {
-      console.log(`GLB loading progress: ${(xhr.loaded / xhr.total) * 100}%`);
-    },
-    (error) => {
-      console.error("Error loading GLB model:", error);
     }
   );
 }
@@ -975,7 +976,7 @@ watch(
 
 watch(partnerPackage, (newPackage) => {
   if (newPackage === "pro" && !isModelLoaded) {
-    const filePath = "/models/shoe.glb"; // Dit pad moet dynamisch worden ingesteld
+    const filePath = "/models/ring.obj"; // Dit pad moet dynamisch worden ingesteld
     load3DModel(filePath); // Laad het model op basis van filePath
   }
 });
