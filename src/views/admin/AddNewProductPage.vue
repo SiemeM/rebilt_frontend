@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
+import { toRaw } from "vue";
 
 // Router en JWT-token ophalen
 const router = useRouter();
@@ -18,8 +19,12 @@ const baseURL = isProduction
 
 const filteredProducts = ref([]);
 const selectedColors = ref([]);
+console.log("Selected Colors:", toRaw(selectedColors.value));
+
 const selectedConfigurations = ref([]);
 const partnerConfigurations = ref([]);
+const availableNewColors = ref([]); // Array voor nieuwe kleuren die nog niet geselecteerd zijn
+
 // Functie om te controleren of de gebruiker is ingelogd
 const checkToken = () => {
   if (!jwtToken) {
@@ -204,7 +209,7 @@ const addProduct = async () => {
       return;
     }
 
-    // Verwerk de kleuren en hun afbeeldingen
+    // Process colors and their images
     const colorsWithImages = await Promise.all(
       selectedColors.value.map(async (colorItem, index) => {
         const uploadedImages = await Promise.all(
@@ -212,6 +217,7 @@ const addProduct = async () => {
             uploadFileToCloudinary(file, `${productName.value}-${index}`)
           )
         );
+
         return {
           color: colorItem,
           images: uploadedImages,
@@ -219,31 +225,72 @@ const addProduct = async () => {
       })
     );
 
-    // Configuraties verwerken
-    const configurations = partnerConfigurations.value.map((config) => {
-      const selectedOptions = [];
-      if (config.fieldType === "color" && selectedColors.value.length > 0) {
-        selectedColors.value.forEach((selectedColor) => {
-          const selectedOptionId = selectedColor._id;
-          const images =
-            colorsWithImages.find(
-              (color) => color.color._id === selectedColor._id
-            )?.images || [];
+    console.log("Colors with images:", colorsWithImages); // Log the colors with their images
 
-          selectedOptions.push({
-            optionId: selectedOptionId,
-            images,
-            _id: `${selectedOptionId}-${Date.now()}`,
-          });
+    // Process configurations
+    const configurations = [];
+
+    for (const config of partnerConfigurations.value) {
+      const selectedOptions = [];
+      console.log(`Processing configuration: ${config.configurationId._id}`);
+
+      if (config.fieldType === "color" && selectedColors.value.length > 0) {
+        for (const selectedColor of selectedColors.value) {
+          const selectedOptionId = selectedColor._id || selectedColor;
+
+          console.log("selectedOptionId:", selectedOptionId); // Log selected option ID
+
+          if (!selectedOptionId) {
+            console.warn(
+              "Skipping color with undefined optionId:",
+              selectedColor
+            );
+            continue;
+          }
+
+          try {
+            // Fetch the option details
+            const optionResponse = await axios.get(
+              `${baseURL}/options/${selectedOptionId}`
+            );
+            console.log(optionResponse);
+
+            const option = optionResponse.data;
+
+            console.log("Fetched option:", option); // Log the option that was fetched
+
+            // Attach images for the color if available
+            const images =
+              colorsWithImages.find(
+                (color) => color.color._id === selectedOptionId
+              )?.images || [];
+
+            selectedOptions.push({
+              optionId: option.data._id,
+              images,
+              _id: `${option.data._id}-${Date.now()}`, // Generate a unique _id for the option
+            });
+
+            console.log(selectedOptions);
+          } catch (error) {
+            console.warn("Failed to fetch option:", selectedOptionId);
+            console.error(error); // Log the actual error
+          }
+        }
+      }
+
+      // Only add configurations with selected options
+      if (selectedOptions.length > 0) {
+        configurations.push({
+          configurationId: config.configurationId._id,
+          selectedOptions,
         });
       }
-      return {
-        configurationId: config.configurationId._id,
-        selectedOptions,
-      };
-    });
+    }
 
-    // Het productdata object opstellen
+    console.log("Configurations after processing:", configurations); // Log configurations before sending
+
+    // Construct the product data object
     const productData = {
       productCode: productCode.value,
       productName: productName.value,
@@ -256,7 +303,9 @@ const addProduct = async () => {
       configurations,
     };
 
-    // Verstuur het product naar de API
+    console.log("Final productData:", productData); // Log productData before sending
+
+    // Send product data to the API
     const response = await axios.post(`${baseURL}/products`, productData, {
       headers: {
         Authorization: `Bearer ${jwtToken}`,
@@ -270,6 +319,10 @@ const addProduct = async () => {
       errorMessage.value = "Failed to add product.";
     }
   } catch (error) {
+    console.error(
+      "Error adding product:",
+      error.response?.data || error.message
+    );
     errorMessage.value = error.response?.data?.message || "Unknown error.";
   }
 };
@@ -468,6 +521,73 @@ const toggleColorSelection = (option, fieldName) => {
   dropdownStates.value[fieldName] = false;
 };
 
+const newColorName = ref({});
+
+const addNewColor = async (config, fieldName) => {
+  const configId = config.configurationId._id;
+
+  if (
+    !newColorName.value[configId] ||
+    newColorName.value[configId].trim() === ""
+  ) {
+    return; // Geen lege kleuren toevoegen
+  }
+
+  const newColor = {
+    name: newColorName.value[configId].trim(),
+    type: "kleur", // Aangeven dat het een kleur is
+    price: 0, // Stel hier een prijs in, als nodig
+  };
+
+  try {
+    // Verstuur een POST-verzoek naar de server om de kleur op te slaan
+    const response = await fetch(`${baseURL}/options`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(newColor), // Verstuur de nieuwe kleur
+    });
+
+    const data = await response.json();
+    console.log("Server Response:", data); // Log de volledige response
+
+    // Controleer of 'data.data' en 'data.data._id' bestaan
+    if (data && data.data && data.data._id) {
+      console.log("Geldige _id ontvangen:", data.data._id);
+      // Voeg de nieuwe kleur toe aan de opties
+      config.options.push({
+        optionId: data.data._id, // Gebruik het ontvangen _id van de server
+        name: newColor.name,
+      });
+
+      // Voeg de nieuwe kleur toe aan de beschikbare kleuren array
+      availableNewColors.value.push({
+        optionId: data.data._id,
+        name: newColor.name,
+      });
+
+      // Reset het invoerveld
+      newColorName.value[configId] = "";
+
+      console.log("Selected Colors:", toRaw(selectedColors.value));
+    } else {
+      console.error(
+        "Fout bij het toevoegen van de kleur: geen _id ontvangen",
+        data
+      );
+    }
+  } catch (error) {
+    console.error(
+      "Er is een fout opgetreden bij het versturen van de kleur:",
+      error
+    );
+  }
+
+  // Zorg ervoor dat de addProduct functie niet automatisch wordt uitgevoerd.
+  // Hier zorgen we ervoor dat de kleur wordt toegevoegd zonder het product toe te voegen.
+};
+
 const previewImages = (images) => {
   // Zorg ervoor dat 'images' een array is
   if (!Array.isArray(images)) {
@@ -578,19 +698,17 @@ const getColorNameById = (colorId) => {
           <!-- Color field -->
           <template v-else-if="config.fieldType === 'color'">
             <div class="color-dropdown">
-              <!-- Dropdown opties voor kleuren -->
               <div class="dropdown">
                 <div
                   class="dropdown-selected"
                   @click="toggleDropdown(config.fieldName)"
                 >
-                  <!-- Toon de geselecteerde kleuren in de dropdown -->
                   <p v-if="selectedColors.length > 0">
                     Selected colors:
                     <span
                       v-for="(colorId, index) in selectedColors"
                       :key="index"
-                      style="color: {{ index }}"
+                      :style="{ color: colorId }"
                     >
                       {{ getColorNameById(colorId) }}
                       <span v-if="index !== selectedColors.length - 1">, </span>
@@ -610,7 +728,6 @@ const getColorNameById = (colorId) => {
                     class="dropdown-option"
                     @click="toggleColorSelection(option, config.fieldName)"
                   >
-                    <!-- Checkbox voor het selecteren van kleuren -->
                     <input
                       type="checkbox"
                       :value="option.optionId"
@@ -622,23 +739,34 @@ const getColorNameById = (colorId) => {
                     ></span>
                     <p>{{ option.name || "Unnamed Color" }}</p>
                   </div>
+
+                  <!-- Add new color input -->
+                  <div class="dropdown-input">
+                    <input
+                      type="text"
+                      v-model="newColorName[config.configurationId._id]"
+                      placeholder="Add new color"
+                      @keydown.enter.prevent="
+                        addNewColor(config, config.fieldName)
+                      "
+                    />
+                    <button
+                      @click="addNewColor(config, config.fieldName)"
+                      type="button"
+                    >
+                      Add
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <!-- Sectie voor afbeeldingsuploads per geselecteerde kleur -->
+              <!-- Image upload for selected colors -->
               <div
                 v-for="(colorId, index) in selectedColors"
                 :key="colorId"
                 class="color-upload-section"
               >
-                <p>
-                  Upload images for:
-                  {{
-                    config.options.find((option) => option.optionId === colorId)
-                      ?.name || "Unnamed Color"
-                  }}
-                </p>
-
+                <p>Upload images for {{ getColorNameById(colorId) }}</p>
                 <input
                   type="file"
                   :id="'images-' + index"
@@ -646,25 +774,7 @@ const getColorNameById = (colorId) => {
                   multiple
                   @change="handleColorImageUpload($event, index)"
                 />
-
-                <div
-                  class="uploadImage"
-                  @click="() => triggerFileInput(index)"
-                  :style="{
-                    flexDirection:
-                      colorUploads[index]?.images?.length > 0
-                        ? 'row'
-                        : 'column',
-                    flexWrap:
-                      colorUploads[index]?.images?.length > 0
-                        ? 'wrap'
-                        : 'no-wrap',
-                    justifyContent:
-                      colorUploads[index]?.images?.length > 0
-                        ? 'flex-start'
-                        : 'center',
-                  }"
-                >
+                <div class="uploadImage" @click="() => triggerFileInput(index)">
                   <div v-if="!colorUploads[index]?.images?.length" class="text">
                     <img
                       src="../../assets/icons/image-add.svg"
@@ -686,16 +796,14 @@ const getColorNameById = (colorId) => {
                     />
                   </div>
                 </div>
-
-                <!-- Voeg hier de waarschuwing toe voor Standard gebruikers die GLB-bestanden proberen te uploaden -->
-                <p class="errorMessage"></p>
               </div>
             </div>
           </template>
         </div>
       </div>
 
-      <button type="submit" class="btn active">Add product</button>
+      <!-- Submit button to trigger the form submission -->
+      <button class="btn active" type="submit">Add product</button>
     </form>
   </div>
 </template>
