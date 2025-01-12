@@ -13,7 +13,7 @@ const layers = ref([]);
 const layersColors = ref([]);
 const selectedThingsInLayers = ref([]);
 const colors = ref([]);
-const selectedColor = ref(null);
+const selectedLayerColor = ref(null);
 const currentPageIndex = ref(0);
 const productImages = ref([]);
 const selectedImage = ref(null);
@@ -38,7 +38,7 @@ const dracoLoader = new DRACOLoader();
 const gltfLoader = new GLTFLoader();
 dracoLoader.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
 gltfLoader.setDRACOLoader(dracoLoader);
-
+const fieldName = ref(null);
 let isModelLoaded = false;
 let model = null;
 let isSceneInitialized = false;
@@ -53,12 +53,6 @@ const optionNames = ref([]);
 const selectedItems = ref([]);
 const productConfigs = ref([]);
 const partnerConfigurationsCount = ref([]);
-
-onMounted(() => {
-  if (!isSceneInitialized) {
-    initializeScene();
-  }
-});
 
 onUnmounted(() => {
   window.removeEventListener("resize", onWindowResize);
@@ -131,20 +125,18 @@ function onMouseUp() {
 }
 
 function logSceneLayers() {
-  // Doorloop alle objecten in de scene en log hun naam en type
   if (!scene) {
     console.error("Scene is niet geïnitialiseerd!");
-    return;
+    return; // Stop als de scene niet bestaat
   }
 
-  scene.traverse((object) => {
-    if (object instanceof THREE.Mesh) {
-      console.log(`Laag naam: ${object.name}, Type: ${object.type}`);
-    }
-  });
+  // // Doorloop alle objecten in de scene en log hun naam en type
+  // scene.traverse((object) => {
+  //   if (object instanceof THREE.Mesh) {
+  //     console.log(`Laag naam: ${object.name}, Type: ${object.type}`);
+  //   }
+  // });
 }
-
-logSceneLayers();
 
 // Toevoegen van eventlisteners bij de initialisatie
 function initializeScene() {
@@ -235,20 +227,13 @@ function initializeScene() {
   }
 }
 
-onMounted(() => {
-  // Zorg ervoor dat de scene wordt geïnitialiseerd wanneer de component wordt gemonteerd
-  if (!isSceneInitialized) {
-    initializeScene();
-  }
-});
-
 function animate() {
   const rendererToUse =
     window.innerWidth <= 768 ? rendererMobile : rendererDesktop;
 
   if (rendererToUse) {
     requestAnimationFrame(animate);
-    rendererToUse.render(scene, camera);
+    rendererToUse.render(scene, camera); // Render de scène
   }
 }
 
@@ -334,98 +319,145 @@ function loadOBJModel(filePath) {
   });
 }
 
-function getColorForLayer(newLayer) {
-  console.log(`Zoeken naar de kleur voor de geselecteerde laag: ${newLayer}`);
+function getSelectedFieldName() {
+  // Zoek het geselecteerde <h2> element met een specifieke klasse
+  const heading = document.querySelector("h2.selected-layer");
+  if (heading) {
+    return heading.innerText.trim().toLowerCase(); // Haal de tekst op, converteer naar kleine letters
+  }
+  return null;
+}
 
-  // Verkrijg de productconfiguraties
+// Zoek de kleur voor een bepaalde laag
+function getColorForLayer(newOption) {
   let productConfigs = productData.value.configurations || [];
 
-  // Zoek de configuratie die overeenkomt met de geselecteerde laagnaam (newLayer)
   let config = productConfigs.find((config) =>
-    config.selectedOptions.some((option) => option.optionId?.name === newLayer)
+    config.selectedOptions.some((option) => option.optionId?.name === newOption)
   );
 
   if (config) {
-    const fieldName = config.configurationId?.fieldName; // Verkrijg de naam van de laag (fieldName)
-    console.log(`Gevonden fieldName voor ${newLayer}: ${fieldName}`); // Log de fieldName
+    const fieldName = config.configurationId?.fieldName;
 
-    // Zoek naar de geselecteerde optie die overeenkomt met newLayer
     const selectedOption = config.selectedOptions.find(
-      (option) => option.optionId?.name === newLayer
+      (option) => option.optionId?.name === newOption
     );
 
     if (selectedOption) {
-      // Haal de kleur op voor de geselecteerde optie
-      const color = selectedOption.optionId.name; // Dit kan aangepast worden afhankelijk van hoe de kleur is opgeslagen
-
+      const color = selectedOption.optionId?.name; // Pas eventueel aan op de structuur van je data
       if (color) {
-        console.log(`Gevonden kleur voor ${newLayer}: ${color}`);
-        return color; // Retourneer de kleur
+        // Controleer of de laag zichtbaar is
+        const layerElements = document.querySelectorAll("p");
+        let layerVisible = false;
+
+        layerElements.forEach((el) => {
+          if (el.textContent.trim() === fieldName) {
+            // Krijg de oudercontainer van het p-element
+            const parentElement = el.closest("li");
+
+            // Controleer of de oudercontainer zichtbaar is
+            const style = window.getComputedStyle(parentElement);
+            if (style.display !== "none" && style.visibility !== "hidden") {
+              layerVisible = true;
+            }
+          }
+        });
+
+        if (layerVisible) {
+          return color; // Laag is zichtbaar, retourneer kleur
+        } else {
+          console.log(`Laag ${fieldName} is verborgen, kleur niet toegepast.`);
+          return null; // Laag is verborgen, geen kleur toepassen
+        }
       } else {
-        console.warn(
-          `Geen kleur gevonden voor de geselecteerde optie: ${newLayer}`
-        );
+        console.warn(`Geen kleur gevonden voor ${newOption}`);
       }
     } else {
-      console.warn(`Geen geselecteerde optie gevonden voor ${newLayer}`);
+      console.warn(`Geen geselecteerde optie gevonden voor ${newOption}`);
     }
   } else {
-    console.warn(`Geen configuratie gevonden voor ${newLayer}`);
+    console.warn(`Geen configuratie gevonden voor ${newOption}`);
   }
 
-  // Als geen kleur gevonden is, geef dan een standaardkleur terug
-  return "#FFFFFF"; // Standaardkleur als fallback
+  // Fallback kleur als geen kleur is gevonden
+  return "#FFFFFF"; // Standaard kleur
 }
 
-function applyColorToSpecificLayer(color, fieldName) {
+function applyColorToActiveLayer(color) {
   if (!scene) {
     console.error("Scene is niet geïnitialiseerd!");
     return;
   }
 
-  let colorApplied = false;
+  // Zoek de zichtbare config-ui__page (deze heeft de klasse 'active')
+  const activePage = document.querySelector(".config-ui__page.active");
 
-  // Zorg ervoor dat de kleur een geldige hex-kleur is
-  const validColor = /^#[0-9A-Fa-f]{6}$/i.test(color); // Test de kleur in hex formaat
-
-  if (!validColor) {
-    console.warn(`Ongeldige kleur: ${color}, gebruik standaardkleur.`);
-    color = "#FFFFFF"; // Fallback naar wit als de kleur ongeldig is
+  // Als er geen actieve pagina is, stop de functie
+  if (!activePage) {
+    console.error("Geen actieve pagina gevonden.");
+    return;
   }
 
-  // Log de fieldName voor debugging
-  console.log(`Zoeken naar laag met naam: ${fieldName}`);
+  // Haal de naam van het veld uit de <h2> van de actieve pagina
+  const fieldNameElement = activePage.querySelector("h2.fieldName");
+  let fieldName = fieldNameElement.textContent.trim();
 
-  // Zoek naar objecten in de scene en pas de kleur toe op de juiste laag
+  // Gebruik een reguliere expressie om alles vóór "for" te verwijderen
+  const match = fieldName.match(/for\s+(.+)/);
+  if (match) {
+    fieldName = match[1].trim(); // Haal de tekst na "for" en verwijder extra spaties
+  }
+
+  console.log("fieldName na verwerking:", fieldName);
+
+  if (!fieldName || typeof fieldName !== "string") {
+    console.error("Ongeldig fieldName opgegeven.");
+    return;
+  }
+
+  // Valideer kleur (kleur moet een hex-code zijn)
+  const validColor = /^#[0-9A-Fa-f]{6}$/i.test(color);
+  if (!validColor) {
+    console.warn(`Ongeldige kleur: ${color}, standaardkleur wordt toegepast.`);
+    color = "#FFFFFF"; // Gebruik een standaardkleur als de kleur ongeldig is
+  }
+
+  let colorApplied = false;
+
+  // Traverse door de scène en zoek naar het juiste object
   scene.traverse((object) => {
-    if (object instanceof THREE.Mesh) {
-      // Log de naam van het object voor debugging
-      console.log(`Object in scene: ${object.name}`);
+    // Controleer of het object overeenkomt met de geselecteerde laag (fieldName)
+    if (
+      object instanceof THREE.Mesh &&
+      object.name.toLowerCase() === fieldName.toLowerCase()
+    ) {
+      console.log(`Kleur toepassen op object: ${object.name}`);
 
-      // Controleer of de naam van het object overeenkomt met de geselecteerde laag (fieldName)
-      if (object.name.toLowerCase() === fieldName.toLowerCase()) {
-        if (
-          object.material &&
-          object.material instanceof THREE.MeshStandardMaterial
-        ) {
-          // Pas de kleur alleen toe op de geselecteerde laag
-          object.material.color.set(color); // Pas de kleur toe
-          console.log(
-            `Gekozen laag is de kleur: ${color}\nDetailsProduct.vue:587 Gekozen laag: ${object.name}, Kleur: ${color}`
-          );
-          colorApplied = true; // Stop verder zoeken zodra de juiste laag is gevonden
+      // Zorg ervoor dat we alleen de kleur toepassen als het materiaal geschikt is
+      if (object.material) {
+        if (object.material instanceof THREE.MeshStandardMaterial) {
+          object.material.color.set(color);
+          colorApplied = true;
+        } else if (Array.isArray(object.material)) {
+          object.material.forEach((mat) => {
+            if (mat instanceof THREE.MeshStandardMaterial) {
+              mat.color.set(color);
+            }
+          });
+          colorApplied = true;
         } else {
           console.warn(
-            `Object ${object.name} heeft geen MeshStandardMaterial, maar een ander materiaal.`
+            `Object '${object.name}' heeft een niet-ondersteund materiaaltype.`
           );
         }
       }
     }
   });
 
+  // Als geen object is gevonden om de kleur toe te passen
   if (!colorApplied) {
     console.warn(
-      `Geen object gevonden met naam ${fieldName} om de kleur toe te passen.`
+      `Geen object gevonden met naam '${fieldName}' om de kleur toe te passen.`
     );
   }
 }
@@ -438,17 +470,12 @@ function selectOption(optionName) {
     return;
   }
 
-  // Update de geselecteerde optie en naam
   selectedOption.value = optionName;
   selectedOptionName.value = optionName;
 
-  let selectedOptionImages = [];
-
   fetch(`${baseURL}/products/${productId}`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
   })
     .then((response) => response.json())
     .then(async (result) => {
@@ -458,194 +485,96 @@ function selectOption(optionName) {
       const enrichedConfigurations = await Promise.all(
         configurations.map(async (config) => {
           let selectedConfigId = config.configurationId;
-
           if (typeof selectedConfigId === "object" && selectedConfigId._id) {
             selectedConfigId = selectedConfigId._id;
           }
 
           await loadOptionsForConfig(selectedConfigId);
 
-          const configUrl = `${baseURL}/configurations/${selectedConfigId}`;
+          const fieldName =
+            config.configurationId?.fieldName || "defaultFieldName"; // Fallback naar een standaardnaam
 
-          try {
-            const configResponse = await fetch(configUrl, {
-              method: "GET",
-              headers: {
-                "Content-Type": "application/json",
-              },
+          // Verkrijg de kleur voor de geselecteerde optie
+          const selectedLayerColor = getColorForLayer(optionName); // Verkrijg de kleur voor de geselecteerde optie
+
+          console.log(
+            "selectedLayerColor (na getColorForLayer):",
+            selectedLayerColor
+          );
+          console.log("fieldName (na fallback):", fieldName);
+
+          // Controleer of de kleur en fieldName beide gedefinieerd zijn
+          if (selectedLayerColor && fieldName) {
+            // Vind alle p-elementen en kijk of het overeenkomt met de fieldName
+            const layerElements = document.querySelectorAll("p");
+            let layerVisible = false;
+
+            layerElements.forEach((el) => {
+              if (el.textContent.trim() === fieldName) {
+                // Krijg de oudercontainer van het p-element
+                const parentElement = el.closest("li");
+
+                // Controleer of de oudercontainer zichtbaar is
+                const style = window.getComputedStyle(parentElement);
+                if (style.display !== "none" && style.visibility !== "hidden") {
+                  layerVisible = true;
+                }
+              }
             });
 
-            if (!configResponse.ok) {
-              throw new Error(
-                `Configuration fetch error! Status: ${configResponse.status}`
+            if (layerVisible) {
+              console.log(`Nieuwe optie geselecteerd: ${selectedLayerColor}`);
+              console.log(
+                `Toepassen kleur: ${selectedLayerColor} op laag: ${fieldName}`
               );
-            }
-
-            const configResult = await configResponse.json();
-            const options = configResult.data.options || [];
-
-            // Zoek de geselecteerde optie op basis van optionName
-            const selectedOptionData = config.selectedOptions.find(
-              (option) => option.optionId?.name === optionName
-            );
-
-            let optionNameFromApi = selectedOptionData?.name || optionName;
-
-            if (!optionNameFromApi && selectedOptionData?.optionId) {
-              const optionUrl = `${baseURL}/options/${selectedOptionData.optionId._id}`;
-              try {
-                const optionResponse = await fetch(optionUrl, {
-                  method: "GET",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                });
-
-                if (!optionResponse.ok) {
-                  throw new Error(
-                    `Option fetch error! Status: ${optionResponse.status}`
-                  );
-                }
-
-                const optionResult = await optionResponse.json();
-                optionNameFromApi = optionResult.data?.name || optionName;
-              } catch (err) {
-                console.error(
-                  `Error fetching option name for optionId: ${selectedOptionData.optionId._id}`,
-                  err.message
-                );
-              }
-            }
-
-            if (selectedOptionData?.images) {
-              selectedOptionImages = selectedOptionData.images;
+              applyColorToActiveLayer(selectedLayerColor); // Pas kleur toe
             } else {
-              selectedOptionImages = [];
+              console.log(`Laag ${fieldName} is verborgen, overslaan.`);
             }
-
-            // Haal de kleur op voor de geselecteerde optie
-            const selectedLayerColor = getColorForLayer(optionName); // Gebruik optionName hier in plaats van newLayer
-            console.log("selectedLayerColor:", selectedLayerColor);
-
-            if (selectedLayerColor) {
-              // Verkrijg het veld van de laag (fieldName)
-              const fieldName = config.configurationId?.fieldName;
-
-              if (
-                fieldName &&
-                fieldName.toLowerCase() === optionName.toLowerCase()
-              ) {
-                // De juiste laag wordt geselecteerd, kleur toepassen
-                console.log(
-                  `Gekozen laag: ${fieldName}, Kleur: ${selectedLayerColor}`
-                );
-                applyColorToSpecificLayer(
-                  selectedLayerColor, // De kleur wordt nu direct toegepast
-                  fieldName // Het veld voor de laag wordt hier gebruikt
-                );
-              } else {
-                console.warn(
-                  `Geen overeenkomende laag gevonden voor ${optionName}`
-                );
-              }
-            } else {
-              console.warn("Geen kleur gevonden voor de geselecteerde optie.");
-            }
-
-            // Update selectedItems
-            const existingConfigIndex = selectedItems.value.findIndex(
-              (item) => item.configurationId === selectedConfigId
-            );
-
-            if (existingConfigIndex !== -1) {
-              selectedItems.value[existingConfigIndex].selectedItem = {
-                optionName: optionNameFromApi,
-                images: selectedOptionImages,
-              };
-            } else {
-              selectedItems.value.push({
-                configurationId: selectedConfigId,
-                selectedItem: {
-                  optionName: optionNameFromApi,
-                  images: selectedOptionImages,
-                },
-              });
-            }
-
-            return {
-              ...config,
-              options,
-            };
-          } catch (err) {
-            console.error(
-              `Error fetching configuration for ID ${selectedConfigId}:`,
-              err.message
-            );
-            return { ...config, options: [] };
+          } else {
+            console.error("Geen fieldName of kleur geselecteerd voor kleur.");
           }
+
+          return config;
         })
       );
 
-      productImages.value = selectedOptionImages;
-
-      if (selectedOptionImages.length > 0) {
-        selectedImage.value = selectedOptionImages[0];
-      }
-
       productData.value = {
-        productName: product.productName,
-        productCode: product.productCode,
-        productPrice: product.productPrice,
-        images: selectedOptionImages,
+        ...productData.value,
         configurations: enrichedConfigurations,
       };
-
-      const partnerId = product.partnerId;
-      if (partnerId) {
-        await fetchPartnerName(partnerId);
-        await fetchPartnerPackage(partnerId);
-        await fetchNumberOfPartnerConfigurations(partnerId);
-        await fetchLogoUrl(partnerId);
-        await fetchPartnerConfigurations(partnerId, product);
-      }
     })
     .catch((err) => {
       console.error("Error fetching product data:", err.message);
-      error.value =
-        "Er is een fout opgetreden bij het ophalen van de productgegevens.";
-    })
-    .finally(() => {
-      isLoading.value = false;
     });
 }
 
-watch(selectedOptionName, (newLayer) => {
-  let productConfigs = productData.value.configurations || [];
+function findFieldNameForOption(optionName) {
+  const productConfigs = productData.value.configurations || [];
 
-  if (newLayer) {
-    // Zoek de configuratie die overeenkomt met de geselecteerde naam (newLayer)
-    const config = productConfigs.find((config) =>
-      config.selectedOptions.some(
-        (option) => option.optionId?.name === newLayer
-      )
-    );
+  // Zoek de configuratie die overeenkomt met de optie
+  const config = productConfigs.find((config) =>
+    config.selectedOptions.some(
+      (option) => option.optionId?.name === optionName
+    )
+  );
 
-    if (config) {
-      const fieldName = config.configurationId?.fieldName; // Verkrijg de naam van de laag (fieldName)
-      const color = getColorForLayer(newLayer); // Verkrijg de kleur voor de geselecteerde laag
+  if (config) {
+    return config.configurationId?.fieldName || null; // Geef de fieldName terug of null als deze ontbreekt
+  }
 
-      console.log(`Gekozen laag: ${fieldName}, Kleur: ${color}`);
+  console.warn(`Geen fieldName gevonden voor optie: ${optionName}`);
+  return null;
+}
 
-      // Pas de kleur alleen toe als de kleur en fieldName zijn gevonden
-      if (color && fieldName) {
-        applyColorToSpecificLayer(color, fieldName); // Pas de kleur alleen toe voor de geselecteerde laag
-      } else {
-        console.warn(`Geen kleur gevonden voor laag: ${fieldName}`);
-      }
-    } else {
-      console.warn(
-        `Configuratie niet gevonden voor geselecteerde optie: ${newLayer}`
-      );
+watch(selectedOptionName, (newOption) => {
+  console.log("Nieuwe optie geselecteerd:", newOption);
+  if (newOption) {
+    const fieldName = findFieldNameForOption(newOption);
+    const color = getColorForLayer(newOption);
+    console.log(`Toepassen kleur: ${color} op laag: ${fieldName}`);
+    if (color && fieldName) {
+      applyColorToActiveLayer(color);
     }
   }
 });
@@ -1159,9 +1088,9 @@ watch(partnerPackage, (newPackage) => {
 onMounted(() => {
   const container = document.querySelector(".model");
   if (container) {
-    initializeScene();
+    initializeScene(); // Initialiseert de scene als de container bestaat
   } else {
-    console.error("3D container not found!");
+    console.error("3D container not found!"); // Meldt een fout als de container niet gevonden wordt
   }
 });
 </script>
@@ -1338,13 +1267,13 @@ onMounted(() => {
         class="config-ui__page"
         v-show="currentPageIndex === index"
       >
-        <h2>
+        <h2 class="fieldName">
           {{
             configuration.fieldType === "Color"
               ? "Choose the color for"
               : "Choose an option for"
           }}
-          {{ configuration.configurationId?.fieldName }}
+          {{ configuration.configurationId?.fieldName || `Layer ${index}` }}
         </h2>
 
         <div class="row">
@@ -1352,13 +1281,13 @@ onMounted(() => {
             v-for="(selectedOption, index) in configuration.selectedOptions"
             :key="index"
             :class="{
-              active:
-                selectedOption.optionId?.name === selectedOptionName ||
-                (index === 0 && !selectedOptionName),
+              active: selectedOption.optionId?.name === selectedOptionName,
             }"
             @click="selectOption(selectedOption.optionId?.name)"
             :style="{ backgroundColor: selectedOption.optionId?.name }"
-          ></div>
+          >
+            {{ selectedOption.optionId?.name }}
+          </div>
         </div>
       </div>
 
