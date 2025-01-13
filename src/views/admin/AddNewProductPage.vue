@@ -18,8 +18,8 @@ const baseURL = isProduction
   : "http://localhost:3000/api/v1";
 
 const filteredProducts = ref([]);
+const colors = ref([]);
 const selectedColors = ref([]);
-console.log("Selected Colors:", toRaw(selectedColors.value));
 
 const selectedConfigurations = ref([]);
 const partnerConfigurations = ref([]);
@@ -211,7 +211,7 @@ const addProduct = async () => {
 
     // Process colors and their images
     const colorsWithImages = await Promise.all(
-      selectedColors.value.map(async (colorItem, index) => {
+      colors.value.map(async (colorItem, index) => {
         const uploadedImages = await Promise.all(
           (colorUploads.value[index]?.images || []).map((file) =>
             uploadFileToCloudinary(file, `${productName.value}-${index}`)
@@ -234,8 +234,8 @@ const addProduct = async () => {
       const selectedOptions = [];
       console.log(`Processing configuration: ${config.configurationId._id}`);
 
-      if (config.fieldType === "color" && selectedColors.value.length > 0) {
-        for (const selectedColor of selectedColors.value) {
+      if (config.fieldType === "color" && colors.value.length > 0) {
+        for (const selectedColor of colors.value) {
           const selectedOptionId = selectedColor._id || selectedColor;
 
           console.log("selectedOptionId:", selectedOptionId); // Log selected option ID
@@ -326,14 +326,6 @@ const addProduct = async () => {
     errorMessage.value = error.response?.data?.message || "Unknown error.";
   }
 };
-
-// Lifecycle hook voor het ophalen van partnergegevens
-onMounted(() => {
-  checkToken();
-  fetchPartnerPackage();
-  fetchPartnerData(); // Haal partnergegevens op zodra de component gemonteerd is
-  fetchProducts();
-});
 
 // Product-informatie refs
 const productCode = ref("");
@@ -505,21 +497,139 @@ const toggleDropdown = (fieldName) => {
   dropdownStates.value[fieldName] = !dropdownStates.value[fieldName];
 };
 
-// Afbeeldingen uploaden per kleur
-
 const toggleColorSelection = (option, fieldName) => {
-  const index = selectedColors.value.indexOf(option.optionId);
+  // Zorg ervoor dat selectedColors een array is
+  if (!Array.isArray(selectedColors.value)) {
+    selectedColors.value = [];
+  }
+
+  // Zoek naar de kleur in selectedColors om te controleren of deze al geselecteerd is
+  const index = selectedColors.value.findIndex(
+    (color) => color.optionId === option.optionId
+  );
+
   if (index === -1) {
-    // Voeg de kleur toe aan de selectie
-    selectedColors.value.push(option.optionId);
+    // Voeg de kleur toe aan de geselecteerde kleuren als deze nog niet is geselecteerd
+    selectedColors.value.push({
+      optionId: option.optionId,
+      name: option.name || "Unnamed Color", // Voeg de naam toe (bijv. kleurcode)
+      images: Array.isArray(option.images) ? option.images : [], // Zorg ervoor dat 'images' altijd een array is
+    });
   } else {
-    // Verwijder de kleur uit de selectie
+    // Verwijder de kleur uit selectedColors als deze al geselecteerd is
     selectedColors.value.splice(index, 1);
   }
 
   // Sluit de dropdown na selectie
-  dropdownStates.value[fieldName] = false;
+  dropdownStates[fieldName] = false;
 };
+
+// Functie om alle geselecteerde opties van een specifieke partner te halen
+async function getcolors(partnerName) {
+  const apiUrl = `${baseURL}/products?partnerName=${partnerName}`;
+  try {
+    // Haal de producten op
+    const response = await axios.get(apiUrl);
+    const data = response.data;
+
+    if (data.status !== "success" || !data.data.products) {
+      throw new Error("Ongeldige API-reactie of geen producten gevonden.");
+    }
+
+    // Verwerk de producten om geselecteerde opties te verkrijgen
+    const products = data.data.products;
+    const selectedOptions = products.flatMap((product) =>
+      product.configurations.flatMap((configuration) =>
+        configuration.selectedOptions.map((option) => ({
+          optionId: option.optionId,
+          images: option.images,
+        }))
+      )
+    );
+
+    // Array voor geselecteerde kleuren
+    const colors = [];
+
+    // Haal de namen en kleuren van de opties op via /options
+    console.log(selectedOptions);
+    const detailedOptions = await Promise.all(
+      selectedOptions.map(async (option) => {
+        try {
+          const optionResponse = await axios.get(
+            `${baseURL}/options/${option.optionId}`
+          );
+          const optionData = optionResponse.data;
+
+          // Log om de respons te controleren
+          console.log(optionData);
+
+          // Haal de naam en kleur uit de optiegegevens
+          const color = optionData.data.name; // Aangenomen dat de kleur in 'name' zit, zoals #ffffff
+
+          // Voeg kleur toe aan de colors array
+          colors.push(color); // Push de kleur naar colors array
+
+          // Retourneer gedetailleerde opties
+          return {
+            ...option,
+            name: optionData.data.name, // Naam van de optie
+            color: color, // Kleur van de optie
+          };
+        } catch (error) {
+          console.error(
+            `Fout bij ophalen van optie ${option.optionId}:`,
+            error
+          );
+          return {
+            ...option,
+            name: "Naam niet beschikbaar",
+            color: "Kleur niet beschikbaar", // Voeg een fallback in voor de kleur
+          };
+        }
+      })
+    );
+
+    // Print de geselecteerde kleuren (optioneel voor debuggen)
+    console.log("Geselecteerde kleuren:", colors);
+
+    return detailedOptions; // Retourneer gedetailleerde opties (indien nodig)
+  } catch (error) {
+    console.error("Fout bij het ophalen van geselecteerde opties:", error);
+    return [];
+  }
+}
+
+// Gebruik de functie
+getcolors("OdetteLunettes")
+  .then((colors) => {
+    console.log("Geselecteerde opties:", colors);
+  })
+  .catch((error) => {
+    console.error("Fout bij het verwerken:", error);
+  });
+
+const fetchcolors = async (partnerName) => {
+  try {
+    const selectedOptions = await getcolors(partnerName); // Haal geselecteerde kleuren op
+    colors.value = selectedOptions.map((option) => ({
+      optionId: option.optionId,
+      name: option.name || "Unnamed Color",
+      images: option.images || [],
+    }));
+    console.log("Geselecteerde kleuren:", colors.value);
+  } catch (error) {
+    console.error("Fout bij het ophalen van geselecteerde kleuren:", error);
+  }
+};
+
+// Lifecycle hook voor het ophalen van partnergegevens
+onMounted(() => {
+  checkToken();
+  fetchPartnerPackage();
+  fetchcolors("OdetteLunettes");
+  fetchPartnerData(); // Haal partnergegevens op zodra de component gemonteerd is
+  fetchProducts();
+});
 
 const newColorName = ref({});
 
@@ -550,12 +660,25 @@ const addNewColor = async (config, fieldName) => {
     });
 
     const data = await response.json();
+    console.log("Nieuw kleurobject:", newColor); // Log het kleurobject
     console.log("Server Response:", data); // Log de volledige response
 
     // Controleer of 'data.data' en 'data.data._id' bestaan
     if (data && data.data && data.data._id) {
       console.log("Geldige _id ontvangen:", data.data._id);
-      // Voeg de nieuwe kleur toe aan de opties
+
+      // Voeg de nieuwe kleur toe aan de geselecteerde kleuren (selectedColors)
+      const color = {
+        optionId: data.data._id,
+        name: newColor.name,
+        images: [], // Voeg hier een lege array voor afbeeldingen toe
+      };
+      selectedColors.value.push(color); // Voeg toe aan selectedColors
+
+      // Voeg de nieuwe kleur toe aan de beschikbare kleuren (colors)
+      colors.value.push(color); // Voeg toe aan colors
+
+      // Voeg de nieuwe kleur toe aan de opties in config
       config.options.push({
         optionId: data.data._id, // Gebruik het ontvangen _id van de server
         name: newColor.name,
@@ -570,7 +693,8 @@ const addNewColor = async (config, fieldName) => {
       // Reset het invoerveld
       newColorName.value[configId] = "";
 
-      console.log("Selected Colors:", toRaw(selectedColors.value));
+      console.log("Updated selectedColors:", selectedColors.value); // Log de bijgewerkte selectedColors
+      console.log("Updated colors:", colors.value); // Log de bijgewerkte colors
     } else {
       console.error(
         "Fout bij het toevoegen van de kleur: geen _id ontvangen",
@@ -591,6 +715,12 @@ const previewImages = (images) => {
     return []; // Return een lege array als 'images' niet gedefinieerd is
   }
   return images.map((file) => URL.createObjectURL(file));
+};
+
+const isColorSelected = (color) => {
+  return selectedColors.value.some(
+    (selectedColor) => selectedColor.optionId === color.optionId
+  );
 };
 
 // Functie om de naam van de kleur op te halen aan de hand van de optionId
@@ -683,11 +813,16 @@ const getColorNameById = (colorId) => {
           <template v-else-if="config.fieldType === 'Dropdown'">
             <select v-model="config.value" :id="config.fieldName">
               <option
-                v-for="(option, index) in config.options"
+                v-for="(color, index) in colors"
                 :key="index"
-                :value="option.optionId"
+                :value="color.optionId"
               >
-                {{ option.name || "Unnamed Option" }}
+                <!-- Toon de kleur als achtergrondkleur van de optie -->
+                <span
+                  class="color-bullet"
+                  :style="{ backgroundColor: color.name || 'transparent' }"
+                ></span>
+                {{ color.name || "Unnamed Color" }}
               </option>
             </select>
           </template>
@@ -703,11 +838,11 @@ const getColorNameById = (colorId) => {
                   <p v-if="selectedColors.length > 0">
                     Selected colors:
                     <span
-                      v-for="(colorId, index) in selectedColors"
+                      v-for="(color, index) in selectedColors"
                       :key="index"
-                      :style="{ color: colorId }"
+                      :style="{ color: color.name || 'transparent' }"
                     >
-                      {{ getColorNameById(colorId) }}
+                      {{ color.name || "Unnamed Color" }}
                       <span v-if="index !== selectedColors.length - 1">, </span>
                     </span>
                   </p>
@@ -720,21 +855,22 @@ const getColorNameById = (colorId) => {
                   class="dropdown-options"
                 >
                   <div
-                    v-for="(option, index) in config.options"
+                    v-for="(color, index) in colors"
                     :key="index"
                     class="dropdown-option"
-                    @click="toggleColorSelection(option, config.fieldName)"
+                    @click="toggleColorSelection(color, config.fieldName)"
                   >
                     <input
                       type="checkbox"
-                      :value="option.optionId"
+                      :value="color.optionId"
                       v-model="selectedColors"
+                      :checked="isColorSelected(color)"
                     />
                     <span
                       class="color-bullet"
-                      :style="{ backgroundColor: option.name || 'transparent' }"
+                      :style="{ backgroundColor: color.name || 'transparent' }"
                     ></span>
-                    <p>{{ option.name || "Unnamed Color" }}</p>
+                    <p>{{ color.name || "Unnamed Color" }}</p>
                   </div>
 
                   <!-- Add new color input -->
@@ -759,38 +895,52 @@ const getColorNameById = (colorId) => {
 
               <!-- Image upload for selected colors -->
               <div
-                v-for="(colorId, index) in selectedColors"
-                :key="colorId"
+                v-for="(color, index) in selectedColors"
+                :key="color.optionId"
                 class="color-upload-section"
               >
-                <p>Upload images for {{ getColorNameById(colorId) }}</p>
-                <input
-                  type="file"
-                  :id="'images-' + index"
-                  style="display: none"
-                  multiple
-                  @change="handleColorImageUpload($event, index)"
-                />
-                <div class="uploadImage" @click="() => triggerFileInput(index)">
-                  <div v-if="!colorUploads[index]?.images?.length" class="text">
-                    <img
-                      src="../../assets/icons/image-add.svg"
-                      alt="image-add"
-                    />
-                    <p>Afbeeldingen, video's of 3D-modellen toevoegen</p>
-                  </div>
-
+                <!-- Only show the upload zone if the color has images or is selected -->
+                <div
+                  v-if="
+                    colorUploads[index]?.images?.length ||
+                    isColorSelected(color)
+                  "
+                >
+                  <p>Upload images for {{ color.name }}</p>
+                  <input
+                    type="file"
+                    :id="'images-' + index"
+                    style="display: none"
+                    multiple
+                    @change="handleColorImageUpload($event, index)"
+                  />
                   <div
-                    v-for="(previewUrl, imgIndex) in previewImages(
-                      colorUploads[index]?.images
-                    )"
-                    :key="imgIndex"
+                    class="uploadImage"
+                    @click="() => triggerFileInput(index)"
                   >
-                    <img
-                      :src="previewUrl"
-                      alt="Uploaded image preview"
-                      width="100"
-                    />
+                    <div
+                      v-if="!colorUploads[index]?.images?.length"
+                      class="text"
+                    >
+                      <img
+                        src="../../assets/icons/image-add.svg"
+                        alt="image-add"
+                      />
+                      <p>Afbeeldingen, video's of 3D-modellen toevoegen</p>
+                    </div>
+
+                    <div
+                      v-for="(previewUrl, imgIndex) in previewImages(
+                        colorUploads[index]?.images
+                      )"
+                      :key="imgIndex"
+                    >
+                      <img
+                        :src="previewUrl"
+                        alt="Uploaded image preview"
+                        width="100"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
