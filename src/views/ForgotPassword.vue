@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import axios from "axios";
+import DynamicStyle from "../components/DynamicStyle.vue";
 
 // Variabelen voor e-mail, verificatiecode en foutmeldingen
 const email = ref("");
@@ -72,6 +73,7 @@ const sendMail = async () => {
 </script>
 
 <template>
+  <DynamicStyle />
   <div class="container">
     <div class="overlay">
       <div class="elements">
@@ -110,25 +112,22 @@ const sendMail = async () => {
 }
 
 .overlay {
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0, 0, 0, 0.4);
   width: 100%;
   height: 100vh;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .elements {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  transform: translateY(-50%);
-  width: 50%;
   background-color: rgba(0, 0, 0, 0.32);
+  border-radius: 1rem;
+  padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 48px;
-  padding: 48px;
-  border-radius: 8px;
-  margin: 48px;
+  gap: 1.5rem;
 }
 
 form {
@@ -150,7 +149,7 @@ form {
 }
 
 .submitBtn {
-  background-color: #403754;
+  background-color: var(--primary-color);
   color: var(--text-color);
   border: none;
   border-radius: 4px;
@@ -159,8 +158,9 @@ form {
 
 input {
   border: 1px solid rgba(255, 255, 255, 0.4);
-  padding: 4px 8px;
+  background-color: transparent;
+  padding: 0.25rem 1rem;
   border-radius: 8px;
-  color: var(--text-color);
+  width: 100%;
 }
 </style>

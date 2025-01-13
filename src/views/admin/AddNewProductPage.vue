@@ -3,8 +3,8 @@ import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
-import DynamicStyle from "../../components/DynamicStyle.vue";
 import { toRaw } from "vue";
+import DynamicStyle from "../../components/DynamicStyle.vue";
 
 // Router en JWT-token ophalen
 const router = useRouter();
@@ -583,9 +583,6 @@ const addNewColor = async (config, fieldName) => {
       error
     );
   }
-
-  // Zorg ervoor dat de addProduct functie niet automatisch wordt uitgevoerd.
-  // Hier zorgen we ervoor dat de kleur wordt toegevoegd zonder het product toe te voegen.
 };
 
 const previewImages = (images) => {

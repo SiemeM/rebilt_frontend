@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from "vue";
 import router from "../router";
+import DynamicStyle from "../components/DynamicStyle.vue";
 
 const email = ref("");
 const password = ref("");
@@ -59,6 +60,7 @@ const login = () => {
 </script>
 
 <template>
+  <DynamicStyle />
   <div class="container">
     <div class="overlay">
       <div class="elements">
@@ -88,9 +90,10 @@ const login = () => {
 
           <div class="row">
             <div class="rememberMe">
-              <i class="fa fa-square-o"></i>
-              <p>Remember me</p>
+              <input type="checkbox" id="rememberMeCheckbox" />
+              <label for="rememberMeCheckbox">Remember me</label>
             </div>
+
             <router-link exact to="./ForgotPassword">
               Forgot password?
             </router-link>
@@ -119,23 +122,22 @@ const login = () => {
 }
 
 .overlay {
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0, 0, 0, 0.4);
   width: 100%;
   height: 100vh;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .elements {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   background-color: rgba(0, 0, 0, 0.32);
+  border-radius: 1rem;
+  padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: 1.5rem;
-  border-radius: 1rem;
-  padding: 2rem;
 }
 
 form {
@@ -160,10 +162,15 @@ form {
 }
 
 .row .rememberMe {
+  visibility: hidden;
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 8px;
+}
+
+.row .rememberMe input {
+  width: auto;
 }
 
 .row .rememberMe i,
@@ -173,6 +180,11 @@ form {
 
 .row a {
   text-decoration: underline;
+}
+
+.rememberMe label,
+.row a {
+  font-size: 14px;
 }
 
 label,
@@ -198,7 +210,7 @@ input::placeholder {
 }
 
 button {
-  background-color: #403754;
+  background-color: var(--primary-color);
   color: var(--text-color);
   border: none;
   border-radius: 0.25rem;
