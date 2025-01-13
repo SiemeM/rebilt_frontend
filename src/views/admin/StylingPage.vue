@@ -120,8 +120,9 @@ const huisstijlData = reactive({
   primaryColor: "#9747ff",
   secondaryColor: "#000000",
   textColor: "#ffffff",
-  titlesColor: "#0071e3",
+  titlesColor: "#146ef5",
   backgroundColor: "#000000",
+  buttonColor: "#146ef5",
   fonts: [], // Fonts initialized as an empty array
   logo: "",
   backgroundImage: "",
@@ -217,8 +218,9 @@ const getHouseStyleFromDatabase = async () => {
       primaryColor: partnerData.primary_color || "#9747ff",
       secondaryColor: partnerData.secondary_color || "#000000",
       textColor: partnerData.text_color || "#ffffff",
-      titlesColor: partnerData.titles_color || "#0071e3",
+      titlesColor: partnerData.titles_color || "#146ef5",
       backgroundColor: partnerData.background_color || "#000000",
+      buttonColor: partnerData.buttonColor || "#146ef5",
       logo: partnerData.logo_url || "",
       backgroundImage: partnerData.background_image_url || "",
     });
@@ -236,8 +238,9 @@ const resetHouseStyle = async () => {
     primaryColor: "#9747ff",
     secondaryColor: "#000000",
     textColor: "#ffffff",
-    titlesColor: "#0071e3",
+    titlesColor: "#146ef5",
     backgroundColor: "#000000",
+    buttonColor: "#146ef5",
     backgroundImage: "",
     fontFamilyTitles: "Syne",
     fontFamilyBodyText: "DM Sans",
@@ -282,6 +285,7 @@ const updateHouseStyleInDatabase = async () => {
     titles_color: huisstijlData.titlesColor,
     text_color: huisstijlData.textColor,
     background_color: huisstijlData.backgroundColor,
+    buttonColor: huisstijlData.buttonColor,
     fontFamilyBodyText: selectedFontForText.value,
     fontFamilyTitles: selectedFontForTitles.value,
     logo_url: huisstijlData.logo || null,
@@ -372,6 +376,17 @@ onMounted(() => {
               class="color"
               :style="{ backgroundColor: huisstijlData.titlesColor }"
               @click="openColorPicker('titlesColor')"
+            ></div>
+          </div>
+        </div>
+        <div class="column">
+          <h3>Button color</h3>
+          <div class="row">
+            <p>{{ huisstijlData.buttonColor }}</p>
+            <div
+              class="color"
+              :style="{ backgroundColor: huisstijlData.buttonColor }"
+              @click="openColorPicker('buttonColor')"
             ></div>
           </div>
         </div>

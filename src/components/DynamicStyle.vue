@@ -14,6 +14,7 @@ const fallbackStyle = {
   text_color: "rgb(255, 255, 255)",
   titles_color: "rgb(0, 113, 227)",
   background_color: "rgb(0, 0, 0)",
+  button_color: "#146ef5",
   logo_url: "../assets/images/rebilt-favicon.svg",
   fontFamilyTitles: "Syne, serif",
   fontFamilyBodyText: "DM Sans, sans-serif",
@@ -90,6 +91,10 @@ const getHouseStyleFromDatabase = async (id) => {
     document.documentElement.style.setProperty(
       "--background-color",
       huisstijlData.background_color
+    );
+    document.documentElement.style.setProperty(
+      "--button-color",
+      huisstijlData.button_color
     );
     document.documentElement.style.setProperty(
       "--background-image",
@@ -191,6 +196,10 @@ const applyFallbackStyles = () => {
   document.documentElement.style.setProperty(
     "--background-color",
     fallbackStyle.background_color
+  );
+  document.documentElement.style.setProperty(
+    "--button-color",
+    fallbackStyle.button_color
   );
   document.documentElement.style.setProperty(
     "--background-image",
