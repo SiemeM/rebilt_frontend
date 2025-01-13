@@ -792,6 +792,10 @@ select {
   overflow-x: auto;
 }
 
+.products.desktop .list li:nth-child(odd) {
+  background-color: var(--gray-900);
+}
+
 .products.mobile {
   width: 100%;
   display: flex;

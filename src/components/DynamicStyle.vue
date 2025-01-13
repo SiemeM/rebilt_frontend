@@ -17,6 +17,17 @@ const fallbackStyle = {
   logo_url: "../assets/images/rebilt-favicon.svg",
   fontFamilyTitles: "Syne, serif",
   fontFamilyBodyText: "DM Sans, sans-serif",
+  black: "#080808",
+  white: "#fff",
+  gray_100: "#f0f0f0",
+  gray_200: "#d8d8d8",
+  gray_300: "#ababab",
+  gray_400: "#898989",
+  gray_500: "#757575",
+  gray_600: "#5a5a5a",
+  gray_700: "#363636",
+  gray_800: "#222",
+  gray_900: "#171717",
 };
 
 // Refs voor partnerId en foutmeldingen
@@ -60,7 +71,6 @@ const getHouseStyleFromDatabase = async (id) => {
 
     const huisstijlData = response.data.data.partner || fallbackStyle;
 
-    // Stel de root CSS-variabelen in
     document.documentElement.style.setProperty(
       "--primary-color",
       huisstijlData.primary_color
@@ -92,6 +102,44 @@ const getHouseStyleFromDatabase = async (id) => {
     document.documentElement.style.setProperty(
       "--body-font",
       huisstijlData.fontFamilyBodyText
+    );
+    document.documentElement.style.setProperty("--black", huisstijlData.black);
+    document.documentElement.style.setProperty("--white", huisstijlData.white);
+    document.documentElement.style.setProperty(
+      "--gray-100",
+      huisstijlData.gray_100
+    );
+    document.documentElement.style.setProperty(
+      "--gray-200",
+      huisstijlData.gray_200
+    );
+    document.documentElement.style.setProperty(
+      "--gray-300",
+      huisstijlData.gray_300
+    );
+    document.documentElement.style.setProperty(
+      "--gray-400",
+      huisstijlData.gray_400
+    );
+    document.documentElement.style.setProperty(
+      "--gray-500",
+      huisstijlData.gray_500
+    );
+    document.documentElement.style.setProperty(
+      "--gray-600",
+      huisstijlData.gray_600
+    );
+    document.documentElement.style.setProperty(
+      "--gray-700",
+      huisstijlData.gray_700
+    );
+    document.documentElement.style.setProperty(
+      "--gray-800",
+      huisstijlData.gray_800
+    );
+    document.documentElement.style.setProperty(
+      "--gray-900",
+      huisstijlData.gray_900
     );
 
     // Fonts laden

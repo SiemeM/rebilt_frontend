@@ -475,11 +475,13 @@ select {
   grid-template-columns: repeat(18, 1fr);
   gap: 40px;
   align-items: center;
+  padding: 1rem;
 }
 
-.orders .list li:nth-child(even) {
-  background-color: rgb(var(--primary-color), 0.1);
+.orders.desktop .list li:nth-child(odd) {
+  background-color: var(--gray-900);
 }
+
 .orders .list li a {
   display: contents; /* Zorg ervoor dat de a-tag zich gedraagt als inhoud van de grid */
 }

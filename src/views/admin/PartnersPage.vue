@@ -597,8 +597,8 @@ select {
   padding: 16px;
 }
 
-.partners .list li:nth-child(even) {
-  background-color: rgb(var(--primary-color), 0.1);
+.partners.desktop .list li:nth-child(odd) {
+  background-color: var(--gray-900);
 }
 
 .partners .list li a {

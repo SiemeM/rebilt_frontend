@@ -528,7 +528,7 @@ select {
   flex-direction: row;
   align-items: flex-start;
   gap: 1.5em;
-  padding-bottom: 1em;
+  padding: 1em;
   border-bottom: 1px solid rgba(255, 255, 255, 0.4);
 }
 
@@ -615,8 +615,8 @@ select {
   padding: 16px;
 }
 
-.users .list li:nth-child(even) {
-  background-color: rgb(var(--primary-color), 0.1);
+.items a:nth-child(odd) {
+  background-color: var(--gray-900);
 }
 
 .users .list li a {

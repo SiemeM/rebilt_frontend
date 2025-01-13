@@ -525,8 +525,8 @@ select {
   gap: 16px;
 }
 
-.configurations .listItem:nth-child(even) {
-  background-color: rgb(var(--primary-color), 0.1);
+.configurations .desktop .list li:nth-child(odd) {
+  background-color: var(--gray-900);
 }
 
 .configurations .listItem a {

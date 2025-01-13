@@ -125,6 +125,17 @@ const huisstijlData = reactive({
   fonts: [], // Fonts initialized as an empty array
   logo: "",
   backgroundImage: "",
+  black: "#080808",
+  white: "#fff",
+  gray_100: "#f0f0f0",
+  gray_200: "#d8d8d8",
+  gray_300: "#ababab",
+  gray_400: "#898989",
+  gray_500: "#757575",
+  gray_600: "#5a5a5a",
+  gray_700: "#363636",
+  gray_800: "#222",
+  gray_900: "#171717",
 });
 
 const selectedFontForTitles = ref("");
@@ -231,6 +242,17 @@ const resetHouseStyle = async () => {
     fontFamilyTitles: "Syne",
     fontFamilyBodyText: "DM Sans",
     logo: "https://res.cloudinary.com/dzempjvto/image/upload/v1734208533/Stijn/Huisstijl/yzezrygcrnb8pztjyplp.jpg",
+    black: "#080808",
+    white: "#fff",
+    gray_100: "#f0f0f0",
+    gray_200: "#d8d8d8",
+    gray_300: "#ababab",
+    gray_400: "#898989",
+    gray_500: "#757575",
+    gray_600: "#5a5a5a",
+    gray_700: "#363636",
+    gray_800: "#222",
+    gray_900: "#171717",
   };
 
   Object.assign(huisstijlData, defaultHuisstijl);
@@ -263,6 +285,17 @@ const updateHouseStyleInDatabase = async () => {
     fontFamilyBodyText: selectedFontForText.value,
     fontFamilyTitles: selectedFontForTitles.value,
     logo_url: huisstijlData.logo || null,
+    black: huisstijlData.black,
+    white: huisstijlData.white,
+    gray_100: huisstijlData.gray_100,
+    gray_200: huisstijlData.gray_200,
+    gray_300: huisstijlData.gray_300,
+    gray_400: huisstijlData.gray_400,
+    gray_500: huisstijlData.gray_500,
+    gray_600: huisstijlData.gray_600,
+    gray_700: huisstijlData.gray_700,
+    gray_800: huisstijlData.gray_800,
+    gray_900: huisstijlData.gray_900,
   };
 
   try {
