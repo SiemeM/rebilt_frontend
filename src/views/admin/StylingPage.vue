@@ -220,9 +220,11 @@ const getHouseStyleFromDatabase = async () => {
       textColor: partnerData.text_color || "#ffffff",
       titlesColor: partnerData.titles_color || "#146ef5",
       backgroundColor: partnerData.background_color || "#000000",
-      buttonColor: partnerData.buttonColor || "#146ef5",
+      buttonColor: partnerData.button_Color || "#146ef5",
       logo: partnerData.logo_url || "",
       backgroundImage: partnerData.background_image_url || "",
+      fontFamilyTitles: partnerData.fontFamilyTitles || "Syne",
+      fontFamilyBodyText: partnerData.fontFamilyBodyText || "DM Sans",
     });
 
     selectedFontForTitles.value = partnerData.fontFamilyTitles || "Syne";
@@ -285,7 +287,7 @@ const updateHouseStyleInDatabase = async () => {
     titles_color: huisstijlData.titlesColor,
     text_color: huisstijlData.textColor,
     background_color: huisstijlData.backgroundColor,
-    buttonColor: huisstijlData.buttonColor,
+    button_color: huisstijlData.buttonColor,
     fontFamilyBodyText: selectedFontForText.value,
     fontFamilyTitles: selectedFontForTitles.value,
     logo_url: huisstijlData.logo || null,
@@ -332,7 +334,9 @@ onMounted(() => {
       <!-- Colours Section -->
       <div class="top">
         <h2>Colours</h2>
-        <a href="#" class="btn" @click.prevent="resetHouseStyle">Reset</a>
+        <a href="#" class="btn active" @click.prevent="resetHouseStyle"
+          ><p>Reset</p></a
+        >
       </div>
       <div class="colours">
         <div class="column">
@@ -411,9 +415,9 @@ onMounted(() => {
           <div class="row">
             <div class="font-preview">
               <h3>Voorbeeld met "{{ selectedFontForTitles }}"</h3>
-              <p :style="{ fontFamily: selectedFontForTitles }">
-                AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz
-              </p>
+              <h3 :style="{ fontFamily: selectedFontForTitles }">
+                This is an example of a title in {{ selectedFontForTitles }}.
+              </h3>
             </div>
 
             <div class="font-select">
@@ -449,7 +453,7 @@ onMounted(() => {
             <div class="font-preview">
               <h3>Voorbeeld met "{{ selectedFontForText }}"</h3>
               <p :style="{ fontFamily: selectedFontForText }">
-                AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz
+                This is an example of body text in {{ selectedFontForText }}.
               </p>
             </div>
             <div class="font-select">
@@ -590,10 +594,8 @@ onMounted(() => {
 
 .elements .fonts .font .row {
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
+  flex-direction: column;
+  gap: 16px;
   width: 100%;
 }
 
@@ -602,7 +604,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: 50%;
+  width: 100%;
 }
 
 #font-dropdown {
@@ -612,5 +614,29 @@ onMounted(() => {
   border-radius: 4px;
   border: 1px solid #ccc;
   margin-top: 8px;
+  color: #000;
+}
+
+#font-dropdown option {
+  color: #000;
+}
+
+@media (min-width: 768px) {
+  .elements .fonts .font .row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    width: 100%;
+  }
+
+  .elements .fonts .font .row .font-preview,
+  .elements .fonts .font .row .font-select {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 50%;
+  }
 }
 </style>

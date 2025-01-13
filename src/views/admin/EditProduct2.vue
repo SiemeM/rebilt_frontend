@@ -506,8 +506,8 @@ select {
   padding: 8px;
   margin-bottom: 16px;
   border-radius: 4px;
-  border: 1px solid #333;
-  background-color: #333;
+  border: 1px solid var(--gray-700);
+  background-color: var(--gray-700);
   color: white;
 }
 
@@ -529,7 +529,7 @@ button {
 
 .dropdown-selected {
   padding: 8px;
-  background-color: #333;
+  background-color: var(--gray-700);
   color: white;
   border-radius: 4px;
   display: flex;
@@ -566,7 +566,7 @@ button {
   top: 100%;
   left: 0;
   right: 0;
-  background-color: #333;
+  background-color: var(--gray-900);
   border-radius: 4px;
   width: 100%;
   z-index: 999; /* Ensure this has a higher value than other elements */

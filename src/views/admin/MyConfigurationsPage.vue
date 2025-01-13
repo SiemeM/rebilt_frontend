@@ -316,7 +316,7 @@ const getOptionsNames = (optionIds) => {
     <div class="menu">
       <div class="btns">
         <router-link to="/admin/settings" class="btn active">
-          Add New <img src="../../assets/icons/add.svg" alt="icon" />
+          <p>Add New <img src="../../assets/icons/add.svg" alt="icon" /></p>
         </router-link>
         <div
           class="btn display"
@@ -476,8 +476,8 @@ select {
   padding: 4px 12px;
   border-radius: 8px;
   border: none;
-  border: 1px solid var(--secondary-color);
-  background-color: var(--secondary-color);
+  border: 1px solid var(--gray-900);
+  background-color: var(--gray-900);
   color: var(--text-color);
   width: 320px;
   display: flex;

@@ -843,8 +843,8 @@ select,
 textarea {
   padding: 8px;
   border-radius: 4px;
-  border: 1px solid #333;
-  background-color: #333;
+  border: 1px solid var(--gray-700);
+  background-color: var(--gray-700);
   color: white;
   width: 100%;
 }
@@ -905,7 +905,7 @@ button {
 
 .dropdown-selected {
   padding: 8px;
-  background-color: #333;
+  background-color: var(--gray-700);
   color: white;
   border-radius: 4px;
   display: flex;
@@ -930,7 +930,7 @@ button {
   top: 100%;
   left: 0;
   right: 0;
-  background-color: #333;
+  background-color: var(--gray-900);
   border-radius: 4px;
   width: 100%;
   z-index: 10;
@@ -971,7 +971,7 @@ button {
   border-radius: 0.5rem;
   width: 100%;
   height: 120px;
-  background-color: #333;
+  background-color: var(--gray-900);
 }
 
 .uploadImage .text {

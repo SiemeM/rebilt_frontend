@@ -671,8 +671,8 @@ h2 {
 select {
   padding: 4px 12px;
   border-radius: 8px;
-  border: 1px solid var(--secondary-color);
-  background-color: var(--secondary-color);
+  border: 1px solid var(--gray-900);
+  background-color: var(--gray-900);
   color: var(--text-color);
   display: flex;
   flex-direction: row;

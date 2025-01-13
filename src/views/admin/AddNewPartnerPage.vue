@@ -34,6 +34,7 @@ const defaultStyles = {
   titles_color: "rgb(0, 113, 227)",
   text_color: "rgb(255, 255, 255)",
   background_color: "rgb(0, 0, 0)",
+  button_color: "#146ef5",
   fontFamilyTitles: "Syne, serif",
   fontFamilyBodyText: "DM Sans, sans-serif",
   logo_url: "../../src/assets/images/rebilt-favicon.svg",
@@ -200,8 +201,8 @@ select {
   padding: 8px;
   margin-bottom: 16px;
   border-radius: 4px;
-  border: 1px solid #333;
-  background-color: #333;
+  border: 1px solid var(--gray-700);
+  background-color: var(--gray-700);
   color: white;
 }
 

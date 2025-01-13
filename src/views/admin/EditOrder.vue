@@ -335,7 +335,7 @@ select {
   border-radius: 4px;
   border: 1px solid #ccc;
   background-color: #f9f9f9;
-  color: #333;
+  color: var(--gray-700);
   width: 100%;
 }
 

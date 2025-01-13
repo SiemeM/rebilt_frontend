@@ -202,8 +202,8 @@ select {
   padding: 8px;
   margin-bottom: 16px;
   border-radius: 4px;
-  border: 1px solid #333;
-  background-color: #333;
+  border: 1px solid var(--gray-700);
+  background-color: var(--gray-700);
   color: white;
 }
 
