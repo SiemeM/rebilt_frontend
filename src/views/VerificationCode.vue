@@ -219,7 +219,7 @@ input {
   border: 1px solid rgba(255, 255, 255, 0.4);
   background-color: transparent;
   padding: 0.25rem 1rem;
-  border-radius: 8px;
+  border-radius: 4px;
   width: 100%;
 }
 </style>

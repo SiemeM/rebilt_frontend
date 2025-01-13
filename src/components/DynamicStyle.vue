@@ -20,6 +20,7 @@ const fallbackStyle = {
   fontFamilyBodyText: "DM Sans, sans-serif",
   black: "#080808",
   white: "#fff",
+  blue_600: "#0055d4",
   gray_100: "#f0f0f0",
   gray_200: "#d8d8d8",
   gray_300: "#ababab",
@@ -110,6 +111,10 @@ const getHouseStyleFromDatabase = async (id) => {
     );
     document.documentElement.style.setProperty("--black", huisstijlData.black);
     document.documentElement.style.setProperty("--white", huisstijlData.white);
+    document.documentElement.style.setProperty(
+      "--blue-600",
+      huisstijlData.blue_600
+    );
     document.documentElement.style.setProperty(
       "--gray-100",
       huisstijlData.gray_100

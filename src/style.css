@@ -95,7 +95,7 @@ body {
 .btn {
   border: 1px solid var(--button-color);
   color: var(--primary-color);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 4px 16px;
   display: flex;
   flex-direction: row;
@@ -107,6 +107,14 @@ body {
 
 .btn.active {
   background-color: var(--button-color);
+  border: none;
+}
+
+.btn.active:hover {
+  background-color: var(--blue-600);
+  border: none;
+  box-shadow: 0 1px 1px #08080814, 0 1px 1px #08080833,
+    inset 0 6px 12px #ffffff1f, inset 0 1px 1px #fff3;
 }
 
 .btn p {

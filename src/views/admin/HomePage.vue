@@ -601,7 +601,7 @@ h2 {
   gap: 24px;
   background-color: var(--secondary-color);
   padding: 24px 32px;
-  border-radius: 8px;
+  border-radius: 4px;
   position: fixed;
   top: 50%;
   left: 50%;
@@ -659,7 +659,7 @@ h2 {
   display: none;
   border: 1px solid #d34848;
   background-color: rgba(211, 72, 72, 0.2);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 4px 12px;
 }
 
@@ -670,7 +670,7 @@ h2 {
 .search,
 select {
   padding: 4px 12px;
-  border-radius: 8px;
+  border-radius: 4px;
   border: 1px solid var(--gray-900);
   background-color: var(--gray-900);
   color: var(--text-color);
@@ -699,7 +699,7 @@ select {
 .products .top {
   display: flex; /* Keep the flexbox layout */
   gap: 20px; /* Space between items */
-  border-radius: 8px 8px 0 0;
+  border-radius: 4px 8px 0 0;
   padding: 16px;
   background-color: var(--secondary-color);
   width: 100%;
@@ -788,7 +788,7 @@ select {
 .products.desktop {
   background-color: var(--secondary-color);
   width: 100%;
-  border-radius: 8px;
+  border-radius: 4px;
   overflow-x: auto;
 }
 
@@ -890,7 +890,7 @@ select {
   .products {
     background-color: var(--secondary-color);
     width: 100%;
-    border-radius: 8px;
+    border-radius: 4px;
     overflow-x: auto; /* Enable horizontal scrolling */
     white-space: nowrap; /* Prevent wrapping of items */
   }

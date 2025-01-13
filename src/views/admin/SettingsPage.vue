@@ -870,7 +870,7 @@ watch(
   flex-direction: row;
   gap: 24px;
   padding: 24px;
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .elements .menu {
@@ -889,7 +889,7 @@ watch(
 .elements .menu p.active {
   background-color: var(--primary-color);
   padding: 4px 12px 4px 24px;
-  border-radius: 8px;
+  border-radius: 4px;
   color: var(--text-color);
 }
 
@@ -942,7 +942,7 @@ watch(
   flex-direction: column;
   gap: 16px;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .personalInformation,
@@ -1058,7 +1058,7 @@ watch(
 .account .accountElements .column .row .link,
 .subscription .subscriptionElements .column .row .link {
   background-color: var(--gray);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 4px 12px;
 }
 
@@ -1071,7 +1071,7 @@ watch(
 .account .accountElements .column .row .deletelink {
   border: 1px solid #d34848;
   background-color: rgba(211, 72, 72, 0.2);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 4px 12px;
 }
 
@@ -1113,7 +1113,7 @@ textarea {
 input,
 textarea {
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 4px 8px;
 }
 
@@ -1153,7 +1153,7 @@ textarea {
   align-items: center;
   gap: 24px;
   padding: 24px;
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .successpopup .text {
@@ -1177,7 +1177,7 @@ textarea {
 .popup-content {
   background-color: white;
   padding: 20px;
-  border-radius: 8px;
+  border-radius: 4px;
   width: 88%;
   position: relative;
   align-items: flex-end;
@@ -1206,7 +1206,7 @@ textarea {
 .popup-content {
   background-color: var(--secondary-color);
   padding: 24px;
-  border-radius: 8px;
+  border-radius: 4px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -1263,7 +1263,7 @@ button {
   gap: 24px;
   background-color: var(--secondary-color);
   padding: 24px 32px;
-  border-radius: 8px;
+  border-radius: 4px;
   position: fixed;
   top: 50%;
   left: 50%;
@@ -1306,7 +1306,7 @@ button {
   visibility: hidden;
   border: 1px solid #d34848;
   background-color: rgba(211, 72, 72, 0.2);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 4px 12px;
 }
 

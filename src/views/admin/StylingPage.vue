@@ -128,6 +128,7 @@ const huisstijlData = reactive({
   backgroundImage: "",
   black: "#080808",
   white: "#fff",
+  blue_600: "#0055d4",
   gray_100: "#f0f0f0",
   gray_200: "#d8d8d8",
   gray_300: "#ababab",
@@ -249,6 +250,7 @@ const resetHouseStyle = async () => {
     logo: "https://res.cloudinary.com/dzempjvto/image/upload/v1734208533/Stijn/Huisstijl/yzezrygcrnb8pztjyplp.jpg",
     black: "#080808",
     white: "#fff",
+    blue_600: "#0055d4",
     gray_100: "#f0f0f0",
     gray_200: "#d8d8d8",
     gray_300: "#ababab",
@@ -293,6 +295,7 @@ const updateHouseStyleInDatabase = async () => {
     logo_url: huisstijlData.logo || null,
     black: huisstijlData.black,
     white: huisstijlData.white,
+    blue_600: huisstijlData.blue_600,
     gray_100: huisstijlData.gray_100,
     gray_200: huisstijlData.gray_200,
     gray_300: huisstijlData.gray_300,
@@ -525,7 +528,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .elements .top {

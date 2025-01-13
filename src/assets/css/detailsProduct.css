@@ -468,7 +468,7 @@ li svg {
   align-items: center;
   gap: 8px;
   border: none;
-  border-radius: 8px;
+  border-radius: 4px;
   color: var(--text-color);
   text-transform: uppercase;
   letter-spacing: -2%;

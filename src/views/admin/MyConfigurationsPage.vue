@@ -405,7 +405,7 @@ const getOptionsNames = (optionIds) => {
   gap: 24px;
   background-color: var(--secondary-color);
   padding: 24px 32px;
-  border-radius: 8px;
+  border-radius: 4px;
   position: fixed;
   top: 50%;
   left: 50%;
@@ -463,7 +463,7 @@ const getOptionsNames = (optionIds) => {
   visibility: hidden;
   border: 1px solid #d34848;
   background-color: rgba(211, 72, 72, 0.2);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 4px 12px;
 }
 
@@ -474,7 +474,7 @@ const getOptionsNames = (optionIds) => {
 .search,
 select {
   padding: 4px 12px;
-  border-radius: 8px;
+  border-radius: 4px;
   border: none;
   border: 1px solid var(--gray-900);
   background-color: var(--gray-900);
@@ -493,7 +493,7 @@ select {
 .configurations {
   background-color: var(--secondary-color);
   width: 100%;
-  border-radius: 8px;
+  border-radius: 4px;
   overflow-x: auto;
   white-space: nowrap;
 }
@@ -506,7 +506,7 @@ select {
   display: flex;
   flex-direction: row;
   align-items: center;
-  border-radius: 8px 8px 0 0;
+  border-radius: 4px 8px 0 0;
   gap: 16px;
   padding: 4px 16px;
   background-color: var(--secondary-color);
