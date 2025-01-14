@@ -24,6 +24,9 @@ const selectedColors = ref([]);
 const selectedConfigurations = ref([]);
 const partnerConfigurations = ref([]);
 const availableNewColors = ref([]); // Array voor nieuwe kleuren die nog niet geselecteerd zijn
+const color2DImages = ref([]);
+const color3DImages = ref([]);
+const uploaded3DImages = ref([]);
 
 // Functie om te controleren of de gebruiker is ingelogd
 const checkToken = () => {
@@ -202,7 +205,15 @@ const fetchOptionNames = async (optionsData) => {
   }
 };
 
-const addProduct = async () => {
+const handleSubmit = async () => {
+  if (partnerPackage === "standard") {
+    add2DProduct();
+  } else {
+    add3DProduct();
+  }
+};
+
+const add2DProduct = async () => {
   try {
     if (!productName.value || !productPrice.value) {
       errorMessage.value = "Product name and price are required.";
@@ -217,6 +228,7 @@ const addProduct = async () => {
             uploadFileToCloudinary(file, `${productName.value}-${index}`)
           )
         );
+        console.log(uploadedImages);
 
         return {
           color: colorItem,
@@ -348,7 +360,7 @@ async function fetchPartnerPackage() {
 }
 
 // Kleur-upload functie
-const handleColorImageUpload = (event, index) => {
+const handleColorImageUploadFor2D = (event, index) => {
   if (!event?.target?.files) {
     console.warn(
       "Geen geldig event object gevonden bij handleColorImageUpload"
@@ -383,6 +395,147 @@ const handleColorImageUpload = (event, index) => {
 
     // Voeg het bestand toe aan colorUploads (als het bestandstype geldig is)
     colorUploads.value[index].images.push(...files);
+  }
+};
+
+const handleColorImageUploadFor3D = async (event, index) => {
+  const files = event.target.files;
+  if (files.length === 0) return;
+
+  // Zet de bestanden om in een array
+  const newImages = Array.from(files);
+
+  try {
+    // We gaan de upload nu direct uitvoeren
+    const uploaded3DImages = await Promise.all(
+      newImages.map((file) =>
+        uploadFileToCloudinary(
+          file,
+          `${productName.value}-3D-${index}`,
+          partnerName.value
+        )
+      )
+    );
+
+    console.log("Uploaded 3D Images URLs:", uploaded3DImages);
+
+    // Sla de geüploade URL's op in de kleur3D-afbeeldingen array
+    color3DImages.value[index] = uploaded3DImages; // Gebruik directe reactieve wijziging
+  } catch (error) {
+    console.error("Error uploading 3D images:", error.message);
+  }
+};
+
+const add3DProduct = async () => {
+  try {
+    if (!productName.value || !productPrice.value) {
+      errorMessage.value = "Product name and price are required.";
+      return;
+    }
+
+    console.log("3D models and images:", color3DImages.value);
+
+    // Process configurations
+    const configurations = [];
+
+    for (const config of partnerConfigurations.value) {
+      const selectedOptions = [];
+      console.log(`Processing configuration: ${config.configurationId._id}`);
+
+      if (config.fieldType === "color" && colors.value.length > 0) {
+        const selectedColor = colors.value[0]; // Assuming only 1 color is selected, take the first one
+        const selectedOptionId = selectedColor.optionId || selectedColor;
+
+        console.log("selectedOptionId:", selectedOptionId); // Log selected option ID
+
+        if (!selectedOptionId) {
+          console.warn(
+            "Skipping color with undefined optionId:",
+            selectedColor
+          );
+          continue;
+        }
+
+        try {
+          // Fetch the option details (this part can be adjusted as needed)
+          const optionResponse = await axios.get(
+            `${baseURL}/options/${selectedOptionId}`
+          );
+          console.log(optionResponse);
+
+          const option = optionResponse.data;
+          console.log("Fetched option:", option); // Log the option that was fetched
+
+          // Get the 3D model image from the color3DImages array and convert it to a normal array of strings
+          const images = color3DImages.value.map((image) => image); // Ensure it's a simple array
+
+          // Check if images were found and log the result
+          if (images.length > 0) {
+            console.log(
+              "3D model found for the selected configuration:",
+              images
+            );
+          } else {
+            console.warn("No 3D model found for the selected configuration");
+          }
+
+          // Push the selected option to the array with the images
+          selectedOptions.push({
+            optionId: option.data._id,
+            images, // Add 3D model images
+            _id: `${option.data._id}-${Date.now()}`, // Generate a unique _id for the option
+          });
+        } catch (error) {
+          console.warn("Failed to fetch option:", selectedOptionId);
+          console.error(error); // Log the actual error
+        }
+      }
+
+      // Only add configurations with selected options
+      if (selectedOptions.length > 0) {
+        configurations.push({
+          configurationId: config.configurationId._id,
+          selectedOptions,
+        });
+      }
+    }
+
+    console.log("Configurations after processing:", configurations); // Log configurations before sending
+
+    // Construct the product data object
+    const productData = {
+      productCode: productCode.value,
+      productName: productName.value,
+      productType: selectedType.value || "sunglasses",
+      brand: brand.value,
+      description: description.value,
+      productPrice: productPrice.value,
+      activeInactive: "active",
+      partnerId,
+      configurations,
+    };
+
+    console.log("Final productData:", productData); // Log productData before sending
+
+    // Send product data to the API
+    const response = await axios.post(`${baseURL}/products`, productData, {
+      headers: {
+        Authorization: `Bearer ${jwtToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.status === 201) {
+      router.push("/admin");
+    } else {
+      errorMessage.value = "Failed to add product.";
+    }
+  } catch (error) {
+    console.error(
+      "Error adding product:",
+      error.response?.data || error.message
+    );
+    errorMessage.value = error.response?.data?.message || "Unknown error.";
   }
 };
 
@@ -743,7 +896,7 @@ const getColorNameById = (colorId) => {
   <Navigation />
   <div class="content">
     <h1>Add new product</h1>
-    <form @submit.prevent="addProduct">
+    <form @submit.prevent="handleSubmit">
       <div class="row">
         <div class="column">
           <label for="productCode">Product Code:</label>
@@ -896,6 +1049,7 @@ const getColorNameById = (colorId) => {
               <!-- Image upload for selected colors -->
               <div
                 v-for="(color, index) in selectedColors"
+                v-if="partnerPackage == 'standard'"
                 :key="color.optionId"
                 class="color-upload-section"
               >
@@ -912,7 +1066,7 @@ const getColorNameById = (colorId) => {
                     :id="'images-' + index"
                     style="display: none"
                     multiple
-                    @change="handleColorImageUpload($event, index)"
+                    @change="handleColorImageUploadFor2D($event, index)"
                   />
                   <div
                     class="uploadImage"
@@ -946,6 +1100,33 @@ const getColorNameById = (colorId) => {
               </div>
             </div>
           </template>
+        </div>
+      </div>
+
+      <div v-if="partnerPackage == 'pro'" class="color-upload-section">
+        <!-- Only show the upload zone if the color has images or is selected -->
+        <p>Upload 3D model</p>
+        <input
+          type="file"
+          :id="'images-' + index"
+          style="display: none"
+          multiple
+          @change="handleColorImageUploadFor3D($event, index)"
+        />
+        <div class="uploadImage" @click="() => triggerFileInput(index)">
+          <div v-if="!colorUploads[index]?.images?.length" class="text">
+            <img src="../../assets/icons/image-add.svg" alt="image-add" />
+            <p>3D-model toevoegen</p>
+          </div>
+
+          <div
+            v-for="(previewUrl, imgIndex) in previewImages(
+              colorUploads[index]?.images
+            )"
+            :key="imgIndex"
+          >
+            <img :src="previewUrl" alt="Uploaded image preview" width="100" />
+          </div>
         </div>
       </div>
 
@@ -1118,10 +1299,10 @@ button {
   align-items: center;
   gap: 0.5rem;
   padding: 1rem;
-  border-radius: 0.5rem;
+  border-radius: 0.25rem;
   width: 100%;
   height: 120px;
-  background-color: var(--gray-900);
+  background-color: var(--gray-700);
 }
 
 .uploadImage .text {
