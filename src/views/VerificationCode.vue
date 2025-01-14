@@ -136,10 +136,10 @@ const verifyCode = async () => {
           <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
           <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
-          <button class="submitBtn" type="button" @click="sendMail">
+          <button class="btn" type="button" @click="sendMail">
             Send mail again
           </button>
-          <button class="submitBtn active" type="submit">Verify code</button>
+          <button class="btn active" type="submit">Verify code</button>
         </form>
       </div>
     </div>
@@ -199,27 +199,32 @@ form {
   color: #d34848;
 }
 
-.submitBtn {
-  border: 1px solid var(--white);
-  background-color: transparent;
-  color: var(--text-color);
-  border-radius: 4px;
-  padding: 8px;
-}
-
-.submitBtn.active {
-  background-color: var(--primary-color);
-  color: var(--text-color);
-  border: none;
-  border-radius: 4px;
-  padding: 8px;
-}
-
 input {
   border: 1px solid rgba(255, 255, 255, 0.4);
   background-color: transparent;
   padding: 0.25rem 1rem;
   border-radius: 4px;
   width: 100%;
+}
+
+.btn {
+  background-color: transparent;
+}
+
+.btn.active {
+  background-color: var(--button-color);
+}
+
+@media (min-width: 800px) {
+  .elements {
+    position: absolute;
+    top: 50%;
+    left: auto;
+    right: 0;
+    transform: translateY(-50%);
+    width: 50%;
+    padding: 3rem;
+    margin: 3rem;
+  }
 }
 </style>

@@ -92,7 +92,7 @@ const sendMail = async () => {
 
           <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
 
-          <button class="submitBtn active" type="submit">Send mail</button>
+          <button class="btn active" type="submit">Send mail</button>
         </form>
       </div>
     </div>
@@ -148,19 +148,24 @@ form {
   color: #d34848;
 }
 
-.submitBtn {
-  background-color: var(--primary-color);
-  color: var(--text-color);
-  border: none;
-  border-radius: 4px;
-  padding: 8px;
-}
-
 input {
   border: 1px solid rgba(255, 255, 255, 0.4);
   background-color: transparent;
   padding: 0.25rem 1rem;
   border-radius: 4px;
   width: 100%;
+}
+
+@media (min-width: 800px) {
+  .elements {
+    position: absolute;
+    top: 50%;
+    left: auto;
+    right: 0;
+    transform: translateY(-50%);
+    width: 50%;
+    padding: 3rem;
+    margin: 3rem;
+  }
 }
 </style>

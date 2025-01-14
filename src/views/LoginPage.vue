@@ -101,7 +101,7 @@ const login = () => {
 
           <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
 
-          <button class="submitBtn" type="submit" @click.prevent="login">
+          <button class="btn active" type="submit" @click.prevent="login">
             Login
           </button>
         </form>
@@ -207,14 +207,6 @@ input::placeholder {
 
 .error {
   color: #d34848;
-}
-
-button {
-  background-color: var(--primary-color);
-  color: var(--text-color);
-  border: none;
-  border-radius: 0.25rem;
-  padding: 8px;
 }
 
 @media (min-width: 800px) {

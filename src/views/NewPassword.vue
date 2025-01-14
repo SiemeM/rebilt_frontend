@@ -101,7 +101,7 @@ const updatePassword = async () => {
 
           <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
 
-          <button class="submitBtn" type="submit">Wachtwoord instellen</button>
+          <button class="btn active" type="submit">Wachtwoord instellen</button>
         </form>
       </div>
     </div>
@@ -155,14 +155,6 @@ form {
 
 .error {
   color: #d34848;
-}
-
-button {
-  background-color: var(--primary-color);
-  color: var(--white);
-  border: none;
-  border-radius: 4px;
-  padding: 8px;
 }
 
 input {
