@@ -178,7 +178,7 @@ onMounted(async () => {
       // Stap 3: Haal het partner package op
       const partnerPackageResponse = await fetchPartnerPackage(partnerId);
       partnerPackage.value = partnerPackageResponse;
-      console.log(partnerPackage.value);
+
       if (partnerPackageResponse) {
         partnerPackage.value = partnerPackageResponse;
       } else {
@@ -220,7 +220,6 @@ onMounted(async () => {
       // Stap 6: Haal de producten op en filter ze
       const filteredProducts = await fetchProducts(partnerId);
       productTypes.value = await fetchProductTypes(partnerId);
-      console.log(productTypes);
 
       newProducts.value = await filterProductsByType(
         partnerId,
