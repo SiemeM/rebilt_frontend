@@ -1,17 +1,18 @@
 <template>
   <div class="dropdown-options">
-    <!-- Displaying color options as a list with checkbox and color bullet -->
     <div
       v-for="(option, index) in colorOptions"
       :key="option.optionId"
       class="dropdown-option"
     >
+      <!-- Dynamisch de checked status van de checkbox instellen -->
       <input
         type="checkbox"
         :value="option.optionId"
         :checked="isSelected(option)"
-        @change="toggleColor(option)"
+        @click="toggleColor(option)"
       />
+
       <span
         class="color-bullet"
         :style="{ backgroundColor: option.name || 'transparent' }"
@@ -49,30 +50,30 @@ export default {
         (color) => color.optionId === option.optionId
       );
     },
-
     // Toggle de kleur in de geselecteerde kleuren
     toggleColor(option) {
+      console.log("toggleColor function triggered"); // Dit logt als de functie wordt aangeroepen
+      console.log("Selected color:", option); // Log de geselecteerde kleur
+
       const selectedColorsCopy = [...this.selectedColors];
       const index = selectedColorsCopy.findIndex(
         (color) => color.optionId === option.optionId
       );
 
       if (index === -1) {
-        // Voeg de kleur toe als deze nog niet geselecteerd is
         selectedColorsCopy.push({
           optionId: option.optionId,
           name: option.name || "Unnamed Color",
           images: Array.isArray(option.images) ? option.images : [],
         });
       } else {
-        // Verwijder de kleur als deze al geselecteerd is
         selectedColorsCopy.splice(index, 1);
       }
 
-      // Emit de update voor selectedColors
+      // Emit de bijgewerkte lijst van geselecteerde kleuren
       this.$emit("update:selectedColors", selectedColorsCopy);
 
-      // Sluit de dropdown na selectie
+      // Sluit de dropdown
       this.dropdownStates[this.fieldName] = false;
     },
   },

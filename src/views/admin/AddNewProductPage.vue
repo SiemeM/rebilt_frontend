@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue"; // Vergeet niet 'computed' hier te importeren
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
@@ -45,6 +45,28 @@ const selectedType = ref(""); // Add this line
 const partnerPackage = ref(""); // or initialize with actual data
 const colors = ref([]); // Reactive property voor kleuren
 
+// Bepaal de tekst voor de knop op basis van de geselecteerde kleuren
+const buttonText = computed(() => {
+  const selected = selectedColors.value.length;
+
+  if (selected === 0) {
+    return "Select colors"; // Geen kleuren geselecteerd
+  }
+
+  // Als er geselecteerde kleuren zijn, toon ze in de knop (bijv. max 2 kleuren tonen)
+  const colorNames = selectedColors.value
+    .slice(0, 2)
+    .map((color) => color.name)
+    .join(", ");
+
+  // Als er meer dan 2 geselecteerde kleuren zijn, voeg dan een extra "and more" tekst toe
+  if (selectedColors.value.length > 2) {
+    return `${colorNames} + ${selectedColors.value.length - 2} more`;
+  }
+
+  return colorNames; // Toon de namen van de geselecteerde kleuren
+});
+
 onMounted(async () => {
   if (partnerId) {
     try {
@@ -66,13 +88,13 @@ onMounted(async () => {
           const fieldName = config.configurationDetails.fieldName;
 
           // Initialize empty array for each fieldName if not already present
-          if (!selectedColors.value[fieldName]) {
-            selectedColors.value[fieldName] = [];
+          if (!colors.value[fieldName]) {
+            colors.value[fieldName] = [];
           }
 
-          // Populate the selectedColors array for each fieldName with the fetched colors
+          // Populate the colors array for each fieldName with the fetched colors
           colors.value.forEach((color) => {
-            selectedColors.value[fieldName].push({
+            colors.value[fieldName].push({
               optionId: color.optionId,
               name: color.name || "Unnamed Color",
               images: color.images || [],
@@ -80,7 +102,7 @@ onMounted(async () => {
           });
         });
 
-        console.log(selectedColors.value); // Verify the structure
+        console.log(colors.value); // Verify the structure
       } else {
         console.warn("No colors returned from getcolors");
       }
@@ -198,12 +220,11 @@ onMounted(async () => {
                 <DropdownToggle
                   :fieldName="config.configurationDetails.fieldName"
                   :dropdownStates="dropdownStates"
-                  buttonText="Select colors"
+                  :buttonText="buttonText"
                 >
                   <ColorSelectionToggle
-                    :selectedColors="
-                      selectedColors[config.configurationDetails.fieldName]
-                    "
+                    v-model:selectedColors="selectedColors"
+                    :colors="colors[config.configurationDetails.fieldName]"
                     :dropdownStates="dropdownStates"
                     :fieldName="config.configurationDetails.fieldName"
                     :colorOptions="colors"
