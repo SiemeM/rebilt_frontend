@@ -8,7 +8,15 @@
       @change="handleColorImageUploadFor3D($event, index)"
     />
 
-    <div class="uploadImage" @click="() => triggerFileInput(index)">
+    <div
+      class="uploadImage"
+      @click="() => triggerFileInput(index)"
+      :style="{
+        justifyContent: colorUploads[index]?.images?.length
+          ? 'flex-start'
+          : 'center',
+      }"
+    >
       <div v-if="!colorUploads[index]?.images?.length" class="text">
         <img src="../assets/icons/image-add.svg" alt="image-add" />
         <p>3D-model toevoegen</p>
@@ -30,11 +38,10 @@
 <script>
 export default {
   name: "ImageUpload",
-  data() {
-    return {
-      // Voorbeeldgegevens van geüploade afbeeldingen
-      colorUploads: [{ images: [] }],
-    };
+  props: {
+    color: Object,
+    index: Number,
+    colorUploads: Array,
   },
   methods: {
     // Trigger bestandselectie
@@ -49,13 +56,24 @@ export default {
 
     // Verwerken van de geüploade afbeeldingen
     handleColorImageUploadFor3D(event, index) {
-      const files = event.target.files;
-      if (files && files.length > 0) {
-        // Voeg de geselecteerde afbeeldingen toe aan colorUploads
-        this.colorUploads[index].images = Array.from(files).map((file) =>
-          URL.createObjectURL(file)
-        );
+      // Controleer of colorUploads[index] gedefinieerd is
+      if (!this.colorUploads[index]) {
+        // Maak een object aan als colorUploads[index] niet bestaat
+        this.colorUploads[index] = { images: [] };
       }
+
+      // Verkrijg de geselecteerde bestanden
+      const files = event.target.files;
+
+      // Verwerk alle geselecteerde bestanden
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        // Voeg de afbeelding toe aan de colorUploads array
+        this.colorUploads[index].images.push(URL.createObjectURL(file));
+      }
+
+      // Emit een update naar de oudercomponent
+      this.$emit("updateColorUploads", this.colorUploads);
     },
 
     // Genereren van de preview-URL's voor geüploade afbeeldingen
@@ -75,14 +93,11 @@ export default {
 
 .uploadImage {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  flex-direction: row;
   gap: 0.5rem;
   padding: 1rem;
   border-radius: 0.25rem;
   width: 100%;
-  height: 120px;
   background-color: var(--gray-700);
 }
 
@@ -94,19 +109,9 @@ export default {
   gap: 0.5rem;
 }
 
-.uploadImage img {
-  width: 64px;
-  height: 64px;
+.image-preview img {
+  width: 50px;
+  height: 50px;
   object-fit: cover;
-}
-
-.uploadImage .text img {
-  width: 24px;
-  height: 24px;
-}
-
-.uploadImage p {
-  text-align: center;
-  font-size: 12px;
 }
 </style>
