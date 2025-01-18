@@ -1,14 +1,17 @@
 <script setup>
-import { ref, onMounted, computed, watch } from "vue";
-import router from "../router";
+import { ref, onMounted, computed } from "vue";
 import DynamicStyle from "../components/DynamicStyle.vue";
+import { fetchProducts, fetchProductTypes } from "../services/productService";
+
+const jwtToken = localStorage.getItem("jwtToken");
+const tokenPayload = jwtToken ? JSON.parse(atob(jwtToken.split(".")[1])) : {};
+const partnerId = tokenPayload.companyId;
 
 const products = ref([]); // All products
 const loading = ref(false); // Loading state
 const error = ref(null); // Error state
 const filters = ref(["All"]); // Dynamic filters with "All" as default
 const activeFilter = ref("All"); // Active filter state
-const partnerName = ref(""); // Store the partner name from query params
 
 // Determine base URL based on environment
 const isProduction = window.location.hostname !== "localhost";
@@ -16,125 +19,48 @@ const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
-const fetchPartnerID = async (partnerName) => {
+// ** Functies die eerder in onMounted stonden **
+const fetchAndSetProducts = async (partnerId) => {
   try {
-    // Pas de partnerName aan door hoofdletters om te zetten naar spaties
-    const formattedPartnerName = partnerName.value
-      .replace(/([A-Z])/g, " $1")
-      .trim();
+    const filteredProducts = await fetchProducts(partnerId);
+    console.log("Fetched products:", filteredProducts);
+    products.value = filteredProducts; // Set products in state
+  } catch (err) {
+    console.error("Error fetching products:", err);
+    throw new Error("Er is een fout opgetreden bij het ophalen van producten.");
+  }
+};
 
-    const partnerQuery = formattedPartnerName
-      ? `?partnerName=${formattedPartnerName}`
-      : "";
-
-    const response = await fetch(`${baseURL}/partners/${partnerQuery}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-
-    const result = await response.json();
-
-    // Zoek de partner in de array die overeenkomt met de geformatteerde partnerName
-    const partner = result.data.partners.find(
-      (p) => p.name.toLowerCase() === formattedPartnerName.toLowerCase()
+const fetchAndSetProductTypes = async (partnerId) => {
+  try {
+    const productTypes = await fetchProductTypes(partnerId);
+    console.log("Fetched product types:", productTypes);
+    filters.value = ["All", ...productTypes]; // Set filters in state
+  } catch (err) {
+    console.error("Error fetching product types:", err);
+    throw new Error(
+      "Er is een fout opgetreden bij het ophalen van producttypes."
     );
-
-    if (partner) {
-      return partner._id; // Geef de partner ID terug
-    } else {
-      throw new Error("Partner niet gevonden");
-    }
-  } catch (err) {
-    console.error("Fout bij het ophalen van de partner ID:", err.message);
-    error.value = "Er is een fout opgetreden bij het ophalen van de partner.";
   }
 };
 
-// Fetch products from API
-const fetchProducts = async () => {
-  try {
-    loading.value = true;
-
-    // Bouw de query op basis van partnerName (indien aanwezig)
-    const partnerQuery = partnerName.value
-      ? `?partnerName=${partnerName.value}`
-      : "";
-
-    // Haal de producten op via de API
-    const response = await fetch(`${baseURL}/products/${partnerQuery}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+// onMounted: Gebruik de functies
+onMounted(async () => {
+  if (partnerId) {
+    try {
+      loading.value = true;
+      await fetchAndSetProducts(partnerId);
+      await fetchAndSetProductTypes(partnerId);
+    } catch (err) {
+      error.value = err.message;
+    } finally {
+      loading.value = false;
     }
-
-    const result = await response.json();
-
-    // Zet de opgehaalde producten
-    products.value = result.data.products;
-
-    // Reset eventuele foutmeldingen
-    error.value = null;
-  } catch (err) {
-    console.error("Error fetching products:", err.message);
-    error.value = "Er is een fout opgetreden bij het ophalen van de producten.";
-  } finally {
-    // Stop de laadindicator
-    loading.value = false;
+  } else {
+    console.error("Partner ID is not available.");
+    error.value = "Partner ID ontbreekt. Controleer uw accountgegevens.";
   }
-};
-
-const fetchFilters = async () => {
-  try {
-    loading.value = true;
-
-    // Construct the URL with the partner filter
-    const partnerQuery = partnerName.value
-      ? `?partnerName=${partnerName.value}`
-      : "";
-    const response = await fetch(`${baseURL}/products/${partnerQuery}`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-
-    const result = await response.json();
-
-    // Extract unique product types for the current partner's products
-    const types = Array.from(
-      new Set(
-        result.data.products
-          .map((product) => product.productType || "Unknown")
-          .filter((type) => typeof type === "string" && type.trim() !== "")
-      )
-    );
-
-    filters.value = [
-      "All",
-      ...types.map((type) => type.charAt(0).toUpperCase() + type.slice(1)),
-    ];
-
-    error.value = null; // Reset error
-  } catch (err) {
-    console.error("Error fetching filters:", err.message);
-    error.value = "Er is een fout opgetreden bij het ophalen van de filters.";
-  } finally {
-    loading.value = false; // Stop loading indicator
-  }
-};
+});
 
 // Filter products based on the active filter
 const filteredProducts = computed(() => {
@@ -150,34 +76,6 @@ const filteredProducts = computed(() => {
 const setActiveFilter = (filter) => {
   activeFilter.value = filter;
 };
-
-onMounted(async () => {
-  await fetchFilters();
-});
-
-// Watch for changes in the query parameter and fetch products accordingly
-watch(
-  () => window.location.search,
-  () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const rawPartnerName = urlParams.get("partner"); // Get the partner query param
-    partnerName.value = rawPartnerName
-      ? rawPartnerName.replace(/\s+/g, "")
-      : ""; // Remove spaces
-    fetchProducts(); // Fetch products based on the new partner
-    fetchPartnerID(partnerName);
-  },
-  { immediate: true }
-);
-
-onMounted(() => {
-  // Check the URL on mount in case there is a partner query parameter
-  const urlParams = new URLSearchParams(window.location.search);
-  const rawPartnerName = urlParams.get("partner") || "";
-  partnerName.value = rawPartnerName.replace(/\s+/g, ""); // Remove spaces
-  fetchProducts(); // Fetch products when component is mounted
-  fetchPartnerID(partnerName);
-});
 </script>
 
 <template>
