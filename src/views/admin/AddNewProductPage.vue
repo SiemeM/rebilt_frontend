@@ -3,892 +3,65 @@ import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
-import { toRaw } from "vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
+import { fetchPartnerData } from "../../services/apiService";
+import { checkToken, fetchPartnerPackage } from "../../services/authService";
+import {
+  fetchPartnerConfigurations,
+  fetchOptionNames,
+  addNewColor,
+} from "../../services/configurationService";
 
-// Router en JWT-token ophalen
-const router = useRouter();
-const jwtToken = localStorage.getItem("jwtToken");
-const errorMessage = ref("");
+import {
+  fetchProducts,
+  filterProductsByType,
+  add2DProduct,
+  add3DProduct,
+  handleColorImageUploadFor2D,
+  handleColorImageUploadFor3D,
+  getcolors,
+  fetchcolors,
+} from "../../services/productService";
 
-// Basis-URL bepalen afhankelijk van de omgeving
-const isProduction = window.location.hostname !== "localhost";
-const baseURL = isProduction
-  ? "https://rebilt-backend.onrender.com/api/v1"
-  : "http://localhost:3000/api/v1";
-
-const filteredProducts = ref([]);
-const colors = ref([]);
 const selectedColors = ref([]);
-
-const selectedConfigurations = ref([]);
 const partnerConfigurations = ref([]);
-const availableNewColors = ref([]); // Array voor nieuwe kleuren die nog niet geselecteerd zijn
-const color2DImages = ref([]);
-const color3DImages = ref([]);
-const uploaded3DImages = ref([]);
-
-// Functie om te controleren of de gebruiker is ingelogd
-const checkToken = () => {
-  if (!jwtToken) {
-    router.push("/login");
-  }
-};
-
-// Functie om partnergegevens op te halen en partnernaam dynamisch in te stellen
-const partnerName = ref("");
-const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1])); // Decode token
-const partnerId = tokenPayload.companyId;
-const productTypes = ref([]); // Om de producttypes op te slaan
-const selectedType = ref(""); // Om het geselecteerde producttype bij te houden
-
-// Functie om partnergegevens op te halen en partnernaam dynamisch in te stellen
-const fetchPartnerData = async () => {
-  try {
-    if (!partnerId) {
-      console.error("Partner ID (companyId) is not available in the token.");
-      router.push("/login");
-      return;
-    }
-
-    const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${jwtToken}`,
-      },
-    });
-
-    const partner = response.data?.data?.partner;
-    if (partner) {
-      partnerName.value = partner.name || "Default"; // Dynamische partnernaam
-      await fetchPartnerConfigurations(partnerId); // Fetch partner configurations
-    } else {
-      console.error("Partner data not found in response");
-      partnerName.value = "Default";
-    }
-  } catch (error) {
-    console.error("Error fetching partner data:", error.response || error);
-    partnerName.value = "Default";
-  }
-};
-
-const fetchProducts = async () => {
-  try {
-    const response = await axios.get(`${baseURL}/products`, {
-      params: { partnerId }, // Voeg het partnerId toe aan de queryparameters
-    });
-
-    const products = response.data?.data?.products || [];
-
-    // Haal de unieke producttypes op
-    const types = [...new Set(products.map((product) => product.productType))];
-
-    productTypes.value = types; // Sla de unieke producttypes op
-    filteredProducts.value = products; // Begin met alle producten
-  } catch (error) {
-    console.error("Error fetching products:", error);
-  }
-};
-
-// Functie om producten te filteren op basis van het geselecteerde type
-const filterProductsByType = () => {
-  if (selectedType.value) {
-    filteredProducts.value = filteredProducts.value.filter(
-      (product) => product.productType === selectedType.value
-    );
-  } else {
-    // Als er geen type is geselecteerd, toon dan alle producten
-    fetchProducts();
-  }
-};
-
-const fetchPartnerConfigurations = async () => {
-  if (!partnerId) {
-    console.warn("No partnerId provided.");
-    return;
-  }
-
-  try {
-    const partnerResponse = await axios.get(
-      `${baseURL}/partnerConfigurations`,
-      {
-        headers: { Authorization: `Bearer ${jwtToken}` },
-        params: { partnerId },
-      }
-    );
-
-    const partnerConfigs = partnerResponse.data?.data || [];
-
-    const configurationsResponse = await axios.get(
-      `${baseURL}/configurations`,
-      {
-        headers: { Authorization: `Bearer ${jwtToken}` },
-      }
-    );
-
-    const configurations = configurationsResponse.data?.data || [];
-
-    partnerConfigurations.value = await Promise.all(
-      partnerConfigs.map(async (partnerConfig) => {
-        const matchingConfig = configurations.find(
-          (config) => config._id === partnerConfig?.configurationId?._id
-        );
-
-        if (!matchingConfig) {
-          console.warn(
-            `No matching configuration found for configurationId: ${partnerConfig.configurationId?._id}`
-          );
-          return {
-            ...partnerConfig,
-            options: [],
-            fieldName: "Unknown",
-            fieldType: "Unknown",
-            value: "",
-          };
-        }
-
-        const optionsData =
-          partnerConfig.options?.map((option) => ({
-            optionId: option.optionId,
-            ...option,
-          })) || [];
-
-        const options =
-          optionsData.length > 0 ? await fetchOptionNames(optionsData) : [];
-
-        return {
-          ...partnerConfig,
-          fieldName: matchingConfig.fieldName,
-          fieldType: matchingConfig.fieldType,
-          options,
-          value: "",
-        };
-      })
-    );
-  } catch (error) {
-    console.error("Error fetching partner configurations:", error);
-  }
-};
-
-const fetchOptionNames = async (optionsData) => {
-  try {
-    // Filter out undefined or empty IDs before making API calls
-    const validOptions = optionsData.filter(
-      (option) => option.optionId && option.optionId !== "undefined"
-    );
-
-    // If there are no valid optionIds, return an empty array or some default value
-    if (validOptions.length === 0) {
-      return optionsData.map(() => ({ name: "Unknown" })); // Return an object with name as 'Unknown'
-    }
-
-    // Fetch data from the API for each optionId using the correct URL structure
-    const responses = await Promise.all(
-      validOptions.map((option) =>
-        axios.get(`${baseURL}/options/${option.optionId._id}`, {
-          headers: { Authorization: `Bearer ${jwtToken}` },
-        })
-      )
-    );
-
-    // Map the responses to return option names (or use value as fallback)
-    return responses.map((res, index) => {
-      const optionData = res.data?.data;
-      return {
-        optionId: validOptions[index].optionId, // Make sure we retain the optionId
-        name: optionData?.name,
-      };
-    });
-  } catch (error) {
-    console.error("Error fetching option names:", error);
-    return optionsData.map(() => ({ name: "Unknown" })); // Return 'Unknown' for each optionId in case of an error
-  }
-};
-
-const handleSubmit = async () => {
-  if (partnerPackage === "standard") {
-    add2DProduct();
-  } else {
-    add3DProduct();
-  }
-};
-
-const add2DProduct = async () => {
-  try {
-    if (!productName.value || !productPrice.value) {
-      errorMessage.value = "Product name and price are required.";
-      return;
-    }
-
-    // Process colors and their images
-    const colorsWithImages = await Promise.all(
-      colors.value.map(async (colorItem, index) => {
-        const uploadedImages = await Promise.all(
-          (colorUploads.value[index]?.images || []).map((file) =>
-            uploadFileToCloudinary(file, `${productName.value}-${index}`)
-          )
-        );
-        console.log(uploadedImages);
-
-        return {
-          color: colorItem,
-          images: uploadedImages,
-        };
-      })
-    );
-
-    console.log("Colors with images:", colorsWithImages); // Log the colors with their images
-
-    // Process configurations
-    const configurations = [];
-
-    for (const config of partnerConfigurations.value) {
-      const selectedOptions = [];
-      console.log(`Processing configuration: ${config.configurationId._id}`);
-
-      if (config.fieldType === "color" && colors.value.length > 0) {
-        for (const selectedColor of colors.value) {
-          const selectedOptionId = selectedColor._id || selectedColor;
-
-          console.log("selectedOptionId:", selectedOptionId); // Log selected option ID
-
-          if (!selectedOptionId) {
-            console.warn(
-              "Skipping color with undefined optionId:",
-              selectedColor
-            );
-            continue;
-          }
-
-          try {
-            // Fetch the option details
-            const optionResponse = await axios.get(
-              `${baseURL}/options/${selectedOptionId}`
-            );
-            console.log(optionResponse);
-
-            const option = optionResponse.data;
-
-            console.log("Fetched option:", option); // Log the option that was fetched
-
-            // Attach images for the color if available
-            const images =
-              colorsWithImages.find(
-                (color) => color.color._id === selectedOptionId
-              )?.images || [];
-
-            selectedOptions.push({
-              optionId: option.data._id,
-              images,
-              _id: `${option.data._id}-${Date.now()}`, // Generate a unique _id for the option
-            });
-
-            console.log(selectedOptions);
-          } catch (error) {
-            console.warn("Failed to fetch option:", selectedOptionId);
-            console.error(error); // Log the actual error
-          }
-        }
-      }
-
-      // Only add configurations with selected options
-      if (selectedOptions.length > 0) {
-        configurations.push({
-          configurationId: config.configurationId._id,
-          selectedOptions,
-        });
-      }
-    }
-
-    console.log("Configurations after processing:", configurations); // Log configurations before sending
-
-    // Construct the product data object
-    const productData = {
-      productCode: productCode.value,
-      productName: productName.value,
-      productType: selectedType.value || "sunglasses",
-      brand: brand.value,
-      description: description.value,
-      productPrice: productPrice.value,
-      activeInactive: "active",
-      partnerId,
-      configurations,
-    };
-
-    console.log("Final productData:", productData); // Log productData before sending
-
-    // Send product data to the API
-    const response = await axios.post(`${baseURL}/products`, productData, {
-      headers: {
-        Authorization: `Bearer ${jwtToken}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (response.status === 201) {
-      router.push("/admin");
-    } else {
-      errorMessage.value = "Failed to add product.";
-    }
-  } catch (error) {
-    console.error(
-      "Error adding product:",
-      error.response?.data || error.message
-    );
-    errorMessage.value = error.response?.data?.message || "Unknown error.";
-  }
-};
-
-// Product-informatie refs
+const productTypes = ref([]);
 const productCode = ref("");
-const partnerPackage = ref("");
-const productType = ref("sneaker");
 const productName = ref("");
 const brand = ref("");
 const productPrice = ref("");
 const description = ref("");
-// Haal het pakket van de partner op
-async function fetchPartnerPackage() {
-  try {
-    const response = await fetch(`${baseURL}/partners/${partnerId}`);
-    if (!response.ok) throw new Error("Network response was not ok");
-    const data = await response.json();
-    partnerPackage.value = data.data.partner.package || "";
-  } catch (err) {
-    console.error("Error fetching partner package:", err);
-  }
-}
-
-// Kleur-upload functie
-const handleColorImageUploadFor2D = (event, index) => {
-  if (!event?.target?.files) {
-    console.warn(
-      "Geen geldig event object gevonden bij handleColorImageUpload"
-    );
-    return;
-  }
-
-  // Zorg ervoor dat colorUploads[index] bestaat en een images array bevat
-  if (!colorUploads.value[index]) {
-    colorUploads.value[index] = { images: [] }; // Initialiseer het object als het nog niet bestaat
-  }
-
-  const files = Array.from(event.target.files).filter(
-    (file) => file instanceof File
-  );
-
-  if (files.length > 0) {
-    const file = files[0]; // Neem het eerste bestand
-    const fileExtension = file.name.split(".").pop().toLowerCase(); // Controleer bestandstype
-
-    // Controleer of de gebruiker een Standard pakket heeft en of het bestandstype niet is toegestaan
-    if (
-      partnerPackage.value === "Standard" &&
-      ["glb", "gltf"].includes(fileExtension)
-    ) {
-      console.warn("GLB bestanden zijn alleen toegestaan voor Pro-gebruikers.");
-      alert(
-        "GLB bestanden zijn alleen toegestaan voor Pro-gebruikers. Je kunt alleen afbeeldingen uploaden."
-      );
-      return; // Stop de upload voor dit bestand
-    }
-
-    // Voeg het bestand toe aan colorUploads (als het bestandstype geldig is)
-    colorUploads.value[index].images.push(...files);
-  }
-};
-
-const handleColorImageUploadFor3D = async (event, index) => {
-  const files = event.target.files;
-  if (files.length === 0) return;
-
-  // Zet de bestanden om in een array
-  const newImages = Array.from(files);
-
-  try {
-    // We gaan de upload nu direct uitvoeren
-    const uploaded3DImages = await Promise.all(
-      newImages.map((file) =>
-        uploadFileToCloudinary(
-          file,
-          `${productName.value}-3D-${index}`,
-          partnerName.value
-        )
-      )
-    );
-
-    console.log("Uploaded 3D Images URLs:", uploaded3DImages);
-
-    // Sla de geüploade URL's op in de kleur3D-afbeeldingen array
-    color3DImages.value[index] = uploaded3DImages; // Gebruik directe reactieve wijziging
-  } catch (error) {
-    console.error("Error uploading 3D images:", error.message);
-  }
-};
-
-const add3DProduct = async () => {
-  try {
-    if (!productName.value || !productPrice.value) {
-      errorMessage.value = "Product name and price are required.";
-      return;
-    }
-
-    console.log("3D models and images:", color3DImages.value);
-
-    // Process configurations
-    const configurations = [];
-
-    for (const config of partnerConfigurations.value) {
-      const selectedOptions = [];
-      console.log(`Processing configuration: ${config.configurationId._id}`);
-
-      if (config.fieldType === "color" && colors.value.length > 0) {
-        const selectedColor = colors.value[0]; // Assuming only 1 color is selected, take the first one
-        const selectedOptionId = selectedColor.optionId || selectedColor;
-
-        console.log("selectedOptionId:", selectedOptionId); // Log selected option ID
-
-        if (!selectedOptionId) {
-          console.warn(
-            "Skipping color with undefined optionId:",
-            selectedColor
-          );
-          continue;
-        }
-
-        try {
-          // Fetch the option details (this part can be adjusted as needed)
-          const optionResponse = await axios.get(
-            `${baseURL}/options/${selectedOptionId}`
-          );
-          console.log(optionResponse);
-
-          const option = optionResponse.data;
-          console.log("Fetched option:", option); // Log the option that was fetched
-
-          // Get the 3D model image from the color3DImages array and convert it to a normal array of strings
-          const images = color3DImages.value.map((image) => image); // Ensure it's a simple array
-
-          // Check if images were found and log the result
-          if (images.length > 0) {
-            console.log(
-              "3D model found for the selected configuration:",
-              images
-            );
-          } else {
-            console.warn("No 3D model found for the selected configuration");
-          }
-
-          // Push the selected option to the array with the images
-          selectedOptions.push({
-            optionId: option.data._id,
-            images, // Add 3D model images
-            _id: `${option.data._id}-${Date.now()}`, // Generate a unique _id for the option
-          });
-        } catch (error) {
-          console.warn("Failed to fetch option:", selectedOptionId);
-          console.error(error); // Log the actual error
-        }
-      }
-
-      // Only add configurations with selected options
-      if (selectedOptions.length > 0) {
-        configurations.push({
-          configurationId: config.configurationId._id,
-          selectedOptions,
-        });
-      }
-    }
-
-    console.log("Configurations after processing:", configurations); // Log configurations before sending
-
-    // Construct the product data object
-    const productData = {
-      productCode: productCode.value,
-      productName: productName.value,
-      productType: selectedType.value || "sunglasses",
-      brand: brand.value,
-      description: description.value,
-      productPrice: productPrice.value,
-      activeInactive: "active",
-      partnerId,
-      configurations,
-    };
-
-    console.log("Final productData:", productData); // Log productData before sending
-
-    // Send product data to the API
-    const response = await axios.post(`${baseURL}/products`, productData, {
-      headers: {
-        Authorization: `Bearer ${jwtToken}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (response.status === 201) {
-      router.push("/admin");
-    } else {
-      errorMessage.value = "Failed to add product.";
-    }
-  } catch (error) {
-    console.error(
-      "Error adding product:",
-      error.response?.data || error.message
-    );
-    errorMessage.value = error.response?.data?.message || "Unknown error.";
-  }
-};
-
-// Cloudinary upload functie
-// Functie voor het uploaden van bestanden naar Cloudinary
-const uploadFileToCloudinary = async (file, productName, partnerName) => {
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", "ycy4zvmj");
-    formData.append("cloud_name", "dzempjvto");
-
-    const folderName = `${
-      partnerName || "DefaultFolder"
-    }/Products/${productName}`;
-    formData.append("folder", folderName);
-
-    // Wacht totdat het partnerpakket is opgehaald
-    if (!partnerPackage.value) {
-      console.error("Partner package not available");
-      document.querySelector(".errorMessage").innerHTML =
-        "Er is een probleem met het ophalen van het partnerpakket."; // Foutmelding voor ontbrekend partnerpakket
-      return; // Stop de upload als het partnerpakket nog niet beschikbaar is
-    }
-
-    let uploadEndpoint;
-    const fileExtension = file.name.split(".").pop().toLowerCase();
-
-    // Check het pakket van de partner (Pro of Standard)
-    if (partnerPackage.value === "pro") {
-      if (
-        ["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(fileExtension)
-      ) {
-        uploadEndpoint =
-          "https://api.cloudinary.com/v1_1/dzempjvto/image/upload"; // Afbeelding upload
-      } else if (["glb", "gltf"].includes(fileExtension)) {
-        uploadEndpoint = "https://api.cloudinary.com/v1_1/dzempjvto/raw/upload"; // 3D-bestand upload
-      } else {
-        throw new Error("Unsupported file type");
-      }
-    } else if (partnerPackage.value === "standard") {
-      if (
-        ["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(fileExtension)
-      ) {
-        uploadEndpoint =
-          "https://api.cloudinary.com/v1_1/dzempjvto/image/upload"; // Afbeelding upload
-      } else {
-        // Toon foutmelding voor Standard gebruikers die een niet-ondersteund bestand proberen te uploaden
-        document.querySelector(".errorMessage").innerHTML =
-          "Standard plan users can only upload images.";
-        return; // Stop verdere verwerking
-      }
-    } else {
-      throw new Error("Invalid partner package");
-    }
-
-    // Upload bestand naar Cloudinary
-    const response = await fetch(uploadEndpoint, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Cloudinary upload failed: ${errorData.error.message}`);
-    }
-
-    const data = await response.json();
-    if (!data.secure_url) {
-      throw new Error("No secure_url found in Cloudinary response");
-    }
-
-    // Return de secure URL als de upload succesvol is
-    return data.secure_url;
-  } catch (error) {
-    // Log de fout naar de console
-    console.error("Error uploading file:", error);
-
-    // Toon de foutmelding in de frontend
-    document.querySelector(".errorMessage").innerHTML =
-      error.message || "Er is een onbekende fout opgetreden."; // Toon generieke foutmelding als er geen specifieke fout is
-
-    // Gooi de fout verder om de aanroepende functie te informeren over het probleem
-    throw error;
-  }
-};
-
-const triggerFileInput = (index) => {
-  const fileInput = document.getElementById(`images-${index}`);
-  if (fileInput) {
-    fileInput.click();
-  } else {
-    console.warn("File input niet gevonden");
-  }
-};
-
-// Meerdere kleuren beheren
-const colorUploads = ref([]); // Array om kleuren en bijbehorende afbeeldingen bij te houden
-
-// Dropdown states beheren
+const colorUploads = ref([]);
 const dropdownStates = ref({});
+const newColorName = ref("");
 
-// Functie om een dropdown te toggelen
-const toggleDropdown = (fieldName) => {
-  // Sluit alle andere dropdowns
-  for (const key in dropdownStates.value) {
-    if (key !== fieldName) {
-      dropdownStates.value[key] = false;
-    }
-  }
-  // Toggle de huidige dropdown
-  dropdownStates.value[fieldName] = !dropdownStates.value[fieldName];
-};
+const jwtToken = localStorage.getItem("jwtToken");
+const tokenPayload = jwtToken ? JSON.parse(atob(jwtToken.split(".")[1])) : {};
+const partnerId = tokenPayload.companyId;
+const selectedType = ref(""); // Add this line
+const partnerPackage = ref(""); // or initialize with actual data
 
-const toggleColorSelection = (option, fieldName) => {
-  // Zorg ervoor dat selectedColors een array is
-  if (!Array.isArray(selectedColors.value)) {
-    selectedColors.value = [];
-  }
-
-  // Zoek naar de kleur in selectedColors om te controleren of deze al geselecteerd is
-  const index = selectedColors.value.findIndex(
-    (color) => color.optionId === option.optionId
-  );
-
-  if (index === -1) {
-    // Voeg de kleur toe aan de geselecteerde kleuren als deze nog niet is geselecteerd
-    selectedColors.value.push({
-      optionId: option.optionId,
-      name: option.name || "Unnamed Color", // Voeg de naam toe (bijv. kleurcode)
-      images: Array.isArray(option.images) ? option.images : [], // Zorg ervoor dat 'images' altijd een array is
-    });
+onMounted(async () => {
+  if (partnerId) {
+    await checkToken();
+    await fetchPartnerData(partnerId);
+    const { partnerConfigs } = await fetchPartnerConfigurations(
+      partnerId,
+      jwtToken
+    );
+    partnerConfigurations.value = partnerConfigs; // Assign fetched data to partnerConfigurations
+    console.log(partnerConfigs);
+    fetchOptionNames(partnerConfigurations.value);
+    add2DProduct();
+    add3DProduct();
+    await fetchPartnerPackage();
+    await fetchProducts(partnerId);
+    await getcolors(partnerId);
+    await fetchcolors(partnerId);
   } else {
-    // Verwijder de kleur uit selectedColors als deze al geselecteerd is
-    selectedColors.value.splice(index, 1);
+    console.error("Partner ID is not available.");
   }
-
-  // Sluit de dropdown na selectie
-  dropdownStates[fieldName] = false;
-};
-
-// Functie om alle geselecteerde opties van een specifieke partner te halen
-async function getcolors(partnerName) {
-  const apiUrl = `${baseURL}/products?partnerName=${partnerName}`;
-  try {
-    // Haal de producten op
-    const response = await axios.get(apiUrl);
-    const data = response.data;
-
-    if (data.status !== "success" || !data.data.products) {
-      throw new Error("Ongeldige API-reactie of geen producten gevonden.");
-    }
-
-    // Verwerk de producten om geselecteerde opties te verkrijgen
-    const products = data.data.products;
-    const selectedOptions = products.flatMap((product) =>
-      product.configurations.flatMap((configuration) =>
-        configuration.selectedOptions.map((option) => ({
-          optionId: option.optionId,
-          images: option.images,
-        }))
-      )
-    );
-
-    // Array voor geselecteerde kleuren
-    const colors = [];
-
-    // Haal de namen en kleuren van de opties op via /options
-    console.log(selectedOptions);
-    const detailedOptions = await Promise.all(
-      selectedOptions.map(async (option) => {
-        try {
-          const optionResponse = await axios.get(
-            `${baseURL}/options/${option.optionId}`
-          );
-          const optionData = optionResponse.data;
-
-          // Log om de respons te controleren
-          console.log(optionData);
-
-          // Haal de naam en kleur uit de optiegegevens
-          const color = optionData.data.name; // Aangenomen dat de kleur in 'name' zit, zoals #ffffff
-
-          // Voeg kleur toe aan de colors array
-          colors.push(color); // Push de kleur naar colors array
-
-          // Retourneer gedetailleerde opties
-          return {
-            ...option,
-            name: optionData.data.name, // Naam van de optie
-            color: color, // Kleur van de optie
-          };
-        } catch (error) {
-          console.error(
-            `Fout bij ophalen van optie ${option.optionId}:`,
-            error
-          );
-          return {
-            ...option,
-            name: "Naam niet beschikbaar",
-            color: "Kleur niet beschikbaar", // Voeg een fallback in voor de kleur
-          };
-        }
-      })
-    );
-
-    // Print de geselecteerde kleuren (optioneel voor debuggen)
-    console.log("Geselecteerde kleuren:", colors);
-
-    return detailedOptions; // Retourneer gedetailleerde opties (indien nodig)
-  } catch (error) {
-    console.error("Fout bij het ophalen van geselecteerde opties:", error);
-    return [];
-  }
-}
-
-// Gebruik de functie
-getcolors("OdetteLunettes")
-  .then((colors) => {
-    console.log("Geselecteerde opties:", colors);
-  })
-  .catch((error) => {
-    console.error("Fout bij het verwerken:", error);
-  });
-
-const fetchcolors = async (partnerName) => {
-  try {
-    const selectedOptions = await getcolors(partnerName); // Haal geselecteerde kleuren op
-    colors.value = selectedOptions.map((option) => ({
-      optionId: option.optionId,
-      name: option.name || "Unnamed Color",
-      images: option.images || [],
-    }));
-    console.log("Geselecteerde kleuren:", colors.value);
-  } catch (error) {
-    console.error("Fout bij het ophalen van geselecteerde kleuren:", error);
-  }
-};
-
-// Lifecycle hook voor het ophalen van partnergegevens
-onMounted(() => {
-  checkToken();
-  fetchPartnerPackage();
-  fetchcolors("OdetteLunettes");
-  fetchPartnerData(); // Haal partnergegevens op zodra de component gemonteerd is
-  fetchProducts();
 });
-
-const newColorName = ref({});
-
-const addNewColor = async (config, fieldName) => {
-  const configId = config.configurationId._id;
-
-  if (
-    !newColorName.value[configId] ||
-    newColorName.value[configId].trim() === ""
-  ) {
-    return; // Geen lege kleuren toevoegen
-  }
-
-  const newColor = {
-    name: newColorName.value[configId].trim(),
-    type: "kleur", // Aangeven dat het een kleur is
-    price: 0, // Stel hier een prijs in, als nodig
-  };
-
-  try {
-    // Verstuur een POST-verzoek naar de server om de kleur op te slaan
-    const response = await fetch(`${baseURL}/options`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(newColor), // Verstuur de nieuwe kleur
-    });
-
-    const data = await response.json();
-    console.log("Nieuw kleurobject:", newColor); // Log het kleurobject
-    console.log("Server Response:", data); // Log de volledige response
-
-    // Controleer of 'data.data' en 'data.data._id' bestaan
-    if (data && data.data && data.data._id) {
-      console.log("Geldige _id ontvangen:", data.data._id);
-
-      // Voeg de nieuwe kleur toe aan de geselecteerde kleuren (selectedColors)
-      const color = {
-        optionId: data.data._id,
-        name: newColor.name,
-        images: [], // Voeg hier een lege array voor afbeeldingen toe
-      };
-      selectedColors.value.push(color); // Voeg toe aan selectedColors
-
-      // Voeg de nieuwe kleur toe aan de beschikbare kleuren (colors)
-      colors.value.push(color); // Voeg toe aan colors
-
-      // Voeg de nieuwe kleur toe aan de opties in config
-      config.options.push({
-        optionId: data.data._id, // Gebruik het ontvangen _id van de server
-        name: newColor.name,
-      });
-
-      // Voeg de nieuwe kleur toe aan de beschikbare kleuren array
-      availableNewColors.value.push({
-        optionId: data.data._id,
-        name: newColor.name,
-      });
-
-      // Reset het invoerveld
-      newColorName.value[configId] = "";
-
-      console.log("Updated selectedColors:", selectedColors.value); // Log de bijgewerkte selectedColors
-      console.log("Updated colors:", colors.value); // Log de bijgewerkte colors
-    } else {
-      console.error(
-        "Fout bij het toevoegen van de kleur: geen _id ontvangen",
-        data
-      );
-    }
-  } catch (error) {
-    console.error(
-      "Er is een fout opgetreden bij het versturen van de kleur:",
-      error
-    );
-  }
-};
-
-const previewImages = (images) => {
-  // Zorg ervoor dat 'images' een array is
-  if (!Array.isArray(images)) {
-    return []; // Return een lege array als 'images' niet gedefinieerd is
-  }
-  return images.map((file) => URL.createObjectURL(file));
-};
-
-const isColorSelected = (color) => {
-  return selectedColors.value.some(
-    (selectedColor) => selectedColor.optionId === color.optionId
-  );
-};
-
-// Functie om de naam van de kleur op te halen aan de hand van de optionId
-const getColorNameById = (colorId) => {
-  // Loop door partnerConfigurations om de juiste configuratie te vinden
-  for (const partnerConfig of partnerConfigurations.value) {
-    const colorOption = partnerConfig.options.find(
-      (option) => option.optionId === colorId
-    );
-    if (colorOption) {
-      return colorOption.name; // Geef de naam van de kleur terug als gevonden
-    }
-  }
-  return "Unnamed Color"; // Geef "Unnamed Color" terug als geen match is gevonden
-};
 </script>
 
 <template>
@@ -955,69 +128,104 @@ const getColorNameById = (colorId) => {
         class="row"
       >
         <div class="column">
-          <label :for="config.fieldName">{{ config.fieldName }}:</label>
+          <label :for="config.configurationDetails.fieldName"
+            >{{ config.configurationDetails.fieldName }}:</label
+          >
 
           <!-- Text field -->
-          <template v-if="config.fieldType === 'Text'">
-            <input v-model="config.value" :id="config.fieldName" type="text" />
+          <template v-if="config.configurationDetails.fieldType === 'Text'">
+            <input
+              v-model="config.value"
+              :id="config.configurationDetails.fieldName"
+              type="text"
+            />
           </template>
 
           <!-- Dropdown field -->
-          <template v-else-if="config.fieldType === 'Dropdown'">
-            <select v-model="config.value" :id="config.fieldName">
+          <template
+            v-else-if="config.configurationDetails.fieldType === 'Dropdown'"
+          >
+            <select
+              v-model="config.value"
+              :id="config.configurationDetails.fieldName"
+            >
+              <option value="">Select an option</option>
               <option
-                v-for="(color, index) in colors"
+                v-for="(option, index) in configurations"
                 :key="index"
-                :value="color.optionId"
+                :value="option._id"
               >
-                <!-- Toon de kleur als achtergrondkleur van de optie -->
-                <span
-                  class="color-bullet"
-                  :style="{ backgroundColor: color.name || 'transparent' }"
-                ></span>
-                {{ color.name || "Unnamed Color" }}
+                {{ option.name || "Unnamed Option" }}
               </option>
             </select>
           </template>
 
           <!-- Color field -->
-          <template v-else-if="config.fieldType === 'color'">
+          <template
+            v-else-if="config.configurationDetails.fieldType === 'color'"
+          >
             <div class="color-dropdown">
               <div class="dropdown">
                 <div
                   class="dropdown-selected"
-                  @click="toggleDropdown(config.fieldName)"
+                  @click="toggleDropdown(config.configurationDetails.fieldName)"
                 >
-                  <p v-if="selectedColors.length > 0">
+                  <p
+                    v-if="
+                      selectedColors[config.configurationDetails.fieldName]
+                        ?.length > 0
+                    "
+                  >
                     Selected colors:
                     <span
-                      v-for="(color, index) in selectedColors"
+                      v-for="(color, index) in selectedColors[
+                        config.configurationDetails.fieldName
+                      ]"
                       :key="index"
                       :style="{ color: color.name || 'transparent' }"
                     >
                       {{ color.name || "Unnamed Color" }}
-                      <span v-if="index !== selectedColors.length - 1">, </span>
+                      <span
+                        v-if="
+                          index !==
+                          selectedColors[config.configurationDetails.fieldName]
+                            .length -
+                            1
+                        "
+                        >,
+                      </span>
                     </span>
                   </p>
-
                   <p v-else>Select colors</p>
                 </div>
 
                 <div
-                  v-if="dropdownStates[config.fieldName]"
+                  v-if="dropdownStates[config.configurationDetails.fieldName]"
                   class="dropdown-options"
                 >
                   <div
                     v-for="(color, index) in colors"
                     :key="index"
                     class="dropdown-option"
-                    @click="toggleColorSelection(color, config.fieldName)"
+                    @click="
+                      toggleColorSelection(
+                        color,
+                        config.configurationDetails.fieldName
+                      )
+                    "
                   >
                     <input
                       type="checkbox"
                       :value="color.optionId"
-                      v-model="selectedColors"
-                      :checked="isColorSelected(color)"
+                      v-model="
+                        selectedColors[config.configurationDetails.fieldName]
+                      "
+                      :checked="
+                        isColorSelected(
+                          color,
+                          config.configurationDetails.fieldName
+                        )
+                      "
                     />
                     <span
                       class="color-bullet"
@@ -1030,14 +238,22 @@ const getColorNameById = (colorId) => {
                   <div class="dropdown-input">
                     <input
                       type="text"
-                      v-model="newColorName[config.configurationId._id]"
+                      v-model="newColorName[config._id]"
                       placeholder="Add new color"
                       @keydown.enter.prevent="
-                        addNewColor(config, config.fieldName)
+                        addNewColor(
+                          config,
+                          config.configurationDetails.fieldName
+                        )
                       "
                     />
                     <button
-                      @click="addNewColor(config, config.fieldName)"
+                      @click="
+                        addNewColor(
+                          config,
+                          config.configurationDetails.fieldName
+                        )
+                      "
                       type="button"
                     >
                       Add
@@ -1048,16 +264,20 @@ const getColorNameById = (colorId) => {
 
               <!-- Image upload for selected colors -->
               <div
-                v-for="(color, index) in selectedColors"
-                v-if="partnerPackage == 'standard'"
+                v-for="(color, index) in selectedColors[
+                  config.configurationDetails.fieldName
+                ]"
+                v-if="partnerPackage === 'standard'"
                 :key="color.optionId"
                 class="color-upload-section"
               >
-                <!-- Only show the upload zone if the color has images or is selected -->
                 <div
                   v-if="
                     colorUploads[index]?.images?.length ||
-                    isColorSelected(color)
+                    isColorSelected(
+                      color,
+                      config.configurationDetails.fieldName
+                    )
                   "
                 >
                   <p>Upload images for {{ color.name }}</p>
@@ -1082,7 +302,6 @@ const getColorNameById = (colorId) => {
                       />
                       <p>Afbeeldingen, video's of 3D-modellen toevoegen</p>
                     </div>
-
                     <div
                       v-for="(previewUrl, imgIndex) in previewImages(
                         colorUploads[index]?.images
