@@ -1,7 +1,7 @@
 <template>
-  <div class="dropdown-selected">
+  <div class="dropdown-selected" @click="toggleDropdown">
     <!-- Trigger button for dropdown -->
-    <p @click="toggleDropdown">{{ buttonText }}</p>
+    <p>{{ buttonText }}</p>
 
     <!-- Dropdown content -->
     <div v-if="isOpen">
