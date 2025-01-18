@@ -1,41 +1,47 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
+import { useRoute } from "vue-router";
 import DynamicStyle from "../components/DynamicStyle.vue";
 import { fetchProducts, fetchProductTypes } from "../services/productService";
+import { fetchPartnerByName } from "../services/authService";
 
 const jwtToken = localStorage.getItem("jwtToken");
 const tokenPayload = jwtToken ? JSON.parse(atob(jwtToken.split(".")[1])) : {};
-const partnerId = tokenPayload.companyId;
 
-const products = ref([]); // All products
-const loading = ref(false); // Loading state
-const error = ref(null); // Error state
-const filters = ref(["All"]); // Dynamic filters with "All" as default
-const activeFilter = ref("All"); // Active filter state
+const route = useRoute();
+const partnerName = route.query.partner || null; // Haal partnernaam op uit de query
 
-// Determine base URL based on environment
+const partnerId = ref(null); // Partner ID van de opgegeven naam
+const products = ref([]); // Alle producten
+const loading = ref(false); // Laadstatus
+const error = ref(null); // Foutstatus
+const filters = ref(["All"]); // Dynamische filters, standaard met "All"
+const activeFilter = ref("All"); // Actieve filterstatus
+
+// Bepaal de base URL op basis van de omgeving
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
-// ** Functies die eerder in onMounted stonden **
+// Functie om producten op te halen
 const fetchAndSetProducts = async (partnerId) => {
   try {
     const filteredProducts = await fetchProducts(partnerId);
     console.log("Fetched products:", filteredProducts);
-    products.value = filteredProducts; // Set products in state
+    products.value = filteredProducts; // Sla producten op in de state
   } catch (err) {
     console.error("Error fetching products:", err);
     throw new Error("Er is een fout opgetreden bij het ophalen van producten.");
   }
 };
 
+// Functie om producttypes op te halen
 const fetchAndSetProductTypes = async (partnerId) => {
   try {
     const productTypes = await fetchProductTypes(partnerId);
     console.log("Fetched product types:", productTypes);
-    filters.value = ["All", ...productTypes]; // Set filters in state
+    filters.value = ["All", ...productTypes]; // Voeg filters toe
   } catch (err) {
     console.error("Error fetching product types:", err);
     throw new Error(
@@ -44,28 +50,42 @@ const fetchAndSetProductTypes = async (partnerId) => {
   }
 };
 
-// onMounted: Gebruik de functies
+// onMounted: Controleer partnernaam en laad gegevens
 onMounted(async () => {
-  if (partnerId) {
-    try {
-      loading.value = true;
-      await fetchAndSetProducts(partnerId);
-      await fetchAndSetProductTypes(partnerId);
-    } catch (err) {
-      error.value = err.message;
-    } finally {
-      loading.value = false;
+  try {
+    loading.value = true;
+
+    console.log("Partnernaam uit query:", partnerName); // Voeg dit toe om te controleren
+
+    if (partnerName) {
+      const partner = await fetchPartnerByName(partnerName);
+
+      if (partner && partner._id) {
+        partnerId.value = partner._id;
+        await fetchAndSetProducts(partnerId.value); // Haal producten op
+        await fetchAndSetProductTypes(partnerId.value); // Haal filters op
+      } else {
+        error.value = `Geen partner gevonden met de naam "${partnerName}".`;
+      }
+    } else if (tokenPayload.companyId) {
+      partnerId.value = tokenPayload.companyId;
+      await fetchAndSetProducts(partnerId.value); // Haal producten op
+      await fetchAndSetProductTypes(partnerId.value); // Haal filters op
+    } else {
+      error.value =
+        "Geen partnernaam opgegeven en geen geldige token gevonden.";
     }
-  } else {
-    console.error("Partner ID is not available.");
-    error.value = "Partner ID ontbreekt. Controleer uw accountgegevens.";
+  } catch (err) {
+    error.value = err.message;
+  } finally {
+    loading.value = false;
   }
 });
 
-// Filter products based on the active filter
+// Filter producten op basis van actieve filter
 const filteredProducts = computed(() => {
   if (!activeFilter.value || activeFilter.value === "All") {
-    return products.value; // Return all products if no filter is applied
+    return products.value; // Geef alle producten terug als er geen filter is
   }
   return products.value.filter(
     (product) =>

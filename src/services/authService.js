@@ -1,6 +1,7 @@
 /* Functies voor authenticatie (checkToken) */
 import { ref } from "vue";
 import router from "../router"; // Zorg ervoor dat de router correct is geïmporteerd
+import axios from "axios";
 
 const jwtToken = localStorage.getItem("jwtToken");
 let tokenPayload = null;
@@ -46,5 +47,41 @@ export async function fetchPartnerPackage(partnerId) {
   } catch (err) {
     console.error("Error fetching partner package:", err);
     return null; // Zorg voor een fallback
+  }
+}
+
+export async function fetchPartnerByName(partnerName) {
+  if (!partnerName || typeof partnerName !== "string") {
+    console.error("Partnernaam is ongeldig of ontbreekt.");
+    return null;
+  }
+
+  try {
+    const response = await axios.get(
+      `${baseURL}/partners/partner/${partnerName}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (response.status === 200) {
+      const partner = response.data?.data || null; // Haal het gehele partnerobject op
+      console.log("Gevonden partner:", partner); // Controleer de waarde van partner
+
+      if (partner) {
+        return partner;
+      } else {
+        console.warn("Geen partner gevonden met deze naam.");
+        return null;
+      }
+    } else {
+      console.error(`Onverwachte statuscode ontvangen: ${response.status}`);
+      return null;
+    }
+  } catch (error) {
+    console.error("Fout tijdens het ophalen van de partner:", error.message);
+    return null;
   }
 }
