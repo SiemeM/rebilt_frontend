@@ -1,5 +1,8 @@
-/* Bestandsbeheer, zoals bestanduploads */
-import { ref } from "vue";
+/* Bestandsbeheer, zoals bestanduploads */ import { ref } from "vue";
+
+// Voeg foutmeldingen en status toe aan de data
+const uploadError = ref("");
+const uploadStatus = ref("");
 const partnerPackage = ref("");
 
 export const uploadFileToCloudinary = async (
@@ -8,7 +11,8 @@ export const uploadFileToCloudinary = async (
   partnerName
 ) => {
   try {
-    console.log("File received:", file); // Voeg deze regel toe voor debugging
+    uploadStatus.value = "Uploading..."; // Zet de status naar "Uploading"
+    uploadError.value = ""; // Reset de foutmelding
 
     // Controleer of het bestand is meegegeven
     if (file === null || !file.name) {
@@ -47,9 +51,8 @@ export const uploadFileToCloudinary = async (
         uploadEndpoint =
           "https://api.cloudinary.com/v1_1/dzempjvto/image/upload"; // Afbeelding upload
       } else {
-        // Toon foutmelding voor Standard gebruikers die een niet-ondersteund bestand proberen te uploaden
-        document.querySelector(".errorMessage").innerHTML =
-          "Standard plan users can only upload images.";
+        // Foutmelding voor gebruikers met het 'Standard' pakket
+        uploadError.value = "Standard plan users can only upload images.";
         return; // Stop verdere verwerking
       }
     } else {
@@ -73,16 +76,13 @@ export const uploadFileToCloudinary = async (
     }
 
     // Return de secure URL als de upload succesvol is
+    uploadStatus.value = "Upload successful!";
     return data.secure_url;
   } catch (error) {
     // Log de fout naar de console
     console.error("Error uploading file:", error);
-
-    // Toon de foutmelding in de frontend
-    document.querySelector(".errorMessage").innerHTML =
-      error.message || "Er is een onbekende fout opgetreden."; // Toon generieke foutmelding als er geen specifieke fout is
-
-    // Gooi de fout verder om de aanroepende functie te informeren over het probleem
+    uploadStatus.value = "Upload failed"; // Zet de status op "Upload failed"
+    uploadError.value = error.message || "An unknown error occurred."; // Foutmelding bijwerken
     throw error;
   }
 };

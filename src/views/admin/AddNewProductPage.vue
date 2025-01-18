@@ -26,6 +26,7 @@ import {
 import DropdownToggle from "../../components/DropdownToggle.vue";
 import ColorSelectionToggle from "../../components/ColorSelectionToggle.vue";
 import ImageUpload from "../../components/ImageUpload.vue";
+import { uploadFileToCloudinary } from "../../services/fileService";
 
 const selectedColors = ref([]); // Selected colors for the product
 const partnerConfigurations = ref([]); // Partner configuration data
@@ -45,6 +46,8 @@ const partnerId = tokenPayload.companyId;
 const selectedType = ref(""); // Selected product type
 const partnerPackage = ref(""); // Partner package
 const colors = ref([]); // List of colors for selection
+const uploadError = ref("");
+const partnerName = ref("");
 
 // Button text for color selection
 const buttonText = computed(() => {
@@ -66,43 +69,132 @@ const buttonText = computed(() => {
   return colorNames;
 });
 
-// Functie om de voorvertoning van afbeeldingen te genereren
-const updateColorUploads = (files, index) => {
-  // Zorg ervoor dat er een array is voor de betreffende kleur
+const updateColorUploads = async (files, index) => {
+  // Ensure there is an entry for the given color index
   if (!colorUploads.value[index]) {
     colorUploads.value[index] = { images: [] };
   }
 
-  // Voeg de geselecteerde bestanden toe
-  colorUploads.value[index].images = [...files];
+  // Clear the images for the selected color before uploading
+  colorUploads.value[index].images = [];
+
+  try {
+    // Loop through each file and upload to Cloudinary
+    for (const file of files) {
+      const secureUrl = await uploadFileToCloudinary(
+        file,
+        productName.value,
+        partnerName
+      ); // Provide productName and partnerName
+      colorUploads.value[index].images.push(secureUrl); // Store the URL
+    }
+
+    console.log("Upload successful:", colorUploads.value);
+  } catch (error) {
+    console.error("Error uploading files:", error);
+    uploadError.value = "File upload failed!";
+  }
+};
+
+const handleSubmit = async () => {
+  try {
+    // Gebruik de bestaande ref variabelen zonder ze opnieuw te declareren
+    const productCodeValue = productCode.value || ""; // Gebruik productCode.value
+    const productNameValue = productName.value || ""; // Gebruik productName.value
+    const productTypeValue = selectedType.value || ""; // Gebruik selectedType.value
+    const productPriceValue = parseFloat(productPrice.value) || 0; // Zorg ervoor dat de prijs een getal is
+    const descriptionValue = description.value || ""; // Gebruik description.value
+    const brandValue = brand.value || ""; // Gebruik brand.value
+    const activeInactiveValue = "active"; // Standaard waarde voor activeInactive
+    const partnerIdValue = partnerId || ""; // Gebruik partnerId direct
+
+    // Zorg ervoor dat partnerConfigurations goed is geformatteerd
+    const formattedConfigurations = partnerConfigurations.value.map(
+      (config) => {
+        return {
+          configurationId: config.configurationId._id, // Haal de juiste configurationId op
+          selectedOptions: config.options.map((option) => {
+            return {
+              optionId: option._id, // Haal de juiste optionId op
+              images: option.images || [], // Voeg afbeeldingen toe (indien beschikbaar)
+            };
+          }),
+        };
+      }
+    );
+
+    console.log("Formatted configurations:", formattedConfigurations);
+
+    // Verstuur het product met de juiste gegevens naar de backend
+    await add2DProduct({
+      productCode: productCodeValue,
+      productName: productNameValue,
+      productType: productTypeValue,
+      productPrice: productPriceValue,
+      description: descriptionValue,
+      brand: brandValue,
+      activeInactive: activeInactiveValue,
+      partnerId: partnerIdValue,
+      configurations: formattedConfigurations, // Gebruik de geformatteerde configuraties
+    });
+
+    // Succesafhandelingslogica hier (bijvoorbeeld navigatie of succesbericht)
+  } catch (error) {
+    console.error("Error while adding product:", error);
+  }
 };
 
 onMounted(async () => {
   if (partnerId) {
     try {
-      await checkToken();
-      await fetchPartnerData(partnerId);
+      console.log("Partner ID:", partnerId);
 
+      // Controleer de token
+      await checkToken();
+
+      // Haal partnerdata op
+      const partnerData = await fetchPartnerData(partnerId, jwtToken);
+      console.log("Partner Data Response:", partnerData);
+
+      if (partnerData && partnerData.name) {
+        partnerName.value = partnerData.name;
+        console.log("Partner Name:", partnerName.value);
+      } else {
+        console.error("Partner data or partner name is missing.");
+      }
+
+      // Haal het partner package op
+      const partnerPackageResponse = await fetchPartnerPackage(partnerId);
+      console.log("Partner Package Response:", partnerPackageResponse);
+
+      if (partnerPackageResponse) {
+        partnerPackage.value = partnerPackageResponse;
+        console.log("Partner package:", partnerPackage.value);
+      } else {
+        console.error("Partner package data is missing.");
+      }
+
+      // Haal partner configuraties op
       const { partnerConfigs } = await fetchPartnerConfigurations(
         partnerId,
         jwtToken
       );
       partnerConfigurations.value = partnerConfigs;
 
-      // Fetch colors for the configuration
+      // Haal de kleuren op voor de configuraties
       const fetchedColors = await getcolors(partnerId);
       if (fetchedColors && Array.isArray(fetchedColors)) {
         colors.value = fetchedColors;
 
-        // Initialize color configurations
+        // Initialiseer de kleurconfiguraties
         partnerConfigurations.value.forEach((config) => {
           const fieldName = config.configurationDetails.fieldName;
           if (!colors.value[fieldName]) {
             colors.value[fieldName] = [];
           }
 
-          // Populate the colors array for each fieldName with the fetched colors
-          colors.value.forEach((color) => {
+          // Vul de kleurenarray voor elk fieldName met de opgehaalde kleuren
+          fetchedColors.forEach((color) => {
             colors.value[fieldName].push({
               optionId: color.optionId,
               name: color.name || "Unnamed Color",
@@ -110,7 +202,8 @@ onMounted(async () => {
             });
           });
         });
-        console.log(colors.value); // Verify the structure
+
+        console.log("Final colors structure:", colors.value);
       } else {
         console.warn("No colors returned from getcolors");
       }

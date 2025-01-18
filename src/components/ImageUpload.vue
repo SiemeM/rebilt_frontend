@@ -36,6 +36,8 @@
 </template>
 
 <script>
+import { uploadFileToCloudinary } from "../services/fileService"; // Import your Cloudinary upload function
+
 export default {
   name: "ImageUpload",
   props: {
@@ -44,39 +46,53 @@ export default {
     colorUploads: Array,
   },
   methods: {
-    // Trigger bestandselectie
+    // Trigger file selection
     triggerFileInput(index) {
       const fileInput = document.getElementById(`images-${index}`);
       if (fileInput) {
         fileInput.click();
       } else {
-        console.warn("File input niet gevonden");
+        console.warn("File input not found");
       }
     },
 
-    // Verwerken van de geüploade afbeeldingen
-    handleColorImageUploadFor3D(event, index) {
-      // Controleer of colorUploads[index] gedefinieerd is
+    // Handle 3D model upload (upload to Cloudinary)
+    async handleColorImageUploadFor3D(event, index) {
       if (!this.colorUploads[index]) {
-        // Maak een object aan als colorUploads[index] niet bestaat
         this.colorUploads[index] = { images: [] };
       }
 
-      // Verkrijg de geselecteerde bestanden
       const files = event.target.files;
+      const uploadedUrls = [];
 
-      // Verwerk alle geselecteerde bestanden
+      // Process each file and upload to Cloudinary
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        // Voeg de afbeelding toe aan de colorUploads array
-        this.colorUploads[index].images.push(URL.createObjectURL(file));
+
+        try {
+          // Upload the file to Cloudinary and get the secure URL
+          const secureUrl = await uploadFileToCloudinary(
+            file,
+            this.color.name,
+            this.$parent.partnerName
+          );
+
+          // Add the uploaded URL to the colorUploads array
+          this.colorUploads[index].images.push(secureUrl);
+          uploadedUrls.push(secureUrl);
+        } catch (error) {
+          console.error("Error uploading file to Cloudinary:", error);
+          this.$emit("updateColorUploads", this.colorUploads); // Emit even in case of error
+        }
       }
 
-      // Emit een update naar de oudercomponent
-      this.$emit("updateColorUploads", this.colorUploads);
+      // Emit the URLs back to the parent component after successful uploads
+      if (uploadedUrls.length > 0) {
+        this.$emit("updateColorUploads", this.colorUploads);
+      }
     },
 
-    // Genereren van de preview-URL's voor geüploade afbeeldingen
+    // Generate preview URLs for uploaded images
     previewImages(images) {
       return images || [];
     },
