@@ -39,6 +39,7 @@ const description = ref(""); // Product description
 const colorUploads = ref([]); // For storing uploaded images per color
 const dropdownStates = ref({}); // Dropdown toggle states
 const newColorName = ref(""); // New color name input
+const newProducts = ref([]); // Lege array voor reactiviteit
 
 const jwtToken = localStorage.getItem("jwtToken");
 const tokenPayload = jwtToken ? JSON.parse(atob(jwtToken.split(".")[1])) : {};
@@ -69,7 +70,6 @@ const buttonText = computed(() => {
   return colorNames;
 });
 
-// In AddNewProductPage.vue
 const updateColorUploads = async (files, index) => {
   if (!files || files.length === 0) {
     console.error("No files provided for upload.");
@@ -80,9 +80,6 @@ const updateColorUploads = async (files, index) => {
   if (!colorUploads.value[index]) {
     colorUploads.value[index] = { images: [] };
   }
-
-  // Log de ontvangen bestanden voor debugging
-  console.log("Received files for upload:", files);
 
   for (const file of files) {
     if (!(file instanceof File)) {
@@ -105,40 +102,48 @@ const updateColorUploads = async (files, index) => {
       uploadError.value = "File upload failed!";
     }
   }
-
-  console.log("Upload successful:", colorUploads.value);
 };
 
 const handleSubmit = async () => {
   try {
-    // Gebruik de bestaande ref variabelen zonder ze opnieuw te declareren
-    const productCodeValue = productCode.value || ""; // Gebruik productCode.value
-    const productNameValue = productName.value || ""; // Gebruik productName.value
-    const productTypeValue = selectedType.value || ""; // Gebruik selectedType.value
-    const productPriceValue = parseFloat(productPrice.value) || 0; // Zorg ervoor dat de prijs een getal is
-    const descriptionValue = description.value || ""; // Gebruik description.value
-    const brandValue = brand.value || ""; // Gebruik brand.value
-    const activeInactiveValue = "active"; // Standaard waarde voor activeInactive
-    const partnerIdValue = partnerId || ""; // Gebruik partnerId direct
+    const productCodeValue = productCode.value || "";
+    const productNameValue = productName.value || "";
+    const productTypeValue = selectedType.value || "";
+    const productPriceValue = parseFloat(productPrice.value) || 0;
+    const descriptionValue = description.value || "";
+    const brandValue = brand.value || "";
+    const activeInactiveValue = "active";
+    const partnerIdValue = partnerId || "";
 
-    // Zorg ervoor dat partnerConfigurations goed is geformatteerd
+    // Formatteer de configuraties en voeg de geüploade afbeeldingen toe
     const formattedConfigurations = partnerConfigurations.value.map(
       (config) => {
+        const selectedOptions = config.options.map((option) => {
+          const optionWithImages = {
+            ...option,
+            images: Array.from(option.images || []), // Zorg ervoor dat de images geen Proxy zijn
+          };
+
+          // Voeg de geüploade afbeeldingen voor elke kleur toe aan de images array
+          if (colorUploads.value[config.configurationId._id]) {
+            const uploadedImages =
+              colorUploads.value[config.configurationId._id].images;
+            uploadedImages.forEach((image) => {
+              optionWithImages.images.push(image); // Voeg de geüploade afbeelding toe
+            });
+          }
+
+          return optionWithImages;
+        });
+
         return {
-          configurationId: config.configurationId._id, // Haal de juiste configurationId op
-          selectedOptions: config.options.map((option) => {
-            return {
-              optionId: option._id, // Haal de juiste optionId op
-              images: option.images || [], // Voeg afbeeldingen toe (indien beschikbaar)
-            };
-          }),
+          configurationId: config.configurationId._id,
+          selectedOptions,
         };
       }
     );
 
-    console.log("Formatted configurations:", formattedConfigurations);
-
-    // Verstuur het product met de juiste gegevens naar de backend
+    // Verstuur het product naar de backend met de geformatteerde configuraties
     await add2DProduct({
       productCode: productCodeValue,
       productName: productNameValue,
@@ -148,10 +153,8 @@ const handleSubmit = async () => {
       brand: brandValue,
       activeInactive: activeInactiveValue,
       partnerId: partnerIdValue,
-      configurations: formattedConfigurations, // Gebruik de geformatteerde configuraties
+      configurations: formattedConfigurations,
     });
-
-    // Succesafhandelingslogica hier (bijvoorbeeld navigatie of succesbericht)
   } catch (error) {
     console.error("Error while adding product:", error);
   }
@@ -160,43 +163,35 @@ const handleSubmit = async () => {
 onMounted(async () => {
   if (partnerId) {
     try {
-      console.log("Partner ID:", partnerId);
-
-      // Controleer de token
+      // Stap 1: Controleer de token
       await checkToken();
 
-      // Haal partnerdata op
+      // Stap 2: Haal partnerdata op
       const partnerData = await fetchPartnerData(partnerId, jwtToken);
-      console.log("Partner Data Response:", partnerData);
-
       if (partnerData && partnerData.name) {
         partnerName.value = partnerData.name;
-        console.log("Partner Name:", partnerName.value);
       } else {
         console.error("Partner data or partner name is missing.");
       }
 
-      // Haal het partner package op
+      // Stap 3: Haal het partner package op
       const partnerPackageResponse = await fetchPartnerPackage(partnerId);
-      partnerPackage.value = partnerPackageResponse; // Verify this assignment
-
-      console.log("Fetched partner package response:", partnerPackageResponse);
-
+      partnerPackage.value = partnerPackageResponse;
+      console.log(partnerPackage.value);
       if (partnerPackageResponse) {
         partnerPackage.value = partnerPackageResponse;
-        console.log("Partner package:", partnerPackage.value);
       } else {
         console.error("Partner package data is missing.");
       }
 
-      // Haal partner configuraties op
+      // Stap 4: Haal partner configuraties op
       const { partnerConfigs } = await fetchPartnerConfigurations(
         partnerId,
         jwtToken
       );
       partnerConfigurations.value = partnerConfigs;
 
-      // Haal de kleuren op voor de configuraties
+      // Stap 5: Haal de kleuren op voor de configuraties
       const fetchedColors = await getcolors(partnerId);
       if (fetchedColors && Array.isArray(fetchedColors)) {
         colors.value = fetchedColors;
@@ -217,11 +212,18 @@ onMounted(async () => {
             });
           });
         });
-
-        console.log("Final colors structure:", colors.value);
       } else {
         console.warn("No colors returned from getcolors");
       }
+
+      // Stap 6: Haal de producten op en filter ze
+      const filteredProducts = await fetchProducts(partnerId);
+
+      newProducts.value = await filterProductsByType(
+        partnerId,
+        selectedType.value,
+        filteredProducts // Geef de waarde door, niet de ref
+      );
     } catch (error) {
       console.error("Error during initialization:", error);
     }
@@ -248,13 +250,14 @@ onMounted(async () => {
         </div>
       </div>
 
+      <
       <div class="row">
         <div class="column">
           <label for="productType">Type Of Product:</label>
           <select
             v-model="selectedType"
             id="productType"
-            @change="filterProductsByType"
+            @click="filterProductsByType"
           >
             <option value="">Select Product Type</option>
             <option
@@ -289,88 +292,171 @@ onMounted(async () => {
       </div>
 
       <!-- Render partner configurations dynamically, with ImageUpload inline -->
-      <template
-        v-for="(config, index) in partnerConfigurations"
-        :key="config._id"
-      >
-        <div class="row">
-          <div class="column">
-            <label :for="config.configurationDetails.fieldName">
-              {{ config.configurationDetails.fieldName }}:
-            </label>
+      <!-- Template voor 'standard' package -->
+      <template v-if="partnerPackage == 'standard'">
+        <template
+          v-for="(config, index) in partnerConfigurations"
+          :key="config._id"
+        >
+          <div class="row">
+            <div class="column">
+              <label :for="config.configurationDetails.fieldName">
+                {{ config.configurationDetails.fieldName }}:
+              </label>
 
-            <!-- Text field -->
-            <template v-if="config.configurationDetails.fieldType === 'Text'">
-              <input
-                v-model="config.value"
-                :id="config.configurationDetails.fieldName"
-                type="text"
-              />
-            </template>
-
-            <!-- Dropdown field -->
-            <template
-              v-else-if="config.configurationDetails.fieldType === 'Dropdown'"
-            >
-              <DropdownToggle
-                :fieldName="config.configurationDetails.fieldName"
-                :dropdownStates="dropdownStates"
-                buttonText="Toggle Dropdown"
-              >
-                <div
-                  v-for="(option, optionIndex) in configurations"
-                  :key="optionIndex"
-                >
-                  <span
-                    class="color-bullet"
-                    :style="{ backgroundColor: color.name || 'transparent' }"
-                  ></span>
-                  {{ color.name || "Unnamed Color" }}
-                </div>
-              </DropdownToggle>
-            </template>
-
-            <!-- Color field -->
-            <template
-              v-else-if="config.configurationDetails.fieldType === 'color'"
-            >
-              <div class="color-dropdown">
-                <div class="dropdown">
-                  <DropdownToggle
-                    :fieldName="config.configurationDetails.fieldName"
-                    :dropdownStates="dropdownStates"
-                    :buttonText="buttonText"
-                  >
-                    <ColorSelectionToggle
-                      v-model:selectedColors="selectedColors"
-                      :colors="colors[config.configurationDetails.fieldName]"
-                      :dropdownStates="dropdownStates"
-                      :fieldName="config.configurationDetails.fieldName"
-                      :colorOptions="colors"
-                    />
-                  </DropdownToggle>
-                </div>
-              </div>
-            </template>
-
-            <!-- Image upload section comes directly after the color field configuration -->
-            <template v-if="config.configurationDetails.fieldType === 'color'">
-              <div
-                v-for="(selectedColor, colorIndex) in selectedColors"
-                :key="colorIndex"
-                class="column"
-              >
-                <p>{{ selectedColor.name }} - Upload 3D Model</p>
-                <ImageUpload
-                  :color="selectedColor"
-                  :index="colorIndex"
-                  :colorUploads="colorUploads"
-                  @updateColorUploads="updateColorUploads"
+              <!-- Text field -->
+              <template v-if="config.configurationDetails.fieldType === 'Text'">
+                <input
+                  v-model="config.value"
+                  :id="config.configurationDetails.fieldName"
+                  type="text"
                 />
-              </div>
-            </template>
+              </template>
+
+              <!-- Dropdown field -->
+              <template
+                v-else-if="config.configurationDetails.fieldType === 'Dropdown'"
+              >
+                <DropdownToggle
+                  :fieldName="config.configurationDetails.fieldName"
+                  :dropdownStates="dropdownStates"
+                  buttonText="Toggle Dropdown"
+                >
+                  <div
+                    v-for="(option, optionIndex) in configurations"
+                    :key="optionIndex"
+                  >
+                    <span
+                      class="color-bullet"
+                      :style="{ backgroundColor: color.name || 'transparent' }"
+                    ></span>
+                    {{ color.name || "Unnamed Color" }}
+                  </div>
+                </DropdownToggle>
+              </template>
+
+              <!-- Color field -->
+              <template
+                v-else-if="config.configurationDetails.fieldType === 'color'"
+              >
+                <div class="color-dropdown">
+                  <div class="dropdown">
+                    <DropdownToggle
+                      :fieldName="config.configurationDetails.fieldName"
+                      :dropdownStates="dropdownStates"
+                      :buttonText="buttonText"
+                    >
+                      <ColorSelectionToggle
+                        v-model:selectedColors="selectedColors"
+                        :colors="colors[config.configurationDetails.fieldName]"
+                        :dropdownStates="dropdownStates"
+                        :fieldName="config.configurationDetails.fieldName"
+                        :colorOptions="colors"
+                      />
+                    </DropdownToggle>
+                  </div>
+                </div>
+              </template>
+            </div>
           </div>
-        </div>
+
+          <!-- Upload zone voor 'standard' pakket -->
+          <template v-if="config.configurationDetails.fieldType === 'color'">
+            <div
+              v-for="(selectedColor, colorIndex) in selectedColors"
+              :key="colorIndex"
+              class="column"
+            >
+              <p>{{ selectedColor.name }} - Upload 3D Model</p>
+              <ImageUpload
+                :color="selectedColor"
+                :index="colorIndex"
+                :colorUploads="colorUploads"
+                @updateColorUploads="updateColorUploads"
+              />
+            </div>
+          </template>
+        </template>
+      </template>
+
+      <!-- Template voor 'pro' package -->
+      <template v-if="partnerPackage == 'pro'">
+        <template
+          v-for="(config, index) in partnerConfigurations"
+          :key="config._id"
+        >
+          <div class="row">
+            <div class="column">
+              <label :for="config.configurationDetails.fieldName">
+                {{ config.configurationDetails.fieldName }}:
+              </label>
+
+              <!-- Text field -->
+              <template v-if="config.configurationDetails.fieldType === 'Text'">
+                <input
+                  v-model="config.value"
+                  :id="config.configurationDetails.fieldName"
+                  type="text"
+                />
+              </template>
+
+              <!-- Dropdown field -->
+              <template
+                v-else-if="config.configurationDetails.fieldType === 'Dropdown'"
+              >
+                <DropdownToggle
+                  :fieldName="config.configurationDetails.fieldName"
+                  :dropdownStates="dropdownStates"
+                  buttonText="Toggle Dropdown"
+                >
+                  <div
+                    v-for="(option, optionIndex) in configurations"
+                    :key="optionIndex"
+                  >
+                    <span
+                      class="color-bullet"
+                      :style="{ backgroundColor: color.name || 'transparent' }"
+                    ></span>
+                    {{ color.name || "Unnamed Color" }}
+                  </div>
+                </DropdownToggle>
+              </template>
+
+              <!-- Color field -->
+              <template
+                v-else-if="config.configurationDetails.fieldType === 'color'"
+              >
+                <div class="color-dropdown">
+                  <div class="dropdown">
+                    <DropdownToggle
+                      :fieldName="config.configurationDetails.fieldName"
+                      :dropdownStates="dropdownStates"
+                      :buttonText="buttonText"
+                    >
+                      <ColorSelectionToggle
+                        v-model:selectedColors="selectedColors"
+                        :colors="colors[config.configurationDetails.fieldName]"
+                        :dropdownStates="dropdownStates"
+                        :fieldName="config.configurationDetails.fieldName"
+                        :colorOptions="colors"
+                      />
+                    </DropdownToggle>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <!-- Enkele uploadzone voor 'pro' pakket -->
+        <ImageUpload
+          v-for="(selectedColor, colorIndex) in selectedColors"
+          :key="colorIndex"
+          :color="selectedColor"
+          :index="colorIndex"
+          :colorUploads="colorUploads"
+          @updateColorUploads="updateColorUploads"
+        />
       </template>
 
       <!-- Submit button to trigger the form submission -->

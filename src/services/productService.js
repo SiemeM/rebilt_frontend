@@ -1,6 +1,7 @@
 /* Productgerelateerde functies */
 import { ref } from "vue";
 import axios from "axios";
+
 const selectedType = ref("");
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
@@ -8,32 +9,66 @@ const baseURL = isProduction
   : "http://localhost:3000/api/v1";
 const errorMessage = ref("");
 const colors = ref([]);
+const jwtToken = localStorage.getItem("jwtToken");
+const tokenPayload = jwtToken ? JSON.parse(atob(jwtToken.split(".")[1])) : {};
+const partnerId = tokenPayload.companyId;
+const filteredProducts = ref([]); // Correct initialiseren als lege array
 
-export async function fetchProducts(partnerId) {
-  const partnerResponse = await axios.get(`${baseURL}/partners/${partnerId}`);
+export const filterProductsByType = (
+  partnerId,
+  selectedType,
+  filteredProductsRef
+) => {
+  // Access the value of filteredProductsRef (which is a ref)
+  const filteredProducts = filteredProductsRef.value; // Correctly access the value of the ref
+  console.log("filteredProducts before filtering:", filteredProducts);
 
-  const partnerName = partnerResponse.data.data.partner.name;
-
-  if (!partnerName) {
-    throw new Error("Partner name not found");
+  if (!Array.isArray(filteredProducts)) {
+    console.error(
+      "filteredProducts is not properly initialized or is not an array."
+    );
+    return []; // Return an empty array if it's not properly initialized
   }
 
-  const apiUrl = `${baseURL}/products?partnerName=${partnerName}`;
+  // Continue with filtering
+  let filteredResults = [...filteredProducts]; // Make a copy of filteredProducts
 
-  const productResponse = await axios.get(apiUrl);
-
-  const products = productResponse.data?.data?.products || [];
-
-  return products;
-}
-
-export const filterProductsByType = () => {
-  if (selectedType.value) {
-    filteredProducts.value = filteredProducts.value.filter(
-      (product) => product.productType === selectedType.value
+  if (selectedType) {
+    filteredResults = filteredResults.filter(
+      (product) => product.productType === selectedType
     );
-  } else {
-    fetchProducts();
+  }
+
+  console.log("filteredProducts after filtering:", filteredResults);
+
+  return filteredResults;
+};
+
+export const fetchProducts = async (partnerId) => {
+  // Controleer of partnerId bestaat
+  if (!partnerId) {
+    console.error("partnerId is undefined or null!");
+    return []; // Return een lege array als partnerId ontbreekt
+  }
+
+  try {
+    const partnerResponse = await axios.get(`${baseURL}/partners/${partnerId}`);
+
+    const partnerName = partnerResponse.data.data.partner.name;
+
+    if (!partnerName) {
+      throw new Error("Partner name not found");
+    }
+
+    const apiUrl = `${baseURL}/products?partnerName=${partnerName}`;
+
+    const productResponse = await axios.get(apiUrl);
+
+    const products = productResponse.data?.data?.products || [];
+    return products; // Return de producten als alles goed gaat
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    return []; // Return een lege array als er iets misgaat
   }
 };
 
@@ -49,7 +84,19 @@ export const add2DProduct = async ({
   configurations,
 }) => {
   try {
-    // Log de gegevens om te controleren of alles goed is
+    // Voeg afbeeldingen toe aan configuraties voordat we de productdetails naar de API sturen
+    configurations.forEach((config) => {
+      config.selectedOptions.forEach((option) => {
+        console.log("option:", option);
+        if (option.images && option.images.length > 0) {
+          console.log("Images found for configuration:", option.images);
+        } else {
+          console.log("No images for configuration:", config.configurationId);
+        }
+      });
+    });
+
+    // Log de gegevens voor debugging
     console.log("Adding 2D Product with these details:", {
       productCode,
       productName,
@@ -63,7 +110,7 @@ export const add2DProduct = async ({
     });
 
     // Verstuur de POST-aanroep naar de /products endpoint met de juiste data structuur
-    const response = await axios.post("/api/v1/products", {
+    const response = await axios.post(baseURL + "/products", {
       productCode,
       productName,
       productType,
@@ -72,7 +119,7 @@ export const add2DProduct = async ({
       brand,
       activeInactive,
       partnerId,
-      configurations, // Dit is nu de geformatteerde configuraties
+      configurations, // Dit is nu de geformatteerde configuraties met afbeeldingen
     });
 
     console.log("Product added successfully:", response.data);
