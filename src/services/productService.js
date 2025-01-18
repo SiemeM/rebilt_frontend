@@ -253,7 +253,6 @@ export const handleColorImageUploadFor3D = async (event, index) => {
 export async function getcolors(partnerId) {
   try {
     const partnerResponse = await axios.get(`${baseURL}/partners/${partnerId}`);
-
     const partnerName = partnerResponse.data.data.partner.name;
 
     if (!partnerName) {
@@ -278,27 +277,32 @@ export async function getcolors(partnerId) {
       )
     );
 
-    const colors = [];
+    const detailedOptions = Array.from(
+      new Map(
+        await Promise.all(
+          selectedOptions.map(async (option) => {
+            const optionResponse = await axios.get(
+              `${baseURL}/options/${option.optionId}`
+            );
+            const optionData = optionResponse.data;
 
-    const detailedOptions = await Promise.all(
-      selectedOptions.map(async (option) => {
-        const optionResponse = await axios.get(
-          `${baseURL}/options/${option.optionId}`
-        );
-        const optionData = optionResponse.data;
-
-        const color = optionData.data.name;
-        colors.push(color);
-
-        return {
-          ...option,
-          name: optionData.data.name,
-          color: color,
-        };
-      })
+            return [
+              option.optionId,
+              {
+                ...option,
+                name: optionData.data.name,
+                color: optionData.data.name,
+              },
+            ];
+          })
+        )
+      ).values()
     );
+
+    console.log("Detailed Options:", detailedOptions);
     return detailedOptions;
   } catch (error) {
+    console.error("Error in getcolors:", error);
     return [];
   }
 }
@@ -310,4 +314,5 @@ export const fetchcolors = async (partnerName) => {
     name: option.name || "Unnamed Color",
     images: option.images || [],
   }));
+  console.log(colors.value);
 };

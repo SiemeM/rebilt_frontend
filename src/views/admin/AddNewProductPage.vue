@@ -23,6 +23,9 @@ import {
   fetchcolors,
 } from "../../services/productService";
 
+import DropdownToggle from "../../components/DropdownToggle.vue"; // Importeer de DropdownToggle component
+import ColorSelectionToggle from "../../components/ColorSelectionToggle.vue";
+
 const selectedColors = ref([]);
 const partnerConfigurations = ref([]);
 const productTypes = ref([]);
@@ -40,24 +43,50 @@ const tokenPayload = jwtToken ? JSON.parse(atob(jwtToken.split(".")[1])) : {};
 const partnerId = tokenPayload.companyId;
 const selectedType = ref(""); // Add this line
 const partnerPackage = ref(""); // or initialize with actual data
+const colors = ref([]); // Reactive property voor kleuren
 
 onMounted(async () => {
   if (partnerId) {
-    await checkToken();
-    await fetchPartnerData(partnerId);
-    const { partnerConfigs } = await fetchPartnerConfigurations(
-      partnerId,
-      jwtToken
-    );
-    partnerConfigurations.value = partnerConfigs; // Assign fetched data to partnerConfigurations
-    console.log(partnerConfigs);
-    fetchOptionNames(partnerConfigurations.value);
-    add2DProduct();
-    add3DProduct();
-    await fetchPartnerPackage();
-    await fetchProducts(partnerId);
-    await getcolors(partnerId);
-    await fetchcolors(partnerId);
+    try {
+      await checkToken();
+      await fetchPartnerData(partnerId);
+
+      const { partnerConfigs } = await fetchPartnerConfigurations(
+        partnerId,
+        jwtToken
+      );
+      partnerConfigurations.value = partnerConfigs;
+
+      // Fetch colors for the configuration
+      const fetchedColors = await getcolors(partnerId);
+      if (fetchedColors && Array.isArray(fetchedColors)) {
+        colors.value = fetchedColors;
+
+        partnerConfigurations.value.forEach((config) => {
+          const fieldName = config.configurationDetails.fieldName;
+
+          // Initialize empty array for each fieldName if not already present
+          if (!selectedColors.value[fieldName]) {
+            selectedColors.value[fieldName] = [];
+          }
+
+          // Populate the selectedColors array for each fieldName with the fetched colors
+          colors.value.forEach((color) => {
+            selectedColors.value[fieldName].push({
+              optionId: color.optionId,
+              name: color.name || "Unnamed Color",
+              images: color.images || [],
+            });
+          });
+        });
+
+        console.log(selectedColors.value); // Verify the structure
+      } else {
+        console.warn("No colors returned from getcolors");
+      }
+    } catch (error) {
+      console.error("Error during initialization:", error);
+    }
   } else {
     console.error("Partner ID is not available.");
   }
@@ -145,19 +174,19 @@ onMounted(async () => {
           <template
             v-else-if="config.configurationDetails.fieldType === 'Dropdown'"
           >
-            <select
-              v-model="config.value"
-              :id="config.configurationDetails.fieldName"
+            <DropdownToggle
+              :fieldName="config.configurationDetails.fieldName"
+              :dropdownStates="dropdownStates"
+              buttonText="Toggle Dropdown"
             >
-              <option value="">Select an option</option>
-              <option
-                v-for="(option, index) in configurations"
-                :key="index"
-                :value="option._id"
-              >
-                {{ option.name || "Unnamed Option" }}
-              </option>
-            </select>
+              <div v-for="(option, index) in configurations" :key="index">
+                <span
+                  class="color-bullet"
+                  :style="{ backgroundColor: color.name || 'transparent' }"
+                ></span>
+                {{ color.name || "Unnamed Color" }}
+              </div>
+            </DropdownToggle>
           </template>
 
           <!-- Color field -->
@@ -166,156 +195,20 @@ onMounted(async () => {
           >
             <div class="color-dropdown">
               <div class="dropdown">
-                <div
-                  class="dropdown-selected"
-                  @click="toggleDropdown(config.configurationDetails.fieldName)"
+                <DropdownToggle
+                  :fieldName="config.configurationDetails.fieldName"
+                  :dropdownStates="dropdownStates"
+                  buttonText="Select colors"
                 >
-                  <p
-                    v-if="
+                  <ColorSelectionToggle
+                    :selectedColors="
                       selectedColors[config.configurationDetails.fieldName]
-                        ?.length > 0
                     "
-                  >
-                    Selected colors:
-                    <span
-                      v-for="(color, index) in selectedColors[
-                        config.configurationDetails.fieldName
-                      ]"
-                      :key="index"
-                      :style="{ color: color.name || 'transparent' }"
-                    >
-                      {{ color.name || "Unnamed Color" }}
-                      <span
-                        v-if="
-                          index !==
-                          selectedColors[config.configurationDetails.fieldName]
-                            .length -
-                            1
-                        "
-                        >,
-                      </span>
-                    </span>
-                  </p>
-                  <p v-else>Select colors</p>
-                </div>
-
-                <div
-                  v-if="dropdownStates[config.configurationDetails.fieldName]"
-                  class="dropdown-options"
-                >
-                  <div
-                    v-for="(color, index) in colors"
-                    :key="index"
-                    class="dropdown-option"
-                    @click="
-                      toggleColorSelection(
-                        color,
-                        config.configurationDetails.fieldName
-                      )
-                    "
-                  >
-                    <input
-                      type="checkbox"
-                      :value="color.optionId"
-                      v-model="
-                        selectedColors[config.configurationDetails.fieldName]
-                      "
-                      :checked="
-                        isColorSelected(
-                          color,
-                          config.configurationDetails.fieldName
-                        )
-                      "
-                    />
-                    <span
-                      class="color-bullet"
-                      :style="{ backgroundColor: color.name || 'transparent' }"
-                    ></span>
-                    <p>{{ color.name || "Unnamed Color" }}</p>
-                  </div>
-
-                  <!-- Add new color input -->
-                  <div class="dropdown-input">
-                    <input
-                      type="text"
-                      v-model="newColorName[config._id]"
-                      placeholder="Add new color"
-                      @keydown.enter.prevent="
-                        addNewColor(
-                          config,
-                          config.configurationDetails.fieldName
-                        )
-                      "
-                    />
-                    <button
-                      @click="
-                        addNewColor(
-                          config,
-                          config.configurationDetails.fieldName
-                        )
-                      "
-                      type="button"
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Image upload for selected colors -->
-              <div
-                v-for="(color, index) in selectedColors[
-                  config.configurationDetails.fieldName
-                ]"
-                v-if="partnerPackage === 'standard'"
-                :key="color.optionId"
-                class="color-upload-section"
-              >
-                <div
-                  v-if="
-                    colorUploads[index]?.images?.length ||
-                    isColorSelected(
-                      color,
-                      config.configurationDetails.fieldName
-                    )
-                  "
-                >
-                  <p>Upload images for {{ color.name }}</p>
-                  <input
-                    type="file"
-                    :id="'images-' + index"
-                    style="display: none"
-                    multiple
-                    @change="handleColorImageUploadFor2D($event, index)"
+                    :dropdownStates="dropdownStates"
+                    :fieldName="config.configurationDetails.fieldName"
+                    :colorOptions="colors"
                   />
-                  <div
-                    class="uploadImage"
-                    @click="() => triggerFileInput(index)"
-                  >
-                    <div
-                      v-if="!colorUploads[index]?.images?.length"
-                      class="text"
-                    >
-                      <img
-                        src="../../assets/icons/image-add.svg"
-                        alt="image-add"
-                      />
-                      <p>Afbeeldingen, video's of 3D-modellen toevoegen</p>
-                    </div>
-                    <div
-                      v-for="(previewUrl, imgIndex) in previewImages(
-                        colorUploads[index]?.images
-                      )"
-                      :key="imgIndex"
-                    >
-                      <img
-                        :src="previewUrl"
-                        alt="Uploaded image preview"
-                        width="100"
-                      />
-                    </div>
-                  </div>
-                </div>
+                </DropdownToggle>
               </div>
             </div>
           </template>
