@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from "vue"; // Vergeet niet 'computed' hier te importeren
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
@@ -23,49 +23,59 @@ import {
   fetchcolors,
 } from "../../services/productService";
 
-import DropdownToggle from "../../components/DropdownToggle.vue"; // Importeer de DropdownToggle component
+import DropdownToggle from "../../components/DropdownToggle.vue";
 import ColorSelectionToggle from "../../components/ColorSelectionToggle.vue";
+import ImageUpload from "../../components/ImageUpload.vue";
 
-const selectedColors = ref([]);
-const partnerConfigurations = ref([]);
-const productTypes = ref([]);
-const productCode = ref("");
-const productName = ref("");
-const brand = ref("");
-const productPrice = ref("");
-const description = ref("");
-const colorUploads = ref([]);
-const dropdownStates = ref({});
-const newColorName = ref("");
+const selectedColors = ref([]); // Selected colors for the product
+const partnerConfigurations = ref([]); // Partner configuration data
+const productTypes = ref([]); // List of product types
+const productCode = ref(""); // Product code
+const productName = ref(""); // Product name
+const brand = ref(""); // Product brand
+const productPrice = ref(""); // Product price
+const description = ref(""); // Product description
+const colorUploads = ref([]); // For storing uploaded images per color
+const dropdownStates = ref({}); // Dropdown toggle states
+const newColorName = ref(""); // New color name input
 
 const jwtToken = localStorage.getItem("jwtToken");
 const tokenPayload = jwtToken ? JSON.parse(atob(jwtToken.split(".")[1])) : {};
 const partnerId = tokenPayload.companyId;
-const selectedType = ref(""); // Add this line
-const partnerPackage = ref(""); // or initialize with actual data
-const colors = ref([]); // Reactive property voor kleuren
+const selectedType = ref(""); // Selected product type
+const partnerPackage = ref(""); // Partner package
+const colors = ref([]); // List of colors for selection
 
-// Bepaal de tekst voor de knop op basis van de geselecteerde kleuren
+// Button text for color selection
 const buttonText = computed(() => {
   const selected = selectedColors.value.length;
-
   if (selected === 0) {
-    return "Select colors"; // Geen kleuren geselecteerd
+    return "Select colors"; // No colors selected
   }
 
-  // Als er geselecteerde kleuren zijn, toon ze in de knop (bijv. max 2 kleuren tonen)
+  // If there are selected colors, show them in the button text (up to 2)
   const colorNames = selectedColors.value
     .slice(0, 2)
     .map((color) => color.name)
     .join(", ");
 
-  // Als er meer dan 2 geselecteerde kleuren zijn, voeg dan een extra "and more" tekst toe
   if (selectedColors.value.length > 2) {
     return `${colorNames} + ${selectedColors.value.length - 2} more`;
   }
 
-  return colorNames; // Toon de namen van de geselecteerde kleuren
+  return colorNames;
 });
+
+// Functie om de voorvertoning van afbeeldingen te genereren
+const updateColorUploads = (files, index) => {
+  // Zorg ervoor dat er een array is voor de betreffende kleur
+  if (!colorUploads.value[index]) {
+    colorUploads.value[index] = { images: [] };
+  }
+
+  // Voeg de geselecteerde bestanden toe
+  colorUploads.value[index].images = [...files];
+};
 
 onMounted(async () => {
   if (partnerId) {
@@ -84,10 +94,9 @@ onMounted(async () => {
       if (fetchedColors && Array.isArray(fetchedColors)) {
         colors.value = fetchedColors;
 
+        // Initialize color configurations
         partnerConfigurations.value.forEach((config) => {
           const fieldName = config.configurationDetails.fieldName;
-
-          // Initialize empty array for each fieldName if not already present
           if (!colors.value[fieldName]) {
             colors.value[fieldName] = [];
           }
@@ -101,7 +110,6 @@ onMounted(async () => {
             });
           });
         });
-
         console.log(colors.value); // Verify the structure
       } else {
         console.warn("No colors returned from getcolors");
@@ -172,96 +180,90 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Dynamically render partner configurations -->
-      <div
-        v-for="config in partnerConfigurations"
+      <!-- Render partner configurations dynamically, with ImageUpload inline -->
+      <template
+        v-for="(config, index) in partnerConfigurations"
         :key="config._id"
-        class="row"
       >
-        <div class="column">
-          <label :for="config.configurationDetails.fieldName"
-            >{{ config.configurationDetails.fieldName }}:</label
-          >
+        <div class="row">
+          <div class="column">
+            <label :for="config.configurationDetails.fieldName">
+              {{ config.configurationDetails.fieldName }}:
+            </label>
 
-          <!-- Text field -->
-          <template v-if="config.configurationDetails.fieldType === 'Text'">
-            <input
-              v-model="config.value"
-              :id="config.configurationDetails.fieldName"
-              type="text"
-            />
-          </template>
+            <!-- Text field -->
+            <template v-if="config.configurationDetails.fieldType === 'Text'">
+              <input
+                v-model="config.value"
+                :id="config.configurationDetails.fieldName"
+                type="text"
+              />
+            </template>
 
-          <!-- Dropdown field -->
-          <template
-            v-else-if="config.configurationDetails.fieldType === 'Dropdown'"
-          >
-            <DropdownToggle
-              :fieldName="config.configurationDetails.fieldName"
-              :dropdownStates="dropdownStates"
-              buttonText="Toggle Dropdown"
+            <!-- Dropdown field -->
+            <template
+              v-else-if="config.configurationDetails.fieldType === 'Dropdown'"
             >
-              <div v-for="(option, index) in configurations" :key="index">
-                <span
-                  class="color-bullet"
-                  :style="{ backgroundColor: color.name || 'transparent' }"
-                ></span>
-                {{ color.name || "Unnamed Color" }}
-              </div>
-            </DropdownToggle>
-          </template>
-
-          <!-- Color field -->
-          <template
-            v-else-if="config.configurationDetails.fieldType === 'color'"
-          >
-            <div class="color-dropdown">
-              <div class="dropdown">
-                <DropdownToggle
-                  :fieldName="config.configurationDetails.fieldName"
-                  :dropdownStates="dropdownStates"
-                  :buttonText="buttonText"
+              <DropdownToggle
+                :fieldName="config.configurationDetails.fieldName"
+                :dropdownStates="dropdownStates"
+                buttonText="Toggle Dropdown"
+              >
+                <div
+                  v-for="(option, optionIndex) in configurations"
+                  :key="optionIndex"
                 >
-                  <ColorSelectionToggle
-                    v-model:selectedColors="selectedColors"
-                    :colors="colors[config.configurationDetails.fieldName]"
-                    :dropdownStates="dropdownStates"
+                  <span
+                    class="color-bullet"
+                    :style="{ backgroundColor: color.name || 'transparent' }"
+                  ></span>
+                  {{ color.name || "Unnamed Color" }}
+                </div>
+              </DropdownToggle>
+            </template>
+
+            <!-- Color field -->
+            <template
+              v-else-if="config.configurationDetails.fieldType === 'color'"
+            >
+              <div class="color-dropdown">
+                <div class="dropdown">
+                  <DropdownToggle
                     :fieldName="config.configurationDetails.fieldName"
-                    :colorOptions="colors"
-                  />
-                </DropdownToggle>
+                    :dropdownStates="dropdownStates"
+                    :buttonText="buttonText"
+                  >
+                    <ColorSelectionToggle
+                      v-model:selectedColors="selectedColors"
+                      :colors="colors[config.configurationDetails.fieldName]"
+                      :dropdownStates="dropdownStates"
+                      :fieldName="config.configurationDetails.fieldName"
+                      :colorOptions="colors"
+                    />
+                  </DropdownToggle>
+                </div>
               </div>
-            </div>
-          </template>
-        </div>
-      </div>
+            </template>
 
-      <div v-if="partnerPackage == 'pro'" class="color-upload-section">
-        <!-- Only show the upload zone if the color has images or is selected -->
-        <p>Upload 3D model</p>
-        <input
-          type="file"
-          :id="'images-' + index"
-          style="display: none"
-          multiple
-          @change="handleColorImageUploadFor3D($event, index)"
-        />
-        <div class="uploadImage" @click="() => triggerFileInput(index)">
-          <div v-if="!colorUploads[index]?.images?.length" class="text">
-            <img src="../../assets/icons/image-add.svg" alt="image-add" />
-            <p>3D-model toevoegen</p>
-          </div>
-
-          <div
-            v-for="(previewUrl, imgIndex) in previewImages(
-              colorUploads[index]?.images
-            )"
-            :key="imgIndex"
-          >
-            <img :src="previewUrl" alt="Uploaded image preview" width="100" />
+            <!-- Image upload section comes directly after the color field configuration -->
+            <template v-if="config.configurationDetails.fieldType === 'color'">
+              <div
+                v-for="(selectedColor, colorIndex) in selectedColors"
+                :key="colorIndex"
+                class="column"
+              >
+                <p>{{ selectedColor.name }} - Upload 3D Model</p>
+                <ImageUpload
+                  :color="selectedColor"
+                  :index="colorIndex"
+                  :colorUploads="colorUploads"
+                  @updateColorUploads="updateColorUploads"
+                />
+              </div>
+            </template>
           </div>
         </div>
-      </div>
+      </template>
 
       <!-- Submit button to trigger the form submission -->
       <button class="btn active" type="submit">Add product</button>
@@ -423,43 +425,6 @@ button {
 
 .dropdown-option:active {
   background-color: #444;
-}
-
-.uploadImage {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 1rem;
-  border-radius: 0.25rem;
-  width: 100%;
-  height: 120px;
-  background-color: var(--gray-700);
-}
-
-.uploadImage .text {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.uploadImage img {
-  width: 64px;
-  height: 64px;
-  object-fit: cover;
-}
-
-.uploadImage .text img {
-  width: 24px;
-  height: 24px;
-}
-
-.uploadImage p {
-  text-align: center;
-  font-size: 12px;
 }
 
 @media (min-width: 768px) {
