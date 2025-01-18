@@ -21,6 +21,7 @@ import {
   handleColorImageUploadFor3D,
   getcolors,
   fetchcolors,
+  fetchProductTypes,
 } from "../../services/productService";
 
 import DropdownToggle from "../../components/DropdownToggle.vue";
@@ -218,6 +219,8 @@ onMounted(async () => {
 
       // Stap 6: Haal de producten op en filter ze
       const filteredProducts = await fetchProducts(partnerId);
+      productTypes.value = await fetchProductTypes(partnerId);
+      console.log(productTypes);
 
       newProducts.value = await filterProductsByType(
         partnerId,
@@ -250,24 +253,26 @@ onMounted(async () => {
         </div>
       </div>
 
-      <
       <div class="row">
         <div class="column">
           <label for="productType">Type Of Product:</label>
-          <select
-            v-model="selectedType"
-            id="productType"
-            @click="filterProductsByType"
-          >
-            <option value="">Select Product Type</option>
-            <option
-              v-for="(type, index) in productTypes"
-              :key="index"
-              :value="type"
+          <!-- Replacing select dropdown with DropdownToggle for product type -->
+          <div class="dropdown">
+            <DropdownToggle
+              :fieldName="'productType'"
+              :dropdownStates="dropdownStates"
+              :buttonText="selectedType || 'Select Product Type'"
             >
-              {{ type }}
-            </option>
-          </select>
+              <div
+                v-for="(type, index) in productTypes"
+                :key="index"
+                class="dropdown-option"
+                @click="selectedType = type"
+              >
+                <p>{{ type }}</p>
+              </div>
+            </DropdownToggle>
+          </div>
         </div>
         <div class="column">
           <label for="brand">Brand:</label>

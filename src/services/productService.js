@@ -72,6 +72,48 @@ export const fetchProducts = async (partnerId) => {
   }
 };
 
+export const fetchProductTypes = async (partnerId) => {
+  // Controleer of partnerId bestaat
+  if (!partnerId) {
+    console.error("partnerId is undefined or null!");
+    return []; // Return een lege array als partnerId ontbreekt
+  }
+
+  try {
+    // Haal partnergegevens op via partnerId
+    const partnerResponse = await axios.get(`${baseURL}/partners/${partnerId}`);
+
+    // Haal de partnernaam op uit het antwoord
+    const partnerName = partnerResponse.data?.data?.partner?.name;
+
+    if (!partnerName) {
+      throw new Error("Partner name not found");
+    }
+
+    // Bouw de API URL om producten op te halen op basis van de partnernaam
+    const apiUrl = `${baseURL}/products?partnerName=${partnerName}`;
+
+    // Haal producten op via de API
+    const productResponse = await axios.get(apiUrl);
+
+    // Haal de producten op uit het antwoord
+    const products = productResponse.data?.data?.products || [];
+
+    // Haal alleen de unieke productType's uit de productenlijst
+    const productTypes = [
+      ...new Set(products.map((product) => product.productType)),
+    ];
+
+    console.log(productTypes); // Optioneel: om de productTypes te loggen
+
+    // Return de productTypes
+    return productTypes;
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    return []; // Return een lege array als er iets misgaat
+  }
+};
+
 export const add2DProduct = async ({
   productCode,
   productName,
@@ -175,7 +217,7 @@ export const add3DProduct = async () => {
   const productData = {
     productCode: productCode.value,
     productName: productName.value,
-    productType: selectedType.value || "sunglasses",
+    productType: selectedType.value,
     brand: brand.value,
     description: description.value,
     productPrice: productPrice.value,

@@ -1,5 +1,5 @@
 <template>
-  <div class="dropdown-options">
+  <div>
     <div
       v-for="(option, index) in colorOptions"
       :key="option.optionId"
@@ -81,7 +81,20 @@ export default {
 </script>
 
 <style scoped>
-/* Style for the checkbox, bullet, and dropdown options */
+.dropdown-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: var(--gray-900);
+  border-radius: 4px;
+  width: 100%;
+  z-index: 10;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
 .dropdown-option {
   display: flex;
   align-items: center;

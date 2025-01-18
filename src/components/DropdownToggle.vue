@@ -4,7 +4,7 @@
     <p>{{ buttonText }}</p>
 
     <!-- Dropdown content -->
-    <div v-if="isOpen">
+    <div v-if="isOpen" class="dropdown-options">
       <slot></slot>
       <!-- Slot voor dynamische inhoud in de dropdown -->
     </div>
@@ -50,8 +50,17 @@ export default {
 </script>
 
 <style scoped>
-/* Voeg stijlen toe voor de dropdown */
-button {
-  margin-bottom: 10px;
+.dropdown-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: var(--gray-900);
+  border-radius: 4px;
+  width: 100%;
+  z-index: 10;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 4px;
 }
 </style>
