@@ -1,9 +1,9 @@
-/* Bestandsbeheer, zoals bestanduploads */ import { ref } from "vue";
+/* Bestandsbeheer, zoals bestanduploads */
+import { ref } from "vue";
 
 // Voeg foutmeldingen en status toe aan de data
 const uploadError = ref("");
 const uploadStatus = ref("");
-const partnerPackage = ref("");
 
 export const uploadFileToCloudinary = async (
   file,
@@ -15,7 +15,7 @@ export const uploadFileToCloudinary = async (
     uploadError.value = ""; // Reset de foutmelding
 
     // Controleer of het bestand is meegegeven
-    if (file === null || !file.name) {
+    if (!file || !file.name) {
       throw new Error("No file provided or file name is missing.");
     }
 
@@ -24,39 +24,23 @@ export const uploadFileToCloudinary = async (
     formData.append("upload_preset", "ycy4zvmj");
     formData.append("cloud_name", "dzempjvto");
 
-    const folderName = `${
-      partnerName || "DefaultFolder"
-    }/products/${productName}`;
+    const sanitizeFolderName = (name) => name.replace(/[^a-zA-Z0-9/_-]/g, "");
+
+    const folderName = sanitizeFolderName(
+      `${partnerName || "DefaultFolder"}/products/${productName}`
+    );
     formData.append("folder", folderName);
 
-    let uploadEndpoint;
+    // Bepaal het uploadEndpoint op basis van het bestandstype
     const fileExtension = file.name.split(".").pop().toLowerCase();
+    let uploadEndpoint;
 
-    // Check het pakket van de partner (Pro of Standard)
-    if (partnerPackage.value === "pro") {
-      if (
-        ["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(fileExtension)
-      ) {
-        uploadEndpoint =
-          "https://api.cloudinary.com/v1_1/dzempjvto/image/upload"; // Afbeelding upload
-      } else if (["glb", "gltf"].includes(fileExtension)) {
-        uploadEndpoint = "https://api.cloudinary.com/v1_1/dzempjvto/raw/upload"; // 3D-bestand upload
-      } else {
-        throw new Error("Unsupported file type");
-      }
-    } else if (partnerPackage.value === "standard") {
-      if (
-        ["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(fileExtension)
-      ) {
-        uploadEndpoint =
-          "https://api.cloudinary.com/v1_1/dzempjvto/image/upload"; // Afbeelding upload
-      } else {
-        // Foutmelding voor gebruikers met het 'Standard' pakket
-        uploadError.value = "Standard plan users can only upload images.";
-        return; // Stop verdere verwerking
-      }
+    if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(fileExtension)) {
+      uploadEndpoint = "https://api.cloudinary.com/v1_1/dzempjvto/image/upload"; // Afbeelding upload
+    } else if (["glb", "gltf"].includes(fileExtension)) {
+      uploadEndpoint = "https://api.cloudinary.com/v1_1/dzempjvto/raw/upload"; // 3D-bestand upload
     } else {
-      throw new Error("Invalid partner package");
+      throw new Error("Unsupported file type");
     }
 
     // Upload bestand naar Cloudinary
@@ -75,7 +59,7 @@ export const uploadFileToCloudinary = async (
       throw new Error("No secure_url found in Cloudinary response");
     }
 
-    // Return de secure URL als de upload succesvol is
+    // Upload is succesvol
     uploadStatus.value = "Upload successful!";
     return data.secure_url;
   } catch (error) {

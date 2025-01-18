@@ -69,31 +69,44 @@ const buttonText = computed(() => {
   return colorNames;
 });
 
+// In AddNewProductPage.vue
 const updateColorUploads = async (files, index) => {
-  // Ensure there is an entry for the given color index
+  if (!files || files.length === 0) {
+    console.error("No files provided for upload.");
+    uploadError.value = "No files provided.";
+    return;
+  }
+
   if (!colorUploads.value[index]) {
     colorUploads.value[index] = { images: [] };
   }
 
-  // Clear the images for the selected color before uploading
-  colorUploads.value[index].images = [];
+  // Log de ontvangen bestanden voor debugging
+  console.log("Received files for upload:", files);
 
-  try {
-    // Loop through each file and upload to Cloudinary
-    for (const file of files) {
+  for (const file of files) {
+    if (!(file instanceof File)) {
+      console.error("Invalid file object:", file);
+      continue;
+    }
+
+    try {
+      // Uploaden van het bestand naar Cloudinary
       const secureUrl = await uploadFileToCloudinary(
         file,
         productName.value,
-        partnerName
-      ); // Provide productName and partnerName
-      colorUploads.value[index].images.push(secureUrl); // Store the URL
-    }
+        partnerName.value
+      );
 
-    console.log("Upload successful:", colorUploads.value);
-  } catch (error) {
-    console.error("Error uploading files:", error);
-    uploadError.value = "File upload failed!";
+      // Voeg de geüploade URL toe aan de colorUploads array
+      colorUploads.value[index].images.push(secureUrl);
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      uploadError.value = "File upload failed!";
+    }
   }
+
+  console.log("Upload successful:", colorUploads.value);
 };
 
 const handleSubmit = async () => {
@@ -165,7 +178,9 @@ onMounted(async () => {
 
       // Haal het partner package op
       const partnerPackageResponse = await fetchPartnerPackage(partnerId);
-      console.log("Partner Package Response:", partnerPackageResponse);
+      partnerPackage.value = partnerPackageResponse; // Verify this assignment
+
+      console.log("Fetched partner package response:", partnerPackageResponse);
 
       if (partnerPackageResponse) {
         partnerPackage.value = partnerPackageResponse;

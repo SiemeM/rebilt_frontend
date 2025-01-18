@@ -1,5 +1,6 @@
 <template>
   <div class="color-upload-section">
+    <!-- File input for selecting images -->
     <input
       type="file"
       :id="'images-' + index"
@@ -8,6 +9,7 @@
       @change="handleColorImageUploadFor3D($event, index)"
     />
 
+    <!-- Trigger area for clicking and uploading images -->
     <div
       class="uploadImage"
       @click="() => triggerFileInput(index)"
@@ -17,11 +19,13 @@
           : 'center',
       }"
     >
+      <!-- Display message when no images are uploaded -->
       <div v-if="!colorUploads[index]?.images?.length" class="text">
         <img src="../assets/icons/image-add.svg" alt="image-add" />
         <p>3D-model toevoegen</p>
       </div>
 
+      <!-- Display image previews after uploading -->
       <div
         v-for="(previewUrl, imgIndex) in previewImages(
           colorUploads[index]?.images
@@ -58,12 +62,15 @@ export default {
 
     // Handle 3D model upload (upload to Cloudinary)
     async handleColorImageUploadFor3D(event, index) {
+      // Initialize colorUploads array for the current index if not exists
       if (!this.colorUploads[index]) {
         this.colorUploads[index] = { images: [] };
       }
 
-      const files = event.target.files;
-      const uploadedUrls = [];
+      const files = event.target.files; // Grab the files from the input
+      const uploadedUrls = []; // Initialize array to store uploaded URLs
+
+      console.log("Files received for upload:", Array.from(files)); // Debug log
 
       // Process each file and upload to Cloudinary
       for (let i = 0; i < files.length; i++) {
@@ -82,13 +89,13 @@ export default {
           uploadedUrls.push(secureUrl);
         } catch (error) {
           console.error("Error uploading file to Cloudinary:", error);
-          this.$emit("updateColorUploads", this.colorUploads); // Emit even in case of error
+          this.$emit("updateColorUploads", Array.from(files), index); // Emit files even in case of error
         }
       }
 
       // Emit the URLs back to the parent component after successful uploads
       if (uploadedUrls.length > 0) {
-        this.$emit("updateColorUploads", this.colorUploads);
+        this.$emit("updateColorUploads", Array.from(files), index); // Emit files to parent
       }
     },
 
