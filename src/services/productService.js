@@ -100,14 +100,17 @@ export const fetchProductTypes = async (partnerId) => {
     const products = productResponse.data?.data?.products || [];
 
     // Haal alleen de unieke productType's uit de productenlijst
-    const productTypes = [
-      ...new Set(products.map((product) => product.productType)),
-    ];
+    const productTypesSet = new Set(
+      products.map((product) => product.productType)
+    );
+
+    // Convert the Set to an array before returning
+    const productTypes = Array.from(productTypesSet);
 
     console.log(productTypes); // Optioneel: om de productTypes te loggen
 
-    // Return de productTypes
-    return productTypes;
+    // Return de productTypes (Altijd als array)
+    return productTypes || []; // Ensure it returns an array, even if no product types are found
   } catch (error) {
     console.error("Error fetching products:", error);
     return []; // Return een lege array als er iets misgaat

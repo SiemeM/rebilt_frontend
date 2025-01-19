@@ -1,4 +1,5 @@
 <script setup>
+import { toRaw } from "vue";
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
@@ -25,13 +26,13 @@ import {
 } from "../../services/productService";
 
 import DropdownToggle from "../../components/DropdownToggle.vue";
+import DropdownToggleColor from "../../components/DropdownToggleColor.vue";
 import ColorSelectionToggle from "../../components/ColorSelectionToggle.vue";
 import ImageUpload from "../../components/ImageUpload.vue";
 import { uploadFileToCloudinary } from "../../services/fileService";
 
 const selectedColors = ref([]); // Selected colors for the product
 const partnerConfigurations = ref([]); // Partner configuration data
-const productTypes = ref([]); // List of product types
 const productCode = ref(""); // Product code
 const productName = ref(""); // Product name
 const brand = ref(""); // Product brand
@@ -50,6 +51,21 @@ const partnerPackage = ref(""); // Partner package
 const colors = ref([]); // List of colors for selection
 const uploadError = ref("");
 const partnerName = ref("");
+const productTypes = ref([]);
+
+const addProductType = (productTypes, newType) => {
+  // Ensure productTypes is an array before proceeding
+  if (!Array.isArray(productTypes)) {
+    console.error("productTypes is not an array", productTypes);
+    return; // Stop execution if productTypes is not an array
+  }
+
+  if (!productTypes.includes(newType)) {
+    productTypes.push(newType);
+  } else {
+    console.warn("This product type already exists!");
+  }
+};
 
 // Button text for color selection
 const buttonText = computed(() => {
@@ -200,32 +216,39 @@ onMounted(async () => {
         // Initialiseer de kleurconfiguraties
         partnerConfigurations.value.forEach((config) => {
           const fieldName = config.configurationDetails.fieldName;
-          if (!colors.value[fieldName]) {
-            colors.value[fieldName] = [];
-          }
+          if (config.configurationDetails.fieldType === "color") {
+            // Vul de kleurenarray voor elk fieldName met de opgehaalde kleuren
+            colors.value.forEach((color) => {
+              if (!config.colors) {
+                config.colors = [];
+              }
 
-          // Vul de kleurenarray voor elk fieldName met de opgehaalde kleuren
-          fetchedColors.forEach((color) => {
-            colors.value[fieldName].push({
-              optionId: color.optionId,
-              name: color.name || "Unnamed Color",
-              images: color.images || [],
+              // Gebruik enkel de naam van de kleur (geen hex of andere waarde)
+              config.colors.push({
+                name: color.name || "Unnamed Color", // Gebruik de naam, fallback naar "Unnamed Color" als het niet beschikbaar is
+              });
             });
-          });
+          }
         });
       } else {
         console.warn("No colors returned from getcolors");
       }
 
       // Stap 6: Haal de producten op en filter ze
-      const filteredProducts = await fetchProducts(partnerId);
-      productTypes.value = await fetchProductTypes(partnerId);
+      const fetchedProductTypes = await fetchProductTypes(partnerId);
+      console.log(fetchedProductTypes);
 
-      newProducts.value = await filterProductsByType(
-        partnerId,
-        selectedType.value,
-        filteredProducts // Geef de waarde door, niet de ref
-      );
+      // Unwrap the Proxy using toRaw (for Vue's reactive data)
+      const unwrappedProductTypes = toRaw(fetchedProductTypes);
+
+      // Ensure it's an array before assigning to productTypes
+      if (Array.isArray(unwrappedProductTypes)) {
+        productTypes.value = unwrappedProductTypes;
+      } else {
+        console.error("Fetched product types are not an array.");
+      }
+
+      console.log("Processed Product Types:", productTypes.value); // Debugging log
     } catch (error) {
       console.error("Error during initialization:", error);
     }
@@ -256,20 +279,15 @@ onMounted(async () => {
         <div class="column">
           <label for="productType">Type Of Product:</label>
           <!-- Replacing select dropdown with DropdownToggle for product type -->
-          <div class="dropdown">
+          <div class="dropdown" v-if="productTypes.length > 0">
             <DropdownToggle
-              :fieldName="'productType'"
+              v-model="selectedType"
+              :fieldName="'sole_top'"
               :dropdownStates="dropdownStates"
-              :buttonText="selectedType || 'Select Product Type'"
+              :buttonText="'Select colors'"
+              :types="productTypes"
+              @addOption="addProductType(productTypes, $event)"
             >
-              <div
-                v-for="(type, index) in productTypes"
-                :key="index"
-                class="dropdown-option"
-                @click="selectedType = type"
-              >
-                <p>{{ type }}</p>
-              </div>
             </DropdownToggle>
           </div>
         </div>
@@ -321,7 +339,7 @@ onMounted(async () => {
               <template
                 v-else-if="config.configurationDetails.fieldType === 'Dropdown'"
               >
-                <DropdownToggle
+                <DropdownToggleColor
                   :fieldName="config.configurationDetails.fieldName"
                   :dropdownStates="dropdownStates"
                   buttonText="Toggle Dropdown"
@@ -336,7 +354,7 @@ onMounted(async () => {
                     ></span>
                     {{ color.name || "Unnamed Color" }}
                   </div>
-                </DropdownToggle>
+                </DropdownToggleColor>
               </template>
 
               <!-- Color field -->
@@ -345,7 +363,7 @@ onMounted(async () => {
               >
                 <div class="color-dropdown">
                   <div class="dropdown">
-                    <DropdownToggle
+                    <DropdownToggleColor
                       :fieldName="config.configurationDetails.fieldName"
                       :dropdownStates="dropdownStates"
                       :buttonText="buttonText"
@@ -357,7 +375,7 @@ onMounted(async () => {
                         :fieldName="config.configurationDetails.fieldName"
                         :colorOptions="colors"
                       />
-                    </DropdownToggle>
+                    </DropdownToggleColor>
                   </div>
                 </div>
               </template>
@@ -408,7 +426,7 @@ onMounted(async () => {
               <template
                 v-else-if="config.configurationDetails.fieldType === 'Dropdown'"
               >
-                <DropdownToggle
+                <DropdownToggleColor
                   :fieldName="config.configurationDetails.fieldName"
                   :dropdownStates="dropdownStates"
                   buttonText="Toggle Dropdown"
@@ -423,7 +441,7 @@ onMounted(async () => {
                     ></span>
                     {{ color.name || "Unnamed Color" }}
                   </div>
-                </DropdownToggle>
+                </DropdownToggleColor>
               </template>
 
               <!-- Color field -->
@@ -432,7 +450,7 @@ onMounted(async () => {
               >
                 <div class="color-dropdown">
                   <div class="dropdown">
-                    <DropdownToggle
+                    <DropdownToggleColor
                       :fieldName="config.configurationDetails.fieldName"
                       :dropdownStates="dropdownStates"
                       :buttonText="buttonText"
@@ -444,7 +462,7 @@ onMounted(async () => {
                         :fieldName="config.configurationDetails.fieldName"
                         :colorOptions="colors"
                       />
-                    </DropdownToggle>
+                    </DropdownToggleColor>
                   </div>
                 </div>
               </template>
