@@ -369,11 +369,12 @@ onMounted(async () => {
                       :buttonText="buttonText"
                     >
                       <ColorSelectionToggle
-                        v-model:selectedColors="selectedColors"
-                        :colors="colors[config.configurationDetails.fieldName]"
+                        v-model="selectedColors"
+                        :fieldName="'colorField'"
                         :dropdownStates="dropdownStates"
-                        :fieldName="config.configurationDetails.fieldName"
-                        :colorOptions="colors"
+                        :colorOptions="colorOptions"
+                        @update:selectedColors="updateSelectedColors"
+                        @update:colorOptions="updateColorOptions"
                       />
                     </DropdownToggleColor>
                   </div>

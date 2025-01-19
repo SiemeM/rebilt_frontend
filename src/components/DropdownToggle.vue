@@ -38,17 +38,17 @@ export default {
     },
     buttonText: {
       type: String,
-      required: true, // Zorg ervoor dat de buttonText prop wordt doorgegeven
+      required: true,
     },
     types: {
       type: Array,
-      required: true, // Zorg ervoor dat types (productTypes) als array wordt doorgegeven
+      required: true,
     },
   },
   data() {
     return {
-      newOption: "", // Staat voor het nieuwe producttype dat wordt toegevoegd
-      selectedOption: null, // Houd de geselecteerde optie bij
+      newOption: "",
+      selectedOption: null,
     };
   },
   computed: {
@@ -70,14 +70,17 @@ export default {
     },
     selectOption(type) {
       // Verander de geselecteerde waarde
-      this.selectedOption = type; // Bewaar de geselecteerde optie
+      this.selectedOption = type;
       this.$emit("update:modelValue", type);
       this.toggleDropdown(); // Sluit de dropdown nadat een optie is geselecteerd
     },
-    handleAddOption() {
+    handleAddOption(event) {
+      // Voorkom dat de dropdown sluit wanneer de Add knop wordt geklikt
+      event.stopPropagation();
+
       if (this.newOption.trim()) {
-        this.$emit("addOption", this.newOption.trim()); // Emit de nieuwe optie
-        this.newOption = ""; // Leeg het inputveld
+        this.$emit("addOption", this.newOption.trim());
+        this.newOption = "";
       }
     },
   },

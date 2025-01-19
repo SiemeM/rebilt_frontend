@@ -4,7 +4,7 @@
     <p>{{ buttonText }}</p>
 
     <!-- Dropdown content -->
-    <div v-if="isOpen" class="dropdown-options">
+    <div v-if="isOpen" class="dropdown-options" @click.stop>
       <slot></slot>
       <!-- Slot voor dynamische inhoud in de dropdown -->
     </div>
@@ -28,6 +28,11 @@ export default {
       default: "Toggle Dropdown",
     },
   },
+  data() {
+    return {
+      isAdding: false, // Flag om toe te voegen zonder de dropdown te sluiten
+    };
+  },
   computed: {
     isOpen() {
       return this.dropdownStates[this.fieldName];
@@ -41,9 +46,20 @@ export default {
           this.dropdownStates[key] = false;
         }
       }
+
       // Toggle de huidige dropdown
       this.dropdownStates[this.fieldName] =
         !this.dropdownStates[this.fieldName];
+    },
+
+    // Methode om een actie te doen zonder de dropdown te sluiten
+    handleAddAction(event) {
+      event.stopPropagation(); // Voorkom dat het klikken op de knop de dropdown sluit
+      this.isAdding = true;
+
+      // Doe de actie die je nodig hebt (bijv. iets toevoegen)
+      // Reset na de actie
+      this.isAdding = false;
     },
   },
 };
