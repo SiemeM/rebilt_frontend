@@ -243,60 +243,6 @@ export const add3DProduct = async () => {
   }
 };
 
-export const handleColorImageUploadFor2D = (event, index) => {
-  if (!event?.target?.files) {
-    console.warn(
-      "Geen geldig event object gevonden bij handleColorImageUpload"
-    );
-    return;
-  }
-
-  if (!colorUploads.value[index]) {
-    colorUploads.value[index] = { images: [] };
-  }
-
-  const files = Array.from(event.target.files).filter(
-    (file) => file instanceof File
-  );
-
-  if (files.length > 0) {
-    const file = files[0];
-    const fileExtension = file.name.split(".").pop().toLowerCase();
-
-    if (
-      partnerPackage.value === "Standard" &&
-      ["glb", "gltf"].includes(fileExtension)
-    ) {
-      console.warn("GLB bestanden zijn alleen toegestaan voor Pro-gebruikers.");
-      alert(
-        "GLB bestanden zijn alleen toegestaan voor Pro-gebruikers. Je kunt alleen afbeeldingen uploaden."
-      );
-      return;
-    }
-
-    colorUploads.value[index].images.push(...files);
-  }
-};
-
-export const handleColorImageUploadFor3D = async (event, index) => {
-  const files = event.target.files;
-  if (files.length === 0) return;
-
-  const newImages = Array.from(files);
-
-  const uploaded3DImages = await Promise.all(
-    newImages.map((file) =>
-      uploadFileToCloudinary(
-        file,
-        `${productName.value}-3D-${index}`,
-        partnerName.value
-      )
-    )
-  );
-
-  color3DImages.value[index] = uploaded3DImages;
-};
-
 export async function getcolors(partnerId) {
   try {
     // Verkrijg partnerinformatie

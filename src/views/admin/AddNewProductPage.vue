@@ -18,8 +18,6 @@ import {
   filterProductsByType,
   add2DProduct,
   add3DProduct,
-  handleColorImageUploadFor2D,
-  handleColorImageUploadFor3D,
   getcolors,
   fetchcolors,
   fetchProductTypes,
@@ -395,6 +393,7 @@ onMounted(async () => {
                 :color="selectedColor"
                 :index="colorIndex"
                 :colorUploads="colorUploads"
+                :partnerPackage="partnerPackage"
                 @updateColorUploads="updateColorUploads"
               />
             </div>
@@ -478,6 +477,7 @@ onMounted(async () => {
           :color="selectedColor"
           :index="colorIndex"
           :colorUploads="colorUploads"
+          :partnerPackage="partnerPackage"
           @updateColorUploads="updateColorUploads"
         />
       </template>

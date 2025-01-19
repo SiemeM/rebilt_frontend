@@ -37,7 +37,7 @@ export const uploadFileToCloudinary = async (
 
     if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(fileExtension)) {
       uploadEndpoint = "https://api.cloudinary.com/v1_1/dzempjvto/image/upload"; // Afbeelding upload
-    } else if (["glb", "gltf"].includes(fileExtension)) {
+    } else if (["glb", "obj", "gltf"].includes(fileExtension)) {
       uploadEndpoint = "https://api.cloudinary.com/v1_1/dzempjvto/raw/upload"; // 3D-bestand upload
     } else {
       throw new Error("Unsupported file type");
