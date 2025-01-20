@@ -52,6 +52,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import { uploadFileToCloudinary } from "../services/fileService"; // Cloudinary upload function
 import { loadGLBModel, loadOBJModel } from "../services/productService";
+import { markRaw } from "vue";
 
 let model;
 const objLoader = new OBJLoader();
@@ -195,12 +196,24 @@ export default {
     },
 
     addModelToScene(model) {
-      if (model && model instanceof THREE.Object3D) {
-        this.scene.add(model);
-        this.renderer.render(this.scene, this.camera);
-      } else {
-        console.error("Invalid model:", model);
-      }
+      const rawModel = markRaw(model); // Mark model as non-reactive
+
+      // Compute bounding box to adjust scale and position
+      const boundingBox = new THREE.Box3().setFromObject(rawModel);
+      const size = new THREE.Vector3();
+      boundingBox.getSize(size);
+
+      const maxDimension = Math.max(size.x, size.y, size.z);
+      const scaleFactor = 14 / maxDimension;
+      rawModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+      // Center the model
+      const center = new THREE.Vector3();
+      boundingBox.getCenter(center);
+      rawModel.position.sub(center);
+
+      this.scene.add(rawModel);
+      this.renderer.render(this.scene, this.camera);
     },
 
     render3DModel(url, containerId, fileExtension) {
@@ -210,8 +223,8 @@ export default {
           if (fileExtension === "obj") {
             loadOBJModel(url)
               .then((object) => {
-                model = object;
-                this.addModelToScene(model);
+                const rawObject = markRaw(object); // Ensure it's not reactive
+                this.addModelToScene(rawObject);
               })
               .catch((error) => {
                 console.error("Error loading OBJ model:", error);
@@ -220,6 +233,7 @@ export default {
             loadGLBModel(url)
               .then((object) => {
                 model = object;
+                console.log("model", object);
                 this.addModelToScene(model);
               })
               .catch((error) => {
@@ -246,10 +260,11 @@ export default {
 </script>
 
 <style scoped>
-.color-upload-section {
+.color-upload-section,
+.image-preview div {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 .uploadImage {
@@ -286,6 +301,6 @@ export default {
 
 .threejs-container {
   width: 100%;
-  height: 500px;
+  height: 400px;
 }
 </style>
