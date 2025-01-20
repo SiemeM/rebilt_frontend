@@ -16,8 +16,7 @@ import {
 import {
   fetchProducts,
   filterProductsByType,
-  add2DProduct,
-  add3DProduct,
+  addProduct,
   getcolors,
   fetchcolors,
   fetchProductTypes,
@@ -84,96 +83,6 @@ const buttonText = computed(() => {
 
   return colorNames;
 });
-
-const updateColorUploads = async (files, index) => {
-  if (!files || files.length === 0) {
-    console.error("No files provided for upload.");
-    uploadError.value = "No files provided.";
-    return;
-  }
-
-  if (!colorUploads.value[index]) {
-    colorUploads.value[index] = { images: [] };
-  }
-
-  for (const file of files) {
-    if (!(file instanceof File)) {
-      console.error("Invalid file object:", file);
-      continue;
-    }
-
-    try {
-      // Uploaden van het bestand naar Cloudinary
-      const secureUrl = await uploadFileToCloudinary(
-        file,
-        productName.value,
-        partnerName.value
-      );
-
-      // Voeg de geüploade URL toe aan de colorUploads array
-      colorUploads.value[index].images.push(secureUrl);
-    } catch (error) {
-      console.error("Error uploading file:", error);
-      uploadError.value = "File upload failed!";
-    }
-  }
-};
-
-const handleSubmit = async () => {
-  try {
-    const productCodeValue = productCode.value || "";
-    const productNameValue = productName.value || "";
-    const productTypeValue = selectedType.value || "";
-    const productPriceValue = parseFloat(productPrice.value) || 0;
-    const descriptionValue = description.value || "";
-    const brandValue = brand.value || "";
-    const activeInactiveValue = "active";
-    const partnerIdValue = partnerId || "";
-
-    // Formatteer de configuraties en voeg de geüploade afbeeldingen toe
-    const formattedConfigurations = partnerConfigurations.value.map(
-      (config) => {
-        const selectedOptions = config.options.map((option) => {
-          const optionWithImages = {
-            ...option,
-            images: Array.from(option.images || []), // Zorg ervoor dat de images geen Proxy zijn
-          };
-
-          // Voeg de geüploade afbeeldingen voor elke kleur toe aan de images array
-          if (colorUploads.value[config.configurationId._id]) {
-            const uploadedImages =
-              colorUploads.value[config.configurationId._id].images;
-            uploadedImages.forEach((image) => {
-              optionWithImages.images.push(image); // Voeg de geüploade afbeelding toe
-            });
-          }
-
-          return optionWithImages;
-        });
-
-        return {
-          configurationId: config.configurationId._id,
-          selectedOptions,
-        };
-      }
-    );
-
-    // Verstuur het product naar de backend met de geformatteerde configuraties
-    await add2DProduct({
-      productCode: productCodeValue,
-      productName: productNameValue,
-      productType: productTypeValue,
-      productPrice: productPriceValue,
-      description: descriptionValue,
-      brand: brandValue,
-      activeInactive: activeInactiveValue,
-      partnerId: partnerIdValue,
-      configurations: formattedConfigurations,
-    });
-  } catch (error) {
-    console.error("Error while adding product:", error);
-  }
-};
 
 onMounted(async () => {
   if (partnerId) {
@@ -394,7 +303,7 @@ onMounted(async () => {
                 :index="colorIndex"
                 :colorUploads="colorUploads"
                 :partnerPackage="partnerPackage"
-                @updateColorUploads="updateColorUploads"
+                :partnerName="partnerName"
               />
             </div>
           </template>
@@ -478,7 +387,7 @@ onMounted(async () => {
           :index="colorIndex"
           :colorUploads="colorUploads"
           :partnerPackage="partnerPackage"
-          @updateColorUploads="updateColorUploads"
+          :partnerName="partnerName"
         />
       </template>
 

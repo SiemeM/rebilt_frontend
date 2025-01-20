@@ -1,6 +1,20 @@
 /* Productgerelateerde functies */
 import { ref } from "vue";
 import axios from "axios";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
+
+// Setup loaders
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+const gltfLoader = new GLTFLoader();
+gltfLoader.setDRACOLoader(dracoLoader);
+const objLoader = new OBJLoader();
+
+// Export loaders
+export { objLoader, gltfLoader, dracoLoader };
+let scene, camera, renderer, model;
 
 const selectedType = ref("");
 const isProduction = window.location.hostname !== "localhost";
@@ -117,132 +131,6 @@ export const fetchProductTypes = async (partnerId) => {
   }
 };
 
-export const add2DProduct = async ({
-  productCode,
-  productName,
-  productType,
-  productPrice,
-  description,
-  brand,
-  activeInactive,
-  partnerId,
-  configurations,
-}) => {
-  try {
-    // Voeg afbeeldingen toe aan configuraties voordat we de productdetails naar de API sturen
-    configurations.forEach((config) => {
-      config.selectedOptions.forEach((option) => {
-        console.log("option:", option);
-        if (option.images && option.images.length > 0) {
-          console.log("Images found for configuration:", option.images);
-        } else {
-          console.log("No images for configuration:", config.configurationId);
-        }
-      });
-    });
-
-    // Log de gegevens voor debugging
-    console.log("Adding 2D Product with these details:", {
-      productCode,
-      productName,
-      productType,
-      productPrice,
-      description,
-      brand,
-      activeInactive,
-      partnerId,
-      configurations,
-    });
-
-    // Verstuur de POST-aanroep naar de /products endpoint met de juiste data structuur
-    const response = await axios.post(baseURL + "/products", {
-      productCode,
-      productName,
-      productType,
-      productPrice,
-      description,
-      brand,
-      activeInactive,
-      partnerId,
-      configurations, // Dit is nu de geformatteerde configuraties met afbeeldingen
-    });
-
-    console.log("Product added successfully:", response.data);
-  } catch (error) {
-    console.error("Error adding product:", error);
-    throw error; // Rethrow de fout zodat hij kan worden opgevangen in handleSubmit
-  }
-};
-
-export const add3DProduct = async () => {
-  if (!productName.value || !productPrice.value) {
-    errorMessage.value = "Product name and price are required.";
-    return;
-  }
-
-  const configurations = [];
-
-  for (const config of partnerConfigurations.value) {
-    const selectedOptions = [];
-
-    if (config.fieldType === "color" && colors.value.length > 0) {
-      const selectedColor = colors.value[0];
-      const selectedOptionId = selectedColor.optionId || selectedColor;
-
-      if (!selectedOptionId) {
-        console.warn("Skipping color with undefined optionId:", selectedColor);
-        continue;
-      }
-
-      const optionResponse = await axios.get(
-        `${baseURL}/options/${selectedOptionId}`
-      );
-
-      const option = optionResponse.data;
-
-      const images = color3DImages.value.map((image) => image);
-
-      selectedOptions.push({
-        optionId: option.data._id,
-        images,
-        _id: `${option.data._id}-${Date.now()}`,
-      });
-    }
-
-    if (selectedOptions.length > 0) {
-      configurations.push({
-        configurationId: config.configurationId._id,
-        selectedOptions,
-      });
-    }
-  }
-
-  const productData = {
-    productCode: productCode.value,
-    productName: productName.value,
-    productType: selectedType.value,
-    brand: brand.value,
-    description: description.value,
-    productPrice: productPrice.value,
-    activeInactive: "active",
-    partnerId,
-    configurations,
-  };
-
-  const response = await axios.post(`${baseURL}/products`, productData, {
-    headers: {
-      Authorization: `Bearer ${jwtToken}`,
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (response.status === 201) {
-    router.push("/admin");
-  } else {
-    errorMessage.value = "Failed to add product.";
-  }
-};
-
 export async function getcolors(partnerId) {
   try {
     // Verkrijg partnerinformatie
@@ -346,4 +234,95 @@ export const fetchcolors = async (partnerName) => {
     images: option.images || [],
   }));
   console.log(colors.value);
+};
+
+export const load3DModel = async (filePath) => {
+  if (!isSceneInitialized) {
+    console.error("Scene is not initialized.");
+    return;
+  }
+
+  const fileExtension = filePath.split(".").pop().toLowerCase();
+
+  if (fileExtension === "obj") {
+    loadOBJModel(filePath); // Laad .obj bestand
+  } else if (fileExtension === "glb" || fileExtension === "gltf") {
+    loadGLBModel(filePath); // Laad .glb of .gltf bestand
+  } else {
+    console.error("Unsupported file type:", fileExtension);
+  }
+};
+
+// In productService.js
+export function loadOBJModel(url) {
+  return new Promise((resolve, reject) => {
+    const loader = new OBJLoader();
+    loader.load(
+      url,
+      (object) => {
+        resolve(object); // Retourneer het geladen model
+      },
+      undefined,
+      (error) => {
+        reject(error); // Foutafhandeling
+      }
+    );
+  });
+}
+
+export function loadGLBModel(url) {
+  return new Promise((resolve, reject) => {
+    const loader = new GLTFLoader().setDRACOLoader(dracoLoader);
+    loader.load(
+      url,
+      (gltf) => {
+        resolve(gltf.scene); // Retourneer de scène van het GLTF-model
+      },
+      undefined,
+      (error) => {
+        reject(error); // Foutafhandeling
+      }
+    );
+  });
+}
+
+export const addProduct = async ({
+  productCode,
+  productName,
+  productType,
+  productPrice,
+  description,
+  brand,
+  activeInactive,
+  partnerId,
+  configurations,
+}) => {
+  try {
+    // Log de configuraties om te zien of de afbeeldingen zijn toegevoegd
+    configurations.forEach((config) => {
+      config.selectedOptions.forEach((option) => {
+        console.log("Configuration ID:", config.configurationId);
+        console.log("Option ID:", option.optionId);
+        console.log("Images for this option:", option.images);
+      });
+    });
+
+    // Verstuur de POST-aanroep naar de /products endpoint met de juiste data structuur
+    const response = await axios.post(baseURL + "/products", {
+      productCode,
+      productName,
+      productType,
+      productPrice,
+      description,
+      brand,
+      activeInactive,
+      partnerId,
+      configurations, // Dit is nu de geformatteerde configuraties met afbeeldingen
+    });
+
+    console.log("Product added successfully:", response.data);
+  } catch (error) {
+    console.error("Error adding product:", error);
+    throw error; // Rethrow de fout zodat hij kan worden opgevangen in handleSubmit
+  }
 };

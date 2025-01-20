@@ -1,15 +1,13 @@
 <template>
   <div class="color-upload-section">
-    <!-- File input for selecting images -->
     <input
       type="file"
       :id="'images-' + index"
       style="display: none"
       multiple
-      @click="handleColorImageUpload($event, index)"
+      @change="handleColorImageUpload($event, index)"
     />
 
-    <!-- Trigger area for clicking and uploading images -->
     <div
       class="uploadImage"
       @click="() => triggerFileInput(index)"
@@ -19,14 +17,11 @@
           : 'center',
       }"
     >
-      <!-- Display message when no images are uploaded -->
       <div v-if="!colorUploads[index]?.images?.length" class="text">
         <img src="../assets/icons/image-add.svg" alt="image-add" />
         <p>Bestanden toevoegen</p>
-        <!-- Algemene boodschap voor 2D of 3D -->
       </div>
 
-      <!-- Display image previews after uploading -->
       <div
         v-for="(previewUrl, imgIndex) in previewImages(
           colorUploads[index]?.images
@@ -34,14 +29,36 @@
         :key="imgIndex"
         class="image-preview"
       >
-        <img :src="previewUrl" alt="Uploaded file preview" width="100" />
+        <img
+          v-if="isImageFile(previewUrl)"
+          :src="previewUrl"
+          alt="Uploaded file preview"
+          width="100"
+        />
+        <div v-else>
+          <p>3D bestand geüpload:</p>
+          <div class="threejs-container" :id="'threejs-' + imgIndex" />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { uploadFileToCloudinary } from "../services/fileService"; // Import your Cloudinary upload function
+import { nextTick } from "vue";
+import * as THREE from "three";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
+import { uploadFileToCloudinary } from "../services/fileService"; // Cloudinary upload function
+import { loadGLBModel, loadOBJModel } from "../services/productService";
+
+let model;
+const objLoader = new OBJLoader();
+const dracoLoader = new DRACOLoader();
+const gltfLoader = new GLTFLoader();
+dracoLoader.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+gltfLoader.setDRACOLoader(dracoLoader);
 
 export default {
   name: "ImageUpload",
@@ -49,11 +66,19 @@ export default {
     color: Object,
     index: Number,
     colorUploads: Array,
-    partnerName: String, // Partnernaam
-    partnerPackage: String, // Het pakket van de gebruiker (Pro of Standaard)
+    partnerName: String,
+    partnerPackage: String,
   },
+  data() {
+    return {
+      isSceneInitialized: false,
+      renderer: null,
+      scene: null,
+      camera: null,
+    };
+  },
+
   methods: {
-    // Trigger file selection
     triggerFileInput(index) {
       const fileInput = document.getElementById(`images-${index}`);
       if (fileInput) {
@@ -63,92 +88,156 @@ export default {
       }
     },
 
-    // Handle image and 3D model upload based on file type
     async handleColorImageUpload(event, index) {
-      console.log("handleColorImageUpload aangeroepen");
       const files = event.target.files;
       if (!files.length) return;
 
-      // Initialize colorUploads array for the current index if not exists
-      if (!this.colorUploads[index]) {
-        this.colorUploads[index] = { images: [] };
-      }
-
       const uploadedUrls = [];
-
-      // Loop through files and handle 2D or 3D upload based on file extension
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const fileExtension = file.name.split(".").pop().toLowerCase();
 
-        // Check if the user is a Pro user
         if (this.partnerPackage === "pro") {
-          console.log("pro");
-          // Pro gebruikers mogen geen 2D-afbeeldingen uploaden
+          // Restrict Pro users to uploading only 3D models
           if (["png", "jpg", "jpeg", "webp"].includes(fileExtension)) {
-            console.log("pngggg");
-            console.warn("Pro-gebruikers mogen geen 2D-afbeeldingen uploaden.");
             alert("Pro-gebruikers kunnen alleen 3D-bestanden uploaden.");
             return;
           }
 
-          // Pro gebruikers mogen alleen 3D-bestanden uploaden (bijv. glb, gltf, obj)
           if (["glb", "gltf", "obj"].includes(fileExtension)) {
-            console.log("3D-bestand geüpload");
             try {
-              // Upload the 3D model to Cloudinary
               const secureUrl = await uploadFileToCloudinary(
                 file,
                 this.color.name,
                 this.partnerName
               );
-              this.colorUploads[index].images.push(secureUrl); // Add uploaded 3D file URL
-              uploadedUrls.push(secureUrl); // Store the 3D file URL
+              this.colorUploads[index] = this.colorUploads[index] || {
+                images: [],
+              };
+              this.colorUploads[index].images.push(secureUrl);
+              uploadedUrls.push(secureUrl);
+
+              // Trigger 3D model rendering after uploading
+              this.render3DModel(secureUrl, `threejs-${index}`, fileExtension);
             } catch (error) {
-              console.error("Error uploading file to Cloudinary:", error);
+              console.error("Error uploading to Cloudinary:", error);
             }
-          } else {
-            console.warn(
-              "Ongeldig 3D-bestandstype. Alleen glb, gltf en obj zijn toegestaan."
-            );
-            alert(
-              "Alleen GLB, GLTF en OBJ bestanden worden geaccepteerd voor Pro-gebruikers."
-            );
           }
         } else {
-          // Standaard-gebruikers mogen geen 3D-bestanden uploaden
+          // Restrict Standard users to uploading only 2D images
           if (["glb", "gltf", "obj"].includes(fileExtension)) {
-            console.warn(
-              "Standaard-gebruikers mogen geen 3D-bestanden uploaden."
-            );
             alert(
               "Standaard-gebruikers kunnen alleen 2D-afbeeldingen uploaden."
             );
             return;
           }
 
-          // Standaard-gebruikers mogen alleen 2D-afbeeldingen uploaden
           if (["png", "jpg", "jpeg", "webp"].includes(fileExtension)) {
-            uploadedUrls.push(URL.createObjectURL(file)); // For preview
-            this.colorUploads[index].images.push(URL.createObjectURL(file)); // Add 2D image preview URL
-          } else {
-            console.warn("Ongewoon bestandstype: " + file.name);
-            alert("Dit bestandstype wordt niet ondersteund.");
+            const imageUrl = URL.createObjectURL(file);
+            uploadedUrls.push(imageUrl);
+            this.colorUploads[index] = this.colorUploads[index] || {
+              images: [],
+            };
+            this.colorUploads[index].images.push(imageUrl);
           }
         }
       }
+    },
 
-      // Emit the URLs back to the parent component after successful uploads
-      if (uploadedUrls.length > 0) {
-        this.$emit(
-          "updateColorUploads",
-          this.colorUploads[index].images,
-          index
-        ); // Emit URLs to parent
+    initializeScene() {
+      if (this.isSceneInitialized) {
+        console.log("Scene already initialized");
+        return Promise.resolve(); // Return a resolved Promise
+      }
+
+      return new Promise((resolve, reject) => {
+        nextTick(() => {
+          const container = document.getElementById(`threejs-${this.index}`);
+          if (!container) {
+            console.error(
+              "3D container element not found:",
+              `threejs-${this.index}`
+            );
+            return reject(new Error("3D container not found"));
+          }
+
+          this.scene = new THREE.Scene();
+          this.camera = new THREE.PerspectiveCamera(
+            75,
+            container.offsetWidth / container.offsetHeight,
+            0.1,
+            1000
+          );
+          this.camera.position.set(0, 5, 15);
+          this.camera.lookAt(0, 0, 0);
+
+          this.renderer = new THREE.WebGLRenderer();
+          this.renderer.setSize(container.offsetWidth, container.offsetHeight);
+          container.appendChild(this.renderer.domElement);
+
+          const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+          pointLight.position.set(50, 50, 50);
+          this.scene.add(pointLight);
+
+          const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+          directionalLight.position.set(-10, 10, 10).normalize();
+          this.scene.add(directionalLight);
+
+          const ambientLight = new THREE.AmbientLight(0x404040, 1);
+          this.scene.add(ambientLight);
+
+          this.isSceneInitialized = true;
+          console.log("Scene initialized:", this.scene);
+
+          resolve();
+        });
+      });
+    },
+
+    addModelToScene(model) {
+      if (model && model instanceof THREE.Object3D) {
+        this.scene.add(model);
+        this.renderer.render(this.scene, this.camera);
+      } else {
+        console.error("Invalid model:", model);
       }
     },
 
-    // Generate preview URLs for uploaded images (2D)
+    render3DModel(url, containerId, fileExtension) {
+      console.log("Rendering 3D model:", url);
+      this.initializeScene()
+        .then(() => {
+          if (fileExtension === "obj") {
+            loadOBJModel(url)
+              .then((object) => {
+                model = object;
+                this.addModelToScene(model);
+              })
+              .catch((error) => {
+                console.error("Error loading OBJ model:", error);
+              });
+          } else if (["gltf", "glb"].includes(fileExtension)) {
+            loadGLBModel(url)
+              .then((object) => {
+                model = object;
+                this.addModelToScene(model);
+              })
+              .catch((error) => {
+                console.error("Error loading GLB model:", error);
+              });
+          } else {
+            console.error("Unsupported file type:", fileExtension);
+          }
+        })
+        .catch((error) => {
+          console.error("Error initializing scene:", error);
+        });
+    },
+
+    isImageFile(fileUrl) {
+      return /\.(jpeg|jpg|png|gif)$/i.test(fileUrl);
+    },
+
     previewImages(images) {
       return images || [];
     },
@@ -181,9 +270,22 @@ export default {
   gap: 0.5rem;
 }
 
+.image-preview {
+  width: 100%;
+}
+
 .image-preview img {
   width: 50px;
   height: 50px;
   object-fit: cover;
+}
+
+.image-preview div {
+  width: 100%;
+}
+
+.threejs-container {
+  width: 100%;
+  height: 500px;
 }
 </style>

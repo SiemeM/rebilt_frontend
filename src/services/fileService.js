@@ -11,9 +11,6 @@ export const uploadFileToCloudinary = async (
   partnerName
 ) => {
   try {
-    uploadStatus.value = "Uploading..."; // Zet de status naar "Uploading"
-    uploadError.value = ""; // Reset de foutmelding
-
     // Controleer of het bestand is meegegeven
     if (!file || !file.name) {
       throw new Error("No file provided or file name is missing.");
@@ -59,14 +56,11 @@ export const uploadFileToCloudinary = async (
       throw new Error("No secure_url found in Cloudinary response");
     }
 
-    // Upload is succesvol
-    uploadStatus.value = "Upload successful!";
+    // Retourneer de secure_url van de upload
     return data.secure_url;
   } catch (error) {
-    // Log de fout naar de console
+    // Fout wordt naar de console gelogd en de foutmelding wordt gegooid
     console.error("Error uploading file:", error);
-    uploadStatus.value = "Upload failed"; // Zet de status op "Upload failed"
-    uploadError.value = error.message || "An unknown error occurred."; // Foutmelding bijwerken
     throw error;
   }
 };
