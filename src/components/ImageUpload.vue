@@ -10,7 +10,7 @@
 
     <div
       class="uploadImage"
-      @click="() => triggerFileInput(index)"
+      @click="() => (isModelLoaded ? null : triggerFileInput(index))"
       :style="{
         justifyContent: colorUploads[index]?.images?.length
           ? 'flex-start'
@@ -38,6 +38,14 @@
         <div v-else>
           <p>3D bestand geüpload:</p>
           <div class="threejs-container" :id="'threejs-' + imgIndex" />
+          <!-- Upload 3D Model Button -->
+          <button
+            @click="triggerFileInput(index)"
+            v-if="isModelLoaded"
+            class="btn active"
+          >
+            Upload 3D model
+          </button>
         </div>
       </div>
     </div>
@@ -51,7 +59,16 @@ import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import { uploadFileToCloudinary } from "../services/fileService"; // Cloudinary upload function
-import { loadGLBModel, loadOBJModel } from "../services/productService";
+import {
+  loadGLBModel,
+  loadOBJModel,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
+  onMouseDown,
+  onMouseMove,
+  onMouseUp,
+} from "../services/productService";
 import { markRaw } from "vue";
 
 let model;
@@ -76,6 +93,10 @@ export default {
       renderer: null,
       scene: null,
       camera: null,
+      isModelLoaded: false,
+      startMouseX: null,
+      startMouseY: null,
+      isMouseDown: false,
     };
   },
 
@@ -99,7 +120,6 @@ export default {
         const fileExtension = file.name.split(".").pop().toLowerCase();
 
         if (this.partnerPackage === "pro") {
-          // Restrict Pro users to uploading only 3D models
           if (["png", "jpg", "jpeg", "webp"].includes(fileExtension)) {
             alert("Pro-gebruikers kunnen alleen 3D-bestanden uploaden.");
             return;
@@ -125,7 +145,6 @@ export default {
             }
           }
         } else {
-          // Restrict Standard users to uploading only 2D images
           if (["glb", "gltf", "obj"].includes(fileExtension)) {
             alert(
               "Standaard-gebruikers kunnen alleen 2D-afbeeldingen uploaden."
@@ -145,15 +164,56 @@ export default {
       }
     },
 
+    loadModel(url, fileExtension) {
+      if (fileExtension === "obj") {
+        loadOBJModel(url)
+          .then((object) => {
+            model = object;
+            this.addModelToScene(model);
+            this.isModelLoaded = true;
+          })
+          .catch((error) => {
+            console.error("Error loading OBJ model:", error);
+          });
+      } else if (["gltf", "glb"].includes(fileExtension)) {
+        loadGLBModel(url)
+          .then((object) => {
+            model = object;
+            this.addModelToScene(model);
+            this.isModelLoaded = true;
+          })
+          .catch((error) => {
+            console.error("Error loading GLB model:", error);
+          });
+      } else {
+        console.error("Unsupported file type:", fileExtension);
+      }
+    },
+
+    render3DModel(url, containerId, fileExtension) {
+      if (!this.isSceneInitialized) {
+        this.initializeScene()
+          .then(() => {
+            this.loadModel(url, fileExtension);
+          })
+          .catch((error) => {
+            console.error("Error initializing scene:", error);
+          });
+      } else {
+        this.loadModel(url, fileExtension);
+      }
+    },
+
     initializeScene() {
       if (this.isSceneInitialized) {
-        console.log("Scene already initialized");
-        return Promise.resolve(); // Return a resolved Promise
+        return Promise.resolve(); // Return a resolved Promise to avoid reinitialization
       }
 
       return new Promise((resolve, reject) => {
+        // Gebruik nextTick om te wachten tot de DOM is bijgewerkt
         nextTick(() => {
           const container = document.getElementById(`threejs-${this.index}`);
+          console.log(container);
           if (!container) {
             console.error(
               "3D container element not found:",
@@ -169,7 +229,7 @@ export default {
             0.1,
             1000
           );
-          this.camera.position.set(0, 5, 15);
+          this.camera.position.set(0, 5, 30); // Zet de camera verder weg
           this.camera.lookAt(0, 0, 0);
 
           this.renderer = new THREE.WebGLRenderer();
@@ -188,64 +248,73 @@ export default {
           this.scene.add(ambientLight);
 
           this.isSceneInitialized = true;
-          console.log("Scene initialized:", this.scene);
 
+          // Voeg event listeners toe nadat de container is gevonden
+          this.addEventListeners(container);
+          console.log(container);
           resolve();
         });
+      });
+    },
+
+    addEventListeners(container) {
+      console.log("Hier ben ik");
+
+      // Zoek het canvas-element in de container (renderer domElement is het canvas)
+      const canvas = this.renderer.domElement;
+      console.log(canvas);
+      if (!canvas) {
+        console.error("Canvas element not found.");
+        return;
+      }
+
+      // Voeg de event listeners toe aan het canvas-element
+      canvas.addEventListener("mousedown", (event) => this.onMouseDown(event));
+      canvas.addEventListener("mousemove", (event) => this.onMouseMove(event));
+      canvas.addEventListener("mouseup", (event) => this.onMouseUp(event));
+
+      canvas.addEventListener(
+        "touchstart",
+        (event) => this.onTouchStart(event),
+        {
+          passive: false,
+        }
+      );
+      canvas.addEventListener("touchmove", (event) => this.onTouchMove(event), {
+        passive: false,
+      });
+      canvas.addEventListener("touchend", (event) => this.onTouchEnd(event), {
+        passive: false,
       });
     },
 
     addModelToScene(model) {
       const rawModel = markRaw(model); // Mark model as non-reactive
 
-      // Compute bounding box to adjust scale and position
+      // Bereken de bounding box van het model
       const boundingBox = new THREE.Box3().setFromObject(rawModel);
       const size = new THREE.Vector3();
       boundingBox.getSize(size);
 
+      // Bepaal de schaalfactor
       const maxDimension = Math.max(size.x, size.y, size.z);
-      const scaleFactor = 14 / maxDimension;
+      const scaleFactor = 30 / maxDimension;
       rawModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
 
-      // Center the model
+      // Zorg ervoor dat het model gecentreerd is
       const center = new THREE.Vector3();
       boundingBox.getCenter(center);
       rawModel.position.sub(center);
 
+      // Voeg het model toe aan de scène
       this.scene.add(rawModel);
-      this.renderer.render(this.scene, this.camera);
-    },
 
-    render3DModel(url, containerId, fileExtension) {
-      console.log("Rendering 3D model:", url);
-      this.initializeScene()
-        .then(() => {
-          if (fileExtension === "obj") {
-            loadOBJModel(url)
-              .then((object) => {
-                const rawObject = markRaw(object); // Ensure it's not reactive
-                this.addModelToScene(rawObject);
-              })
-              .catch((error) => {
-                console.error("Error loading OBJ model:", error);
-              });
-          } else if (["gltf", "glb"].includes(fileExtension)) {
-            loadGLBModel(url)
-              .then((object) => {
-                model = object;
-                console.log("model", object);
-                this.addModelToScene(model);
-              })
-              .catch((error) => {
-                console.error("Error loading GLB model:", error);
-              });
-          } else {
-            console.error("Unsupported file type:", fileExtension);
-          }
-        })
-        .catch((error) => {
-          console.error("Error initializing scene:", error);
-        });
+      // Zet de camera op een positie die het model zichtbaar maakt
+      this.camera.position.set(0, 5, 30); // Zet de camera verder weg zodat je het model goed kunt zien
+      this.camera.lookAt(0, 0, 0);
+
+      // Render de scène
+      this.renderer.render(this.scene, this.camera);
     },
 
     isImageFile(fileUrl) {
@@ -254,6 +323,71 @@ export default {
 
     previewImages(images) {
       return images || [];
+    },
+
+    rotateModel(deltaX, deltaY) {
+      if (model) {
+        // Bijwerken van de rotatie van het model
+        model.rotation.y += deltaX * 0.005; // X-beweging zorgt voor rotatie om de Y-as
+        model.rotation.x += deltaY * 0.005; // Y-beweging zorgt voor rotatie om de X-as
+
+        // Na het aanpassen van de rotatie, moet de scène opnieuw gerenderd worden
+        this.renderer.render(this.scene, this.camera);
+      }
+    },
+
+    // Begin rotatie bij muisklik
+    onMouseDown(event) {
+      this.isMouseDown = true;
+      this.startMouseX = event.clientX;
+      this.startMouseY = event.clientY;
+      console.log(
+        `Mouse down at X: ${this.startMouseX}, Y: ${this.startMouseY}`
+      );
+    },
+
+    onMouseUp(event) {
+      this.isMouseDown = false;
+      console.log(`Mouse up - Rotation stopped`);
+    },
+
+    onMouseMove(event) {
+      if (this.isMouseDown) {
+        const deltaX = event.clientX - this.startMouseX;
+        const deltaY = event.clientY - this.startMouseY;
+
+        console.log(
+          `Mouse move detected - deltaX: ${deltaX}, deltaY: ${deltaY}`
+        );
+        console.log("hier ben ik");
+        this.rotateModel(deltaX, deltaY);
+
+        // Update startposities
+        this.startMouseX = event.clientX;
+        this.startMouseY = event.clientY;
+      }
+    },
+
+    // Voor touch events
+    onTouchStart(event) {
+      this.startTouchX = event.touches[0].clientX;
+      this.startTouchY = event.touches[0].clientY;
+    },
+
+    onTouchMove(event) {
+      if (this.startTouchX && this.startTouchY) {
+        const deltaX = event.touches[0].clientX - this.startTouchX;
+        const deltaY = event.touches[0].clientY - this.startTouchY;
+        console.log("hier ben ik");
+        this.rotateModel(deltaX, deltaY);
+        this.startTouchX = event.touches[0].clientX;
+        this.startTouchY = event.touches[0].clientY;
+      }
+    },
+
+    onTouchEnd(event) {
+      this.startTouchX = null;
+      this.startTouchY = null;
     },
   },
 };

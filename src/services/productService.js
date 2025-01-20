@@ -27,6 +27,9 @@ const jwtToken = localStorage.getItem("jwtToken");
 const tokenPayload = jwtToken ? JSON.parse(atob(jwtToken.split(".")[1])) : {};
 const partnerId = tokenPayload.companyId;
 const filteredProducts = ref([]); // Correct initialiseren als lege array
+let isMouseDown = false;
+let prevMouseX = 0;
+let prevMouseY = 0;
 
 export const filterProductsByType = (
   partnerId,
@@ -284,6 +287,71 @@ export function loadGLBModel(url) {
       }
     );
   });
+}
+
+// Voorbeeld van wat de handlers kunnen doen
+export function onTouchStart(event) {
+  // Zorg ervoor dat we de initiële positie van de aanrakingen vastleggen
+  event.preventDefault();
+  const touches = event.changedTouches;
+  if (touches.length === 1) {
+    // Verwerk de aanraking voor de rotatie
+    // Bijvoorbeeld de hoek vastleggen op basis van de eerste aanraking
+    this.touchStart = {
+      x: touches[0].clientX,
+      y: touches[0].clientY,
+    };
+  }
+}
+
+export function onTouchMove(event) {
+  event.preventDefault();
+
+  if (this.touchStart) {
+    const touches = event.changedTouches;
+    const deltaX = touches[0].clientX - this.touchStart.x;
+    const deltaY = touches[0].clientY - this.touchStart.y;
+
+    // Hier roep je de rotateModel functie aan met de juiste context
+    if (this.rotateModel) {
+      this.rotateModel(deltaX, deltaY);
+    }
+
+    // Werk de touch start positie bij voor de volgende beweging
+    this.touchStart = { x: touches[0].clientX, y: touches[0].clientY };
+  }
+}
+
+export function onTouchEnd(event) {
+  event.preventDefault();
+  // Hier kun je stoppen met rotatie of resetten van touch posities
+  this.touchStart = null;
+}
+
+export function onMouseDown(event) {
+  event.preventDefault();
+  this.mouseStart = {
+    x: event.clientX,
+    y: event.clientY,
+  };
+}
+
+export function onMouseMove(event) {
+  event.preventDefault();
+  if (this.mouseStart) {
+    const deltaX = event.clientX - this.mouseStart.x;
+    const deltaY = event.clientY - this.mouseStart.y;
+
+    this.rotateModel(deltaX, deltaY);
+
+    // Werk de muis start positie bij
+    this.mouseStart = { x: event.clientX, y: event.clientY };
+  }
+}
+
+export function onMouseUp(event) {
+  event.preventDefault();
+  this.mouseStart = null;
 }
 
 export const addProduct = async ({
