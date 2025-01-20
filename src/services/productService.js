@@ -38,7 +38,6 @@ export const filterProductsByType = (
 ) => {
   // Access the value of filteredProductsRef (which is a ref)
   const filteredProducts = filteredProductsRef.value; // Correctly access the value of the ref
-  console.log("filteredProducts before filtering:", filteredProducts);
 
   if (!Array.isArray(filteredProducts)) {
     console.error(
@@ -55,8 +54,6 @@ export const filterProductsByType = (
       (product) => product.productType === selectedType
     );
   }
-
-  console.log("filteredProducts after filtering:", filteredResults);
 
   return filteredResults;
 };
@@ -124,8 +121,6 @@ export const fetchProductTypes = async (partnerId) => {
     // Convert the Set to an array before returning
     const productTypes = Array.from(productTypesSet);
 
-    console.log(productTypes); // Optioneel: om de productTypes te loggen
-
     // Return de productTypes (Altijd als array)
     return productTypes || []; // Ensure it returns an array, even if no product types are found
   } catch (error) {
@@ -176,8 +171,6 @@ export async function getcolors(partnerId) {
       });
     });
 
-    console.log("Selected Options without duplicates:", selectedOptions);
-
     // Controleer of optionId bestaat voordat je de optie probeert op te halen
     const detailedOptions = await Promise.all(
       selectedOptions.map(async (option) => {
@@ -220,8 +213,6 @@ export async function getcolors(partnerId) {
     // Filter null-waarden (verwijder ongeldige opties)
     const validOptions = detailedOptions.filter((option) => option !== null);
 
-    console.log("Valid Options:", validOptions);
-
     return validOptions;
   } catch (error) {
     console.error("Error in getcolors:", error);
@@ -236,7 +227,6 @@ export const fetchcolors = async (partnerName) => {
     name: option.name || "Unnamed Color",
     images: option.images || [],
   }));
-  console.log(colors.value);
 };
 
 export const load3DModel = async (filePath) => {

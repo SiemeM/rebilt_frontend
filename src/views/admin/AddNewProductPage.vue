@@ -143,7 +143,6 @@ onMounted(async () => {
 
       // Stap 6: Haal de producten op en filter ze
       const fetchedProductTypes = await fetchProductTypes(partnerId);
-      console.log(fetchedProductTypes);
 
       // Unwrap the Proxy using toRaw (for Vue's reactive data)
       const unwrappedProductTypes = toRaw(fetchedProductTypes);
@@ -154,8 +153,6 @@ onMounted(async () => {
       } else {
         console.error("Fetched product types are not an array.");
       }
-
-      console.log("Processed Product Types:", productTypes.value); // Debugging log
     } catch (error) {
       console.error("Error during initialization:", error);
     }
@@ -170,7 +167,7 @@ onMounted(async () => {
   <Navigation />
   <div class="content">
     <h1>Add new product</h1>
-    <form @submit.prevent="handleSubmit">
+    <form @submit.prevent="addProduct">
       <div class="row">
         <div class="column">
           <label for="productCode">Product Code:</label>

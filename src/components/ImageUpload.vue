@@ -213,7 +213,6 @@ export default {
         // Gebruik nextTick om te wachten tot de DOM is bijgewerkt
         nextTick(() => {
           const container = document.getElementById(`threejs-${this.index}`);
-          console.log(container);
           if (!container) {
             console.error(
               "3D container element not found:",
@@ -251,18 +250,14 @@ export default {
 
           // Voeg event listeners toe nadat de container is gevonden
           this.addEventListeners(container);
-          console.log(container);
           resolve();
         });
       });
     },
 
     addEventListeners(container) {
-      console.log("Hier ben ik");
-
       // Zoek het canvas-element in de container (renderer domElement is het canvas)
       const canvas = this.renderer.domElement;
-      console.log(canvas);
       if (!canvas) {
         console.error("Canvas element not found.");
         return;
@@ -341,25 +336,16 @@ export default {
       this.isMouseDown = true;
       this.startMouseX = event.clientX;
       this.startMouseY = event.clientY;
-      console.log(
-        `Mouse down at X: ${this.startMouseX}, Y: ${this.startMouseY}`
-      );
     },
 
     onMouseUp(event) {
       this.isMouseDown = false;
-      console.log(`Mouse up - Rotation stopped`);
     },
 
     onMouseMove(event) {
       if (this.isMouseDown) {
         const deltaX = event.clientX - this.startMouseX;
         const deltaY = event.clientY - this.startMouseY;
-
-        console.log(
-          `Mouse move detected - deltaX: ${deltaX}, deltaY: ${deltaY}`
-        );
-        console.log("hier ben ik");
         this.rotateModel(deltaX, deltaY);
 
         // Update startposities
@@ -378,7 +364,6 @@ export default {
       if (this.startTouchX && this.startTouchY) {
         const deltaX = event.touches[0].clientX - this.startTouchX;
         const deltaY = event.touches[0].clientY - this.startTouchY;
-        console.log("hier ben ik");
         this.rotateModel(deltaX, deltaY);
         this.startTouchX = event.touches[0].clientX;
         this.startTouchY = event.touches[0].clientY;
