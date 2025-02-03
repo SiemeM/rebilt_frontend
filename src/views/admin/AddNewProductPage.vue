@@ -10,7 +10,6 @@ import DropdownToggle from "../../components/DropdownToggle.vue";
 import DropdownToggleColor from "../../components/DropdownToggleColor.vue";
 import ColorSelectionToggle from "../../components/ColorSelectionToggle.vue";
 import ImageUpload from "../../components/ImageUpload.vue";
-
 // Reactive variables
 const selectedColors = ref([]);
 const partnerConfigurations = ref([]);
@@ -79,7 +78,9 @@ const fetchcolors = async (partnerId) => {
   }
 };
 
-// Main onMounted lifecycle hook
+// Bijwerken van kleuren per configuratie:
+const fetchedColorsPerConfig = {};
+
 onMounted(async () => {
   if (!partnerId) {
     console.error("❌ Partner ID is niet beschikbaar.");
@@ -110,19 +111,29 @@ onMounted(async () => {
     // Wait for Vue reactivity to process the color updates
     await nextTick();
 
-    // Now we can safely access the fetched colors
+    // Map kleuren per configuratie
     const rawFetchedColors = fetchedColors.value;
 
     if (rawFetchedColors.length > 0) {
-      // Add colors to partner configurations
+      // Zorg ervoor dat elke configuratie zijn eigen kleurset krijgt
       partnerConfigurations.value.forEach((config) => {
         if (config?.configurationDetails?.fieldType === "color") {
-          config.colors = config.colors || [];
-          rawFetchedColors.forEach((color) => {
-            config.colors.push({
-              name: color.name || "Unnamed Color",
-            });
+          const configId = config.configurationId._id;
+
+          // Filter de kleuren die specifiek voor deze configuratie zijn
+          const configColors = config.options.map((option) => {
+            return rawFetchedColors.find(
+              (color) => color.optionId === option.optionId._id
+            );
           });
+
+          // Sla de kleuren op voor deze configuratie
+          fetchedColorsPerConfig[configId] = configColors;
+
+          console.log(
+            `Gekoppelde kleuren voor configuratie ${configId}:`,
+            fetchedColorsPerConfig[configId]
+          );
         }
       });
     } else {
@@ -290,12 +301,18 @@ onMounted(async () => {
         >
           <div class="row">
             <div class="column">
-              <label :for="config.configurationDetails.fieldName">
+              <!-- Zorg ervoor dat config.configurationDetails bestaat -->
+              <label
+                v-if="config.configurationDetails"
+                :for="config.configurationDetails.fieldName"
+              >
                 {{ config.configurationDetails.fieldName }}:
               </label>
 
               <!-- Text field -->
-              <template v-if="config.configurationDetails.fieldType === 'Text'">
+              <template
+                v-if="config.configurationDetails?.fieldType === 'Text'"
+              >
                 <input
                   v-model="config.value"
                   :id="config.configurationDetails.fieldName"
@@ -305,7 +322,9 @@ onMounted(async () => {
 
               <!-- Dropdown field -->
               <template
-                v-else-if="config.configurationDetails.fieldType === 'Dropdown'"
+                v-else-if="
+                  config.configurationDetails?.fieldType === 'Dropdown'
+                "
               >
                 <DropdownToggleColor
                   :fieldName="config.configurationDetails.fieldName"
@@ -315,7 +334,6 @@ onMounted(async () => {
                   <div
                     v-for="(option, optionIndex) in configurations"
                     :key="optionIndex"
-                    class="color-option"
                   >
                     <span
                       class="color-bullet"
@@ -328,7 +346,7 @@ onMounted(async () => {
 
               <!-- Color field -->
               <template
-                v-else-if="config.configurationDetails.fieldType === 'color'"
+                v-else-if="config.configurationDetails?.fieldType === 'color'"
               >
                 <div class="color-dropdown">
                   <div class="dropdown">
@@ -337,13 +355,18 @@ onMounted(async () => {
                       :dropdownStates="dropdownStates"
                       :buttonText="buttonText"
                     >
-                      <!-- Color selection component with proper handling of colors -->
                       <ColorSelectionToggle
                         v-model:selectedColors="selectedColors"
-                        :colors="fetchedColors.value"
+                        :colors="
+                          fetchedColorsPerConfig[config.configurationId._id] ||
+                          []
+                        "
                         :dropdownStates="dropdownStates"
                         :fieldName="config.configurationDetails.fieldName"
-                        :colorOptions="fetchedColors"
+                        :colorOptions="
+                          fetchedColorsPerConfig[config.configurationId._id] ||
+                          []
+                        "
                       />
                     </DropdownToggleColor>
                   </div>
