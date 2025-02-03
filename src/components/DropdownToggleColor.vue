@@ -25,7 +25,7 @@ export default {
     },
     buttonText: {
       type: String,
-      default: "Toggle Dropdown",
+      default: "Choose your colors",
     },
   },
   data() {

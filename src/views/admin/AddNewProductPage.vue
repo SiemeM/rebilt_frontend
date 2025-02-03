@@ -11,7 +11,6 @@ import DropdownToggleColor from "../../components/DropdownToggleColor.vue";
 import ColorSelectionToggle from "../../components/ColorSelectionToggle.vue";
 import ImageUpload from "../../components/ImageUpload.vue";
 // Reactive variables
-const selectedColors = ref([]);
 const partnerConfigurations = ref([]);
 const productCode = ref("");
 const productName = ref("");
@@ -32,26 +31,28 @@ const colors = ref([]);
 const partnerName = ref("");
 const productTypes = ref([]);
 
-// Button text for color selection
-const buttonText = computed(() => {
-  const selected = selectedColors.value.length;
+// Object to store selected colors per configuration
+const selectedColors = ref({});
+
+const buttonText = (configId) => {
+  const selected = selectedColors.value[configId]?.length || 0;
   if (selected === 0) {
     return "Select colors";
   }
 
-  const colorNames = selectedColors.value
+  const colorNames = selectedColors.value[configId]
     .slice(0, 2)
     .map((color) => color.name)
     .join(", ");
 
-  if (selectedColors.value.length > 2) {
-    return `${colorNames} + ${selectedColors.value.length - 2} more`;
+  if (selectedColors.value[configId].length > 2) {
+    return `${colorNames} + ${selected - 2} more`;
   }
 
   return colorNames;
-});
+};
 
-// Update de kleurinformatie naar de juiste variabele
+// Fetch colors for each configuration
 const fetchedColors = ref([]);
 const fetchcolors = async (partnerId) => {
   try {
@@ -65,20 +66,18 @@ const fetchcolors = async (partnerId) => {
       return;
     }
 
-    // Werk fetchedColors goed bij met kleurinformatie
     fetchedColors.value = selectedOptions.map((option) => ({
       optionId: option.optionId || "",
       name: option.color || "Unnamed Color",
       images: option.images || [],
     }));
-
     console.log("🎨 Geselecteerde kleuren:", fetchedColors.value);
   } catch (error) {
     console.error("❌ Fout in fetchcolors:", error);
   }
 };
 
-// Bijwerken van kleuren per configuratie:
+// Map colors per configuration
 const fetchedColorsPerConfig = {};
 
 onMounted(async () => {
@@ -111,24 +110,21 @@ onMounted(async () => {
     // Wait for Vue reactivity to process the color updates
     await nextTick();
 
-    // Map kleuren per configuratie
     const rawFetchedColors = fetchedColors.value;
 
     if (rawFetchedColors.length > 0) {
-      // Zorg ervoor dat elke configuratie zijn eigen kleurset krijgt
       partnerConfigurations.value.forEach((config) => {
         if (config?.configurationDetails?.fieldType === "color") {
           const configId = config.configurationId._id;
 
-          // Filter de kleuren die specifiek voor deze configuratie zijn
           const configColors = config.options.map((option) => {
             return rawFetchedColors.find(
               (color) => color.optionId === option.optionId._id
             );
           });
 
-          // Sla de kleuren op voor deze configuratie
           fetchedColorsPerConfig[configId] = configColors;
+          selectedColors.value[configId] = []; // Initialize selected colors for this config
 
           console.log(
             `Gekoppelde kleuren voor configuratie ${configId}:`,
@@ -301,7 +297,6 @@ onMounted(async () => {
         >
           <div class="row">
             <div class="column">
-              <!-- Zorg ervoor dat config.configurationDetails bestaat -->
               <label
                 v-if="config.configurationDetails"
                 :for="config.configurationDetails.fieldName"
@@ -353,10 +348,12 @@ onMounted(async () => {
                     <DropdownToggleColor
                       :fieldName="config.configurationDetails.fieldName"
                       :dropdownStates="dropdownStates"
-                      :buttonText="buttonText"
+                      :buttonText="buttonText(config.configurationId._id)"
                     >
                       <ColorSelectionToggle
-                        v-model:selectedColors="selectedColors"
+                        v-model:selectedColors="
+                          selectedColors[config.configurationId._id]
+                        "
                         :colors="
                           fetchedColorsPerConfig[config.configurationId._id] ||
                           []
@@ -376,9 +373,8 @@ onMounted(async () => {
           </div>
         </template>
 
-        <!-- Enkele uploadzone voor 'pro' pakket -->
         <ImageUpload
-          v-for="(selectedColor, colorIndex) in selectedColors"
+          v-for="(selectedColor, colorIndex) in selectedColors.value"
           :key="colorIndex"
           :color="selectedColor"
           :index="colorIndex"
