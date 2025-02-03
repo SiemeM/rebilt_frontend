@@ -37,7 +37,7 @@
         />
         <div v-else>
           <p>3D bestand geüpload:</p>
-          <div class="threejs-container" :id="'threejs-' + imgIndex" />
+          <div class="threejs-container" />
           <!-- Upload 3D Model Button -->
           <button
             @click="triggerFileInput(index)"
@@ -59,16 +59,7 @@ import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import { uploadFileToCloudinary } from "../services/fileService"; // Cloudinary upload function
-import {
-  loadGLBModel,
-  loadOBJModel,
-  onTouchStart,
-  onTouchMove,
-  onTouchEnd,
-  onMouseDown,
-  onMouseMove,
-  onMouseUp,
-} from "../services/productService";
+import { loadGLBModel, loadOBJModel } from "../services/productService";
 import { markRaw } from "vue";
 
 let model;
@@ -212,7 +203,7 @@ export default {
       return new Promise((resolve, reject) => {
         // Gebruik nextTick om te wachten tot de DOM is bijgewerkt
         nextTick(() => {
-          const container = document.getElementById(`threejs-${this.index}`);
+          const container = document.querySelector(`.threejs-container`);
           if (!container) {
             console.error(
               "3D container element not found:",

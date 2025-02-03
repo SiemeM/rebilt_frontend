@@ -5,11 +5,17 @@ import DynamicStyle from "../../components/DynamicStyle.vue";
 import { fetchPartnerData } from "../../services/apiService";
 import { checkToken, fetchPartnerPackage } from "../../services/authService";
 import { fetchPartnerConfigurations } from "../../services/configurationService";
-import { fetchProductTypes, getcolors } from "../../services/productService";
+import {
+  fetchProductTypes,
+  getcolors,
+  add3DProduct,
+  add2DProduct,
+} from "../../services/productService";
 import DropdownToggle from "../../components/DropdownToggle.vue";
 import DropdownToggleColor from "../../components/DropdownToggleColor.vue";
 import ColorSelectionToggle from "../../components/ColorSelectionToggle.vue";
 import ImageUpload from "../../components/ImageUpload.vue";
+
 // Reactive variables
 const partnerConfigurations = ref([]);
 const productCode = ref("");
@@ -79,6 +85,47 @@ const fetchcolors = async (partnerId) => {
 
 // Map colors per configuration
 const fetchedColorsPerConfig = {};
+
+const addNewProduct = async () => {
+  try {
+    // Validate required fields for both packages
+    if (!productName.value || !productPrice.value || !productCode.value) {
+      console.error("❌ Missing required fields.");
+      return;
+    }
+
+    // Check the partner package type and call the corresponding function
+    if (partnerPackage.value === "pro") {
+      // If the partner package is 3D, call add3DProduct
+      await add3DProduct({
+        productCode: productCode.value,
+        productName: productName.value,
+        productType: selectedType.value || "sunglasses",
+        productPrice: productPrice.value,
+        description: description.value,
+        brand: brand.value,
+        activeInactive: "active", // Set status as active
+        partnerId,
+        configurations: partnerConfigurations.value,
+      });
+    } else {
+      // Otherwise, call add2DProduct
+      await add2DProduct({
+        productCode: productCode.value,
+        productName: productName.value,
+        productType: selectedType.value || "sunglasses",
+        productPrice: productPrice.value,
+        description: description.value,
+        brand: brand.value,
+        activeInactive: "active", // Set status as active
+        partnerId,
+        configurations: partnerConfigurations.value,
+      });
+    }
+  } catch (error) {
+    console.error("❌ Error adding product:", error);
+  }
+};
 
 onMounted(async () => {
   if (!partnerId) {
@@ -276,7 +323,7 @@ onMounted(async () => {
               :key="colorIndex"
               class="column"
             >
-              <p>{{ selectedColor.name }} - Upload 3D Model</p>
+              <p>{{ selectedColor.name }} - Upload images</p>
               <ImageUpload
                 :color="selectedColor"
                 :index="colorIndex"
@@ -373,19 +420,29 @@ onMounted(async () => {
           </div>
         </template>
 
-        <ImageUpload
-          v-for="(selectedColor, colorIndex) in selectedColors.value"
-          :key="colorIndex"
-          :color="selectedColor"
-          :index="colorIndex"
-          :colorUploads="colorUploads"
-          :partnerPackage="partnerPackage"
-          :partnerName="partnerName"
-        />
+        <!-- Display one ImageUpload if there's at least one selected color -->
+        <template
+          v-if="
+            Object.values(selectedColors).some((colors) => colors.length > 0)
+          "
+        >
+          <ImageUpload
+            :color="
+              Object.values(selectedColors).find(
+                (colors) => colors.length > 0
+              )[0]
+            "
+            :colorUploads="colorUploads"
+            :partnerPackage="partnerPackage"
+            :partnerName="partnerName"
+          />
+        </template>
       </template>
 
       <!-- Submit button to trigger the form submission -->
-      <button class="btn active" type="submit">Add product</button>
+      <button class="btn active" type="submit" @click="addNewProduct">
+        Add product
+      </button>
     </form>
   </div>
 </template>

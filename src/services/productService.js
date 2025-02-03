@@ -27,6 +27,7 @@ const jwtToken = localStorage.getItem("jwtToken");
 const tokenPayload = jwtToken ? JSON.parse(atob(jwtToken.split(".")[1])) : {};
 const partnerId = tokenPayload.companyId;
 const filteredProducts = ref([]); // Correct initialiseren als lege array
+const partnerConfigurations = ref([]);
 let isMouseDown = false;
 let prevMouseX = 0;
 let prevMouseY = 0;
@@ -311,7 +312,7 @@ export function onMouseUp(event) {
   this.mouseStart = null;
 }
 
-export const addProduct = async ({
+export const add2DProduct = async ({
   productCode,
   productName,
   productType,
@@ -323,13 +324,8 @@ export const addProduct = async ({
   configurations,
 }) => {
   try {
-    // Log de configuraties om te zien of de afbeeldingen zijn toegevoegd
-    configurations.forEach((config) => {
-      config.selectedOptions.forEach((option) => {});
-    });
-
-    // Verstuur de POST-aanroep naar de /products endpoint met de juiste data structuur
-    const response = await axios.post(baseURL + "/products", {
+    // Log product details for debugging purposes
+    console.log("Adding 2D Product with these details:", {
       productCode,
       productName,
       productType,
@@ -338,10 +334,98 @@ export const addProduct = async ({
       brand,
       activeInactive,
       partnerId,
-      configurations, // Dit is nu de geformatteerde configuraties met afbeeldingen
+      configurations,
     });
+
+    // Make POST request to add the 2D product
+    const response = await axios.post("/api/v1/products", {
+      productCode,
+      productName,
+      productType,
+      productPrice,
+      description,
+      brand,
+      activeInactive,
+      partnerId,
+      configurations,
+    });
+
+    if (response.status === 201) {
+      console.log("Product added successfully:", response.data);
+    } else {
+      console.error("❌ Failed to add 2D product.");
+    }
   } catch (error) {
-    console.error("Error adding product:", error);
-    throw error; // Rethrow de fout zodat hij kan worden opgevangen in handleSubmit
+    console.error("❌ Error adding 2D product:", error);
+    throw error; // Rethrow error to be handled in the calling function
+  }
+};
+
+export const add3DProduct = async () => {
+  if (!productName.value || !productPrice.value) {
+    errorMessage.value = "Product name and price are required.";
+    return;
+  }
+
+  const configurations = [];
+
+  for (const config of partnerConfigurations.value) {
+    const selectedOptions = [];
+
+    if (config.fieldType === "color" && colors.value.length > 0) {
+      const selectedColor = colors.value[0];
+      const selectedOptionId = selectedColor.optionId || selectedColor;
+
+      if (!selectedOptionId) {
+        console.warn("Skipping color with undefined optionId:", selectedColor);
+        continue;
+      }
+
+      const optionResponse = await axios.get(
+        `${baseURL}/options/${selectedOptionId}`
+      );
+
+      const option = optionResponse.data;
+
+      const images = color3DImages.value.map((image) => image);
+
+      selectedOptions.push({
+        optionId: option.data._id,
+        images,
+        _id: `${option.data._id}-${Date.now()}`,
+      });
+    }
+
+    if (selectedOptions.length > 0) {
+      configurations.push({
+        configurationId: config.configurationId._id,
+        selectedOptions,
+      });
+    }
+  }
+
+  const productData = {
+    productCode: productCode.value,
+    productName: productName.value,
+    productType: selectedType.value || "sunglasses",
+    brand: brand.value,
+    description: description.value,
+    productPrice: productPrice.value,
+    activeInactive: "active",
+    partnerId,
+    configurations,
+  };
+
+  const response = await axios.post(`${baseURL}/products`, productData, {
+    headers: {
+      Authorization: `Bearer ${jwtToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (response.status === 201) {
+    router.push("/admin");
+  } else {
+    errorMessage.value = "Failed to add 3D product.";
   }
 };
