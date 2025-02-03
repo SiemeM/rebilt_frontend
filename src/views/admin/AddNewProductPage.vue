@@ -1,77 +1,45 @@
 <script setup>
-import { toRaw } from "vue";
-import { ref, computed, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import axios from "axios";
+import { ref, computed, onMounted, nextTick } from "vue";
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
 import { fetchPartnerData } from "../../services/apiService";
 import { checkToken, fetchPartnerPackage } from "../../services/authService";
-import {
-  fetchPartnerConfigurations,
-  fetchOptionNames,
-  addNewColor,
-} from "../../services/configurationService";
-
-import {
-  fetchProducts,
-  filterProductsByType,
-  addProduct,
-  getcolors,
-  fetchcolors,
-  fetchProductTypes,
-} from "../../services/productService";
-
+import { fetchPartnerConfigurations } from "../../services/configurationService";
+import { fetchProductTypes, getcolors } from "../../services/productService";
 import DropdownToggle from "../../components/DropdownToggle.vue";
 import DropdownToggleColor from "../../components/DropdownToggleColor.vue";
 import ColorSelectionToggle from "../../components/ColorSelectionToggle.vue";
 import ImageUpload from "../../components/ImageUpload.vue";
-import { uploadFileToCloudinary } from "../../services/fileService";
 
-const selectedColors = ref([]); // Selected colors for the product
-const partnerConfigurations = ref([]); // Partner configuration data
-const productCode = ref(""); // Product code
-const productName = ref(""); // Product name
-const brand = ref(""); // Product brand
-const productPrice = ref(""); // Product price
-const description = ref(""); // Product description
-const colorUploads = ref([]); // For storing uploaded images per color
-const dropdownStates = ref({}); // Dropdown toggle states
-const newColorName = ref(""); // New color name input
-const newProducts = ref([]); // Lege array voor reactiviteit
+// Reactive variables
+const selectedColors = ref([]);
+const partnerConfigurations = ref([]);
+const productCode = ref("");
+const productName = ref("");
+const brand = ref("");
+const productPrice = ref("");
+const description = ref("");
+const colorUploads = ref([]);
+const dropdownStates = ref({});
+const newColorName = ref("");
+const newProducts = ref([]);
 
 const jwtToken = localStorage.getItem("jwtToken");
 const tokenPayload = jwtToken ? JSON.parse(atob(jwtToken.split(".")[1])) : {};
 const partnerId = tokenPayload.companyId;
-const selectedType = ref(""); // Selected product type
-const partnerPackage = ref(""); // Partner package
-const colors = ref([]); // List of colors for selection
-const uploadError = ref("");
+const selectedType = ref("");
+const partnerPackage = ref("");
+const colors = ref([]);
 const partnerName = ref("");
 const productTypes = ref([]);
-
-const addProductType = (productTypes, newType) => {
-  // Ensure productTypes is an array before proceeding
-  if (!Array.isArray(productTypes)) {
-    console.error("productTypes is not an array", productTypes);
-    return; // Stop execution if productTypes is not an array
-  }
-
-  if (!productTypes.includes(newType)) {
-    productTypes.push(newType);
-  } else {
-    console.warn("This product type already exists!");
-  }
-};
 
 // Button text for color selection
 const buttonText = computed(() => {
   const selected = selectedColors.value.length;
   if (selected === 0) {
-    return "Select colors"; // No colors selected
+    return "Select colors";
   }
 
-  // If there are selected colors, show them in the button text (up to 2)
   const colorNames = selectedColors.value
     .slice(0, 2)
     .map((color) => color.name)
@@ -84,80 +52,88 @@ const buttonText = computed(() => {
   return colorNames;
 });
 
-onMounted(async () => {
-  if (partnerId) {
-    try {
-      // Stap 1: Controleer de token
-      await checkToken();
-
-      // Stap 2: Haal partnerdata op
-      const partnerData = await fetchPartnerData(partnerId, jwtToken);
-      if (partnerData && partnerData.name) {
-        partnerName.value = partnerData.name;
-      } else {
-        console.error("Partner data or partner name is missing.");
-      }
-
-      // Stap 3: Haal het partner package op
-      const partnerPackageResponse = await fetchPartnerPackage(partnerId);
-      partnerPackage.value = partnerPackageResponse;
-
-      if (partnerPackageResponse) {
-        partnerPackage.value = partnerPackageResponse;
-      } else {
-        console.error("Partner package data is missing.");
-      }
-
-      // Stap 4: Haal partner configuraties op
-      const { partnerConfigs } = await fetchPartnerConfigurations(
-        partnerId,
-        jwtToken
-      );
-      partnerConfigurations.value = partnerConfigs;
-
-      // Stap 5: Haal de kleuren op voor de configuraties
-      const fetchedColors = await getcolors(partnerId);
-      if (fetchedColors && Array.isArray(fetchedColors)) {
-        colors.value = fetchedColors;
-
-        // Initialiseer de kleurconfiguraties
-        partnerConfigurations.value.forEach((config) => {
-          const fieldName = config.configurationDetails.fieldName;
-          if (config.configurationDetails.fieldType === "color") {
-            // Vul de kleurenarray voor elk fieldName met de opgehaalde kleuren
-            colors.value.forEach((color) => {
-              if (!config.colors) {
-                config.colors = [];
-              }
-
-              // Gebruik enkel de naam van de kleur (geen hex of andere waarde)
-              config.colors.push({
-                name: color.name || "Unnamed Color", // Gebruik de naam, fallback naar "Unnamed Color" als het niet beschikbaar is
-              });
-            });
-          }
-        });
-      } else {
-        console.warn("No colors returned from getcolors");
-      }
-
-      // Stap 6: Haal de producten op en filter ze
-      const fetchedProductTypes = await fetchProductTypes(partnerId);
-
-      // Unwrap the Proxy using toRaw (for Vue's reactive data)
-      const unwrappedProductTypes = toRaw(fetchedProductTypes);
-
-      // Ensure it's an array before assigning to productTypes
-      if (Array.isArray(unwrappedProductTypes)) {
-        productTypes.value = unwrappedProductTypes;
-      } else {
-        console.error("Fetched product types are not an array.");
-      }
-    } catch (error) {
-      console.error("Error during initialization:", error);
+// Update de kleurinformatie naar de juiste variabele
+const fetchedColors = ref([]);
+const fetchcolors = async (partnerId) => {
+  try {
+    const selectedOptions = await getcolors(partnerId);
+    if (
+      !selectedOptions ||
+      !Array.isArray(selectedOptions) ||
+      selectedOptions.length === 0
+    ) {
+      console.error("❌ Geen geldige kleuren ontvangen");
+      return;
     }
-  } else {
-    console.error("Partner ID is not available.");
+
+    // Werk fetchedColors goed bij met kleurinformatie
+    fetchedColors.value = selectedOptions.map((option) => ({
+      optionId: option.optionId || "",
+      name: option.color || "Unnamed Color",
+      images: option.images || [],
+    }));
+
+    console.log("🎨 Geselecteerde kleuren:", fetchedColors.value);
+  } catch (error) {
+    console.error("❌ Fout in fetchcolors:", error);
+  }
+};
+
+// Main onMounted lifecycle hook
+onMounted(async () => {
+  if (!partnerId) {
+    console.error("❌ Partner ID is niet beschikbaar.");
+    return;
+  }
+
+  try {
+    await checkToken();
+
+    // Fetch partner data
+    const partnerData = await fetchPartnerData(partnerId, jwtToken);
+    partnerName.value = partnerData?.name || "";
+
+    // Fetch partner package
+    const partnerPackageResponse = await fetchPartnerPackage(partnerId);
+    partnerPackage.value = partnerPackageResponse || "";
+
+    // Fetch partner configurations
+    const { partnerConfigs } = await fetchPartnerConfigurations(
+      partnerId,
+      jwtToken
+    );
+    partnerConfigurations.value = partnerConfigs || [];
+
+    // Fetch colors
+    await fetchcolors(partnerId);
+
+    // Wait for Vue reactivity to process the color updates
+    await nextTick();
+
+    // Now we can safely access the fetched colors
+    const rawFetchedColors = fetchedColors.value;
+
+    if (rawFetchedColors.length > 0) {
+      // Add colors to partner configurations
+      partnerConfigurations.value.forEach((config) => {
+        if (config?.configurationDetails?.fieldType === "color") {
+          config.colors = config.colors || [];
+          rawFetchedColors.forEach((color) => {
+            config.colors.push({
+              name: color.name || "Unnamed Color",
+            });
+          });
+        }
+      });
+    } else {
+      console.warn("⚠️ Geen kleuren gevonden.");
+    }
+
+    // Fetch product types
+    const fetchedProductTypes = await fetchProductTypes(partnerId);
+    productTypes.value = fetchedProductTypes;
+  } catch (error) {
+    console.error("❌ Error tijdens initialisatie:", error);
   }
 });
 </script>
@@ -273,12 +249,11 @@ onMounted(async () => {
                       :buttonText="buttonText"
                     >
                       <ColorSelectionToggle
-                        v-model="selectedColors"
-                        :fieldName="'colorField'"
+                        v-model:selectedColors="selectedColors"
+                        :colors="colors.value"
                         :dropdownStates="dropdownStates"
-                        :colorOptions="colorOptions"
-                        @update:selectedColors="updateSelectedColors"
-                        @update:colorOptions="updateColorOptions"
+                        :fieldName="config.configurationDetails.fieldName"
+                        :colorOptions="colors.value"
                       />
                     </DropdownToggleColor>
                   </div>
@@ -340,12 +315,13 @@ onMounted(async () => {
                   <div
                     v-for="(option, optionIndex) in configurations"
                     :key="optionIndex"
+                    class="color-option"
                   >
                     <span
                       class="color-bullet"
-                      :style="{ backgroundColor: color.name || 'transparent' }"
+                      :style="{ backgroundColor: option.name || 'transparent' }"
                     ></span>
-                    {{ color.name || "Unnamed Color" }}
+                    {{ option.name || "Unnamed Color" }}
                   </div>
                 </DropdownToggleColor>
               </template>
@@ -361,12 +337,13 @@ onMounted(async () => {
                       :dropdownStates="dropdownStates"
                       :buttonText="buttonText"
                     >
+                      <!-- Color selection component with proper handling of colors -->
                       <ColorSelectionToggle
                         v-model:selectedColors="selectedColors"
-                        :colors="colors[config.configurationDetails.fieldName]"
+                        :colors="fetchedColors.value"
                         :dropdownStates="dropdownStates"
                         :fieldName="config.configurationDetails.fieldName"
-                        :colorOptions="colors"
+                        :colorOptions="fetchedColors"
                       />
                     </DropdownToggleColor>
                   </div>

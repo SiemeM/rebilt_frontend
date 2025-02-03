@@ -131,102 +131,69 @@ export const fetchProductTypes = async (partnerId) => {
 
 export async function getcolors(partnerId) {
   try {
-    // Verkrijg partnerinformatie
-    const partnerResponse = await axios.get(`${baseURL}/partners/${partnerId}`);
-    const partnerName = partnerResponse.data.data.partner.name;
+    const configResponse = await axios.get(
+      `${baseURL}/partnerConfigurations?partnerId=${partnerId}`
+    );
 
-    if (!partnerName) {
-      throw new Error("Partner name not found");
+    if (configResponse.data.status !== "success" || !configResponse.data.data) {
+      throw new Error("❌ Geen configuraties gevonden voor deze partner.");
     }
 
-    // Verkrijg producten van de partner
-    const apiUrl = `${baseURL}/products?partnerName=${partnerName}`;
-    const response = await axios.get(apiUrl);
-    const data = response.data;
+    const configurations = configResponse.data.data;
 
-    if (data.status !== "success" || !data.data.products) {
-      throw new Error("Ongeldige API-reactie of geen producten gevonden.");
-    }
+    const selectedColors = [];
 
-    // Verkrijg geselecteerde opties voor elk product en verwijder duplicaten
-    const products = data.data.products;
+    configurations.forEach((config) => {
+      if (config.options.length > 0) {
+        config.options.forEach((option) => {
+          const optionId = option.optionId?._id;
+          const colorName = option.optionId?.name; // Naam of hex-waarde van de kleur
 
-    const selectedOptions = [];
-
-    // Verzamel alle geselecteerde opties zonder duplicaten
-    products.forEach((product) => {
-      product.configurations.forEach((configuration) => {
-        configuration.selectedOptions.forEach((option) => {
-          // Voeg optie toe als deze nog niet bestaat in de lijst van geselecteerde opties
           if (
-            option.optionId &&
-            !selectedOptions.some((o) => o.optionId === option.optionId)
+            optionId &&
+            !selectedColors.some((o) => o.optionId === optionId)
           ) {
-            selectedOptions.push({
-              optionId: option.optionId,
-              images: option.images || [],
+            selectedColors.push({
+              optionId,
+              color: colorName || "Unnamed Color",
             });
           }
         });
-      });
+      }
     });
 
-    // Controleer of optionId bestaat voordat je de optie probeert op te halen
-    const detailedOptions = await Promise.all(
-      selectedOptions.map(async (option) => {
-        if (!option.optionId) {
-          console.warn(
-            "Optie zonder geldige optionId, wordt overgeslagen:",
-            option
-          );
-          return null; // Skip optie als optionId ontbreekt
-        }
-
-        try {
-          const optionResponse = await axios.get(
-            `${baseURL}/options/${option.optionId}`
-          );
-
-          if (optionResponse.data.status !== "success") {
-            console.warn(`Geen geldige optie gevonden voor ${option.optionId}`);
-            return null;
-          }
-
-          const optionData = optionResponse.data.data;
-
-          return {
-            optionId: option.optionId,
-            name: optionData.name,
-            color: optionData.name, // Dit kan eventueel worden aangepast naar de kleur
-            images: option.images, // Voeg de afbeeldingen toe
-          };
-        } catch (optionError) {
-          console.error(
-            `Fout bij ophalen van optie ${option.optionId}:`,
-            optionError
-          );
-          return null; // Retourneer null als er een probleem is met deze optie
-        }
-      })
-    );
-
-    // Filter null-waarden (verwijder ongeldige opties)
-    const validOptions = detailedOptions.filter((option) => option !== null);
-
-    return validOptions;
+    return selectedColors;
   } catch (error) {
-    console.error("Error in getcolors:", error);
-    return []; // Retourneer een lege array in geval van fout
+    console.error("❌ Fout in getcolors:", error);
+    return []; // Retourneer een lege array bij een fout
   }
 }
 
-export const fetchcolors = async (partnerName) => {
-  const selectedOptions = await getcolors(partnerName);
-  colors.value = selectedOptions.map((option) => ({
-    optionId: option.optionId,
-    name: option.name || "Unnamed Color",
-    images: option.images || [],
-  }));
+const fetchedColors = ref([]); // Gebruik een ref voor reactieve kleuren
+
+// Zorg ervoor dat `fetchcolors` de `colors.value` goed bijwerkt:
+export const fetchcolors = async (partnerId) => {
+  try {
+    const selectedOptions = await getcolors(partnerId);
+
+    if (
+      !selectedOptions ||
+      !Array.isArray(selectedOptions) ||
+      selectedOptions.length === 0
+    ) {
+      console.error("❌ Geen geldige kleuren ontvangen");
+      return;
+    }
+
+    // Ensure that fetchedColors.value is properly updated
+    fetchedColors.value = selectedOptions.map((option) => ({
+      optionId: option.optionId || "",
+      name: option.color || "Unnamed Color",
+      images: option.images || [],
+    }));
+  } catch (error) {
+    console.error("❌ Fout in fetchcolors:", error);
+  }
 };
 
 export const load3DModel = async (filePath) => {
@@ -358,11 +325,7 @@ export const addProduct = async ({
   try {
     // Log de configuraties om te zien of de afbeeldingen zijn toegevoegd
     configurations.forEach((config) => {
-      config.selectedOptions.forEach((option) => {
-        console.log("Configuration ID:", config.configurationId);
-        console.log("Option ID:", option.optionId);
-        console.log("Images for this option:", option.images);
-      });
+      config.selectedOptions.forEach((option) => {});
     });
 
     // Verstuur de POST-aanroep naar de /products endpoint met de juiste data structuur
@@ -377,8 +340,6 @@ export const addProduct = async ({
       partnerId,
       configurations, // Dit is nu de geformatteerde configuraties met afbeeldingen
     });
-
-    console.log("Product added successfully:", response.data);
   } catch (error) {
     console.error("Error adding product:", error);
     throw error; // Rethrow de fout zodat hij kan worden opgevangen in handleSubmit
