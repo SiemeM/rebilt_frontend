@@ -4,6 +4,8 @@ import axios from "axios";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
+import { useRouter } from "vue-router";
+const router = useRouter();
 
 // Setup loaders
 const dracoLoader = new DRACOLoader();
@@ -362,70 +364,141 @@ export const add2DProduct = async ({
 };
 
 export const add3DProduct = async () => {
-  if (!productName.value || !productPrice.value) {
-    errorMessage.value = "Product name and price are required.";
-    return;
-  }
+  try {
+    console.log("✅ Start add3DProduct...");
 
-  const configurations = [];
+    if (!productName.value || !productPrice.value) {
+      errorMessage.value = "❌ Productnaam en prijs zijn verplicht.";
+      console.error(errorMessage.value);
+      return;
+    }
 
-  for (const config of partnerConfigurations.value) {
-    const selectedOptions = [];
+    // ✅ Zorg ervoor dat configurations altijd een array is
+    let configurations = [];
 
-    if (config.fieldType === "color" && colors.value.length > 0) {
-      const selectedColor = colors.value[0];
-      const selectedOptionId = selectedColor.optionId || selectedColor;
+    console.log("🔍 partnerConfigurations.value:", partnerConfigurations.value);
 
-      if (!selectedOptionId) {
-        console.warn("Skipping color with undefined optionId:", selectedColor);
-        continue;
+    if (!Array.isArray(partnerConfigurations.value)) {
+      console.error(
+        "❌ partnerConfigurations is niet correct geïnitialiseerd.",
+        partnerConfigurations.value
+      );
+      return;
+    }
+
+    for (const config of partnerConfigurations.value) {
+      console.log("🔍 Bezig met configuratie:", config);
+
+      // ✅ Zorg ervoor dat selectedOptions altijd een array is
+      let selectedOptions = [];
+
+      if (config.fieldType === "color") {
+        console.log("🎨 Beschikbare kleuren:", colors.value);
+
+        if (!Array.isArray(colors.value) || colors.value.length === 0) {
+          console.warn("⚠️ Geen kleuren gevonden voor configuratie", config);
+          continue;
+        }
+
+        const selectedColor = colors.value[0]; // Pak de eerste kleur (voor debuggen)
+        const selectedOptionId = selectedColor?.optionId || selectedColor;
+
+        console.log("🔍 Geselecteerde kleur:", selectedColor);
+        console.log("🔍 Geselecteerde optionId:", selectedOptionId);
+
+        if (!selectedOptionId) {
+          console.warn(
+            "⚠️ Kleurconfiguratie overgeslagen: optionId ontbreekt",
+            selectedColor
+          );
+          continue;
+        }
+
+        try {
+          const optionResponse = await axios.get(
+            `${baseURL}/options/${selectedOptionId}`
+          );
+          const option = optionResponse.data;
+
+          console.log("🔍 Ontvangen optiegegevens:", option);
+
+          if (!option?.data?._id) {
+            console.error("❌ Ongeldige optiegegevens ontvangen:", option);
+            continue;
+          }
+
+          // ✅ Zorg ervoor dat color3DImages.value een array is
+          const images = Array.isArray(color3DImages.value)
+            ? color3DImages.value
+            : [];
+
+          console.log("✅ selectedOptions vóór push:", selectedOptions);
+          selectedOptions.push({
+            optionId: option.data._id,
+            images,
+            _id: `${option.data._id}-${Date.now()}`,
+          });
+          console.log("✅ selectedOptions na push:", selectedOptions);
+        } catch (error) {
+          console.error("❌ Fout bij ophalen van optiegegevens:", error);
+          continue;
+        }
       }
 
-      const optionResponse = await axios.get(
-        `${baseURL}/options/${selectedOptionId}`
-      );
+      // ✅ Alleen pushen als er geselecteerde opties zijn
+      if (selectedOptions.length > 0) {
+        console.log("✅ configurations vóór push:", configurations);
 
-      const option = optionResponse.data;
+        configurations.push({
+          configurationId: config.configurationId?._id || "onbekend-config-id",
+          selectedOptions,
+        });
 
-      const images = color3DImages.value.map((image) => image);
-
-      selectedOptions.push({
-        optionId: option.data._id,
-        images,
-        _id: `${option.data._id}-${Date.now()}`,
-      });
+        console.log("✅ configurations na push:", configurations);
+      } else {
+        console.warn("⚠️ Geen geselecteerde opties voor configuratie", config);
+      }
     }
 
-    if (selectedOptions.length > 0) {
-      configurations.push({
-        configurationId: config.configurationId._id,
-        selectedOptions,
-      });
+    console.log("🔍 Eindresultaat configurations:", configurations);
+
+    // **Extra controle** voordat het product wordt toegevoegd
+    if (!Array.isArray(configurations)) {
+      console.error("❌ configurations is geen geldige array:", configurations);
+      return;
     }
-  }
 
-  const productData = {
-    productCode: productCode.value,
-    productName: productName.value,
-    productType: selectedType.value || "sunglasses",
-    brand: brand.value,
-    description: description.value,
-    productPrice: productPrice.value,
-    activeInactive: "active",
-    partnerId,
-    configurations,
-  };
+    const productData = {
+      productCode: productCode.value || "default-code",
+      productName: productName.value,
+      productType: selectedType.value || "sunglasses",
+      brand: brand.value || "onbekend-merk",
+      description: description.value || "",
+      productPrice: productPrice.value,
+      activeInactive: "active",
+      partnerId: partnerId || "onbekend-partner",
+      configurations: configurations, // Zorgt ervoor dat configurations correct wordt meegegeven
+    };
 
-  const response = await axios.post(`${baseURL}/products`, productData, {
-    headers: {
-      Authorization: `Bearer ${jwtToken}`,
-      "Content-Type": "application/json",
-    },
-  });
+    console.log("🔍 Klaar om product toe te voegen:", productData);
 
-  if (response.status === 201) {
-    router.push("/admin");
-  } else {
-    errorMessage.value = "Failed to add 3D product.";
+    // ✅ Voer de API-aanvraag uit
+    const response = await axios.post(`${baseURL}/products`, productData, {
+      headers: {
+        Authorization: `Bearer ${jwtToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.status === 201) {
+      console.log("✅ 3D-product succesvol toegevoegd:", response.data);
+      // router.push("/admin");
+    } else {
+      errorMessage.value = "❌ Fout bij toevoegen van 3D-product.";
+      console.error(errorMessage.value, response);
+    }
+  } catch (error) {
+    console.error("❌ Algemene fout in add3DProduct:", error);
+    errorMessage.value = "❌ Er is een onverwachte fout opgetreden.";
   }
 };
