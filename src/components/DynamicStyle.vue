@@ -253,7 +253,6 @@ const loadFonts = (bodyFont, titleFont) => {
 onMounted(async () => {
   partnerId.value = await getPartnerId();
   if (partnerId.value) {
-    console.log("Partner ID gevonden:", partnerId.value);
     await getHouseStyleFromDatabase(partnerId.value);
   } else {
     console.warn("Geen partner ID gevonden, fallback stijlen toepassen.");

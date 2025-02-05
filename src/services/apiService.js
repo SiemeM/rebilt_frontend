@@ -23,7 +23,6 @@ export const fetchPartnerData = async (partnerId, jwtToken) => {
     });
 
     const partner = response.data?.data?.partner;
-    console.log(partner);
     if (partner) {
       return partner;
     } else {

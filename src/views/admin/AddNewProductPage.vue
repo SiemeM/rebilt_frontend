@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from "vue";
+import { ref, toRaw, computed, onMounted, nextTick } from "vue";
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
 import { fetchPartnerData } from "../../services/apiService";
@@ -25,6 +25,8 @@ const productPrice = ref("");
 const description = ref("");
 const colorUploads = ref([]);
 const dropdownStates = ref({});
+const uploadedFile = ref(null);
+
 const newColorName = ref("");
 const newProducts = ref([]);
 
@@ -77,7 +79,6 @@ const fetchcolors = async (partnerId) => {
       name: option.color || "Unnamed Color",
       images: option.images || [],
     }));
-    console.log("🎨 Geselecteerde kleuren:", fetchedColors.value);
   } catch (error) {
     console.error("❌ Fout in fetchcolors:", error);
   }
@@ -86,42 +87,53 @@ const fetchcolors = async (partnerId) => {
 // Map colors per configuration
 const fetchedColorsPerConfig = {};
 
+const handleFileUpload = (fileUrl) => {
+  console.log("Bestand geüpload:", fileUrl);
+
+  if (!fileUrl || !fileUrl[0]) {
+    console.error("❌ Geen geldige afbeeldings-URL.");
+    return;
+  }
+
+  // Zet de eerste waarde van de array als de URL
+  uploadedFile.value = fileUrl[0]; // Gebruik enkel de eerste URL als string
+};
+
 const addNewProduct = async () => {
   try {
-    // Validate required fields for both packages
     if (!productName.value || !productPrice.value || !productCode.value) {
       console.error("❌ Missing required fields.");
       return;
     }
 
-    // Check the partner package type and call the corresponding function
-    if (partnerPackage.value === "pro") {
-      // If the partner package is 3D, call add3DProduct
-      await add3DProduct({
-        productCode: productCode.value,
-        productName: productName.value,
-        productType: selectedType.value || "sunglasses",
-        productPrice: productPrice.value,
-        description: description.value,
-        brand: brand.value,
-        activeInactive: "active", // Set status as active
-        partnerId,
-        configurations: partnerConfigurations.value,
-      });
-    } else {
-      // Otherwise, call add2DProduct
-      await add2DProduct({
-        productCode: productCode.value,
-        productName: productName.value,
-        productType: selectedType.value || "sunglasses",
-        productPrice: productPrice.value,
-        description: description.value,
-        brand: brand.value,
-        activeInactive: "active", // Set status as active
-        partnerId,
-        configurations: partnerConfigurations.value,
-      });
+    if (!uploadedFile.value) {
+      console.error("❌ No file uploaded.");
+      return;
     }
+
+    // Make sure to check color selections
+    if (
+      Object.values(selectedColors.value).every((colors) => colors.length === 0)
+    ) {
+      console.error("❌ No colors selected.");
+      return;
+    }
+
+    console.log(uploadedFile.value); // Debugging the file URL
+
+    // Validate partner configurations and make the API call
+    await add3DProduct({
+      productCode: productCode.value,
+      productName: productName.value,
+      productType: selectedType.value || "sunglasses",
+      productPrice: productPrice.value,
+      description: description.value,
+      brand: brand.value,
+      activeInactive: "active",
+      partnerId,
+      configurations: partnerConfigurations.value,
+      file: uploadedFile.value, // This will pass the file URL
+    });
   } catch (error) {
     console.error("❌ Error adding product:", error);
   }
@@ -172,11 +184,6 @@ onMounted(async () => {
 
           fetchedColorsPerConfig[configId] = configColors;
           selectedColors.value[configId] = []; // Initialize selected colors for this config
-
-          console.log(
-            `Gekoppelde kleuren voor configuratie ${configId}:`,
-            fetchedColorsPerConfig[configId]
-          );
         }
       });
     } else {
@@ -197,7 +204,7 @@ onMounted(async () => {
   <Navigation />
   <div class="content">
     <h1>Add new product</h1>
-    <form @submit.prevent="addProduct">
+    <form @submit.prevent="addNewProduct">
       <div class="row">
         <div class="column">
           <label for="productCode">Product Code:</label>
@@ -212,7 +219,6 @@ onMounted(async () => {
       <div class="row">
         <div class="column">
           <label for="productType">Type Of Product:</label>
-          <!-- Replacing select dropdown with DropdownToggle for product type -->
           <div class="dropdown" v-if="productTypes.length > 0">
             <DropdownToggle
               v-model="selectedType"
@@ -247,8 +253,7 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Render partner configurations dynamically, with ImageUpload inline -->
-      <!-- Template voor 'standard' package -->
+      <!-- Render partner configurations dynamically -->
       <template v-if="partnerPackage == 'standard'">
         <template
           v-for="(config, index) in partnerConfigurations"
@@ -336,7 +341,7 @@ onMounted(async () => {
         </template>
       </template>
 
-      <!-- Template voor 'pro' package -->
+      <!-- Submit Button -->
       <template v-if="partnerPackage == 'pro'">
         <template
           v-for="(config, index) in partnerConfigurations"
@@ -427,6 +432,7 @@ onMounted(async () => {
           "
         >
           <ImageUpload
+            @file-uploaded="handleFileUpload"
             :color="
               Object.values(selectedColors).find(
                 (colors) => colors.length > 0
@@ -438,11 +444,7 @@ onMounted(async () => {
           />
         </template>
       </template>
-
-      <!-- Submit button to trigger the form submission -->
-      <button class="btn active" type="submit" @click="addNewProduct">
-        Add product
-      </button>
+      <button class="btn active" type="submit">Add Product</button>
     </form>
   </div>
 </template>

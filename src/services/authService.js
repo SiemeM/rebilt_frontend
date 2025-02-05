@@ -42,7 +42,6 @@ export async function fetchPartnerPackage(partnerId) {
     if (!response.ok) throw new Error("Network response was not ok");
     const data = await response.json();
     const packageData = data.data?.partner?.package || null; // Verifieer de structuur
-    console.log("Fetched partner package:", packageData);
     return packageData; // Retourneer het partner package
   } catch (err) {
     console.error("Error fetching partner package:", err);

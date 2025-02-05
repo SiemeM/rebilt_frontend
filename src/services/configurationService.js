@@ -55,9 +55,6 @@ export const fetchPartnerConfigurations = async (partnerId, jwtToken) => {
       })
     );
 
-    console.log(partnerConfigsWithDetails);
-    console.log(configurations);
-
     // Return both partner configurations with details and general configurations
     return { partnerConfigs: partnerConfigsWithDetails, configurations };
   } catch (error) {
@@ -124,13 +121,9 @@ export const addNewColor = async (config, fieldName) => {
     });
 
     const data = await response.json();
-    console.log("Nieuw kleurobject:", newColor); // Log het kleurobject
-    console.log("Server Response:", data); // Log de volledige response
 
     // Controleer of 'data.data' en 'data.data._id' bestaan
     if (data && data.data && data.data._id) {
-      console.log("Geldige _id ontvangen:", data.data._id);
-
       // Voeg de nieuwe kleur toe aan de geselecteerde kleuren (selectedColors)
       const color = {
         optionId: data.data._id,
@@ -156,9 +149,6 @@ export const addNewColor = async (config, fieldName) => {
 
       // Reset het invoerveld
       newColorName.value[configId] = "";
-
-      console.log("Updated selectedColors:", selectedColors.value); // Log de bijgewerkte selectedColors
-      console.log("Updated colors:", colors.value); // Log de bijgewerkte colors
     } else {
       console.error(
         "Fout bij het toevoegen van de kleur: geen _id ontvangen",

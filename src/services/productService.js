@@ -1,5 +1,5 @@
 /* Productgerelateerde functies */
-import { ref } from "vue";
+import { ref, toRaw } from "vue";
 import axios from "axios";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
@@ -314,6 +314,30 @@ export function onMouseUp(event) {
   this.mouseStart = null;
 }
 
+async function uploadImage(file) {
+  try {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const response = await axios.post("/upload-endpoint", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    if (response.data && response.data.imageUrl) {
+      console.log("✅ Afbeelding geüpload: ", response.data.imageUrl);
+      return response.data.imageUrl; // Zorg ervoor dat de URL correct wordt geretourneerd
+    } else {
+      console.error("❌ Geen geldige URL teruggekregen bij upload.");
+      return null;
+    }
+  } catch (error) {
+    console.error("❌ Fout bij het uploaden van de afbeelding:", error);
+    return null;
+  }
+}
+
 export const add2DProduct = async ({
   productCode,
   productName,
@@ -363,126 +387,106 @@ export const add2DProduct = async ({
   }
 };
 
-export const add3DProduct = async () => {
+export const add3DProduct = async ({
+  productCode,
+  productName,
+  productType,
+  productPrice,
+  description,
+  brand,
+  activeInactive,
+  partnerId,
+  configurations,
+  file, // De file parameter bevat nu de URL van de geüploade afbeelding
+}) => {
   try {
-    console.log("✅ Start add3DProduct...");
+    console.log("✅ Start add3DProduct met parameters...", {
+      productCode,
+      productName,
+      configurations,
+      file,
+    });
 
-    if (!productName.value || !productPrice.value) {
-      errorMessage.value = "❌ Productnaam en prijs zijn verplicht.";
-      console.error(errorMessage.value);
+    if (!productName || !productPrice) {
+      console.error("❌ Productnaam en prijs zijn verplicht.");
       return;
     }
 
-    // ✅ Zorg ervoor dat configurations altijd een array is
-    let configurations = [];
-
-    console.log("🔍 partnerConfigurations.value:", partnerConfigurations.value);
-
-    if (!Array.isArray(partnerConfigurations.value)) {
-      console.error(
-        "❌ partnerConfigurations is niet correct geïnitialiseerd.",
-        partnerConfigurations.value
-      );
+    if (!Array.isArray(configurations) || configurations.length === 0) {
+      console.error("❌ Geen configuraties gevonden voor de partner.");
       return;
     }
 
-    for (const config of partnerConfigurations.value) {
+    let validConfigurations = [];
+
+    // Verwerk de configuraties en voeg de geselecteerde opties toe
+    for (const config of configurations) {
       console.log("🔍 Bezig met configuratie:", config);
 
-      // ✅ Zorg ervoor dat selectedOptions altijd een array is
       let selectedOptions = [];
 
-      if (config.fieldType === "color") {
-        console.log("🎨 Beschikbare kleuren:", colors.value);
+      if (config.configurationDetails?.fieldType === "color") {
+        console.log(
+          "🎨 Configuratie bevat een kleurveld:",
+          config.configurationDetails.fieldName
+        );
 
-        if (!Array.isArray(colors.value) || colors.value.length === 0) {
-          console.warn("⚠️ Geen kleuren gevonden voor configuratie", config);
-          continue;
-        }
-
-        const selectedColor = colors.value[0]; // Pak de eerste kleur (voor debuggen)
-        const selectedOptionId = selectedColor?.optionId || selectedColor;
-
-        console.log("🔍 Geselecteerde kleur:", selectedColor);
-        console.log("🔍 Geselecteerde optionId:", selectedOptionId);
-
-        if (!selectedOptionId) {
+        if (!Array.isArray(config.options) || config.options.length === 0) {
           console.warn(
-            "⚠️ Kleurconfiguratie overgeslagen: optionId ontbreekt",
-            selectedColor
+            "⚠️ Geen opties beschikbaar in deze configuratie: ",
+            config.configurationDetails.fieldName
           );
           continue;
         }
 
-        try {
-          const optionResponse = await axios.get(
-            `${baseURL}/options/${selectedOptionId}`
-          );
-          const option = optionResponse.data;
+        // Voeg opties toe voor elke kleurconfiguratie
+        const imageUrl =
+          typeof file === "string" && file.startsWith("https://") ? file : null;
 
-          console.log("🔍 Ontvangen optiegegevens:", option);
+        const selectedOptionsForConfig = config.options.map((option) => ({
+          optionId: option.optionId?._id,
+          images: imageUrl ? [imageUrl] : [], // Voeg de geldige URL toe aan de images array
+          _id: `${option.optionId?._id}-${Date.now()}`,
+        }));
 
-          if (!option?.data?._id) {
-            console.error("❌ Ongeldige optiegegevens ontvangen:", option);
-            continue;
-          }
-
-          // ✅ Zorg ervoor dat color3DImages.value een array is
-          const images = Array.isArray(color3DImages.value)
-            ? color3DImages.value
-            : [];
-
-          console.log("✅ selectedOptions vóór push:", selectedOptions);
-          selectedOptions.push({
-            optionId: option.data._id,
-            images,
-            _id: `${option.data._id}-${Date.now()}`,
-          });
-          console.log("✅ selectedOptions na push:", selectedOptions);
-        } catch (error) {
-          console.error("❌ Fout bij ophalen van optiegegevens:", error);
-          continue;
-        }
+        console.log("🔍 Geselecteerde opties:", selectedOptionsForConfig);
+        selectedOptions.push(...selectedOptionsForConfig);
       }
 
-      // ✅ Alleen pushen als er geselecteerde opties zijn
       if (selectedOptions.length > 0) {
-        console.log("✅ configurations vóór push:", configurations);
-
-        configurations.push({
+        validConfigurations.push({
           configurationId: config.configurationId?._id || "onbekend-config-id",
           selectedOptions,
         });
-
-        console.log("✅ configurations na push:", configurations);
-      } else {
-        console.warn("⚠️ Geen geselecteerde opties voor configuratie", config);
       }
     }
 
-    console.log("🔍 Eindresultaat configurations:", configurations);
-
-    // **Extra controle** voordat het product wordt toegevoegd
-    if (!Array.isArray(configurations)) {
-      console.error("❌ configurations is geen geldige array:", configurations);
+    if (validConfigurations.length === 0) {
+      console.error("❌ Geen geldige configuraties gevonden");
       return;
     }
 
+    // **Maak product aan met bijgewerkte configuraties**
     const productData = {
-      productCode: productCode.value || "default-code",
-      productName: productName.value,
-      productType: selectedType.value || "sunglasses",
-      brand: brand.value || "onbekend-merk",
-      description: description.value || "",
-      productPrice: productPrice.value,
-      activeInactive: "active",
-      partnerId: partnerId || "onbekend-partner",
-      configurations: configurations, // Zorgt ervoor dat configurations correct wordt meegegeven
+      productCode,
+      productName,
+      productType,
+      brand,
+      description,
+      productPrice,
+      activeInactive,
+      partnerId,
+      configurations: validConfigurations.map((config) => ({
+        ...config,
+        selectedOptions: config.selectedOptions.map((option) => ({
+          ...option,
+          images: option.images.length > 0 ? option.images : [], // Zorg ervoor dat het veld images een lege array is als er geen afbeeldingen zijn
+        })),
+      })),
     };
 
-    console.log("🔍 Klaar om product toe te voegen:", productData);
+    console.log(productData);
 
-    // ✅ Voer de API-aanvraag uit
     const response = await axios.post(`${baseURL}/products`, productData, {
       headers: {
         Authorization: `Bearer ${jwtToken}`,
@@ -492,13 +496,46 @@ export const add3DProduct = async () => {
 
     if (response.status === 201) {
       console.log("✅ 3D-product succesvol toegevoegd:", response.data);
-      // router.push("/admin");
     } else {
-      errorMessage.value = "❌ Fout bij toevoegen van 3D-product.";
-      console.error(errorMessage.value, response);
+      console.error("❌ Fout bij toevoegen van 3D-product:", response);
     }
   } catch (error) {
     console.error("❌ Algemene fout in add3DProduct:", error);
-    errorMessage.value = "❌ Er is een onverwachte fout opgetreden.";
   }
 };
+
+function addImageToConfigurations(imageUrl, configurations) {
+  if (!imageUrl) {
+    console.warn("⚠️ Geen geldige afbeelding URL om toe te voegen.");
+    return;
+  }
+
+  configurations.forEach((config) => {
+    console.log(`🔍 Configuratie: ${config.configurationId}`);
+
+    if (!config.selectedOptions || config.selectedOptions.length === 0) {
+      console.warn(
+        `⚠️ Geen geselecteerde opties voor configuratie: ${config.configurationId}`
+      );
+      return;
+    }
+
+    config.selectedOptions.forEach((option) => {
+      console.log(`🎨 Optie ${option.optionId}:`, option);
+
+      if (!option.images) {
+        option.images = []; // Zorg ervoor dat images een array is
+      }
+      option.images.push(imageUrl); // Voeg de afbeelding toe
+      console.log(
+        `✅ Afbeelding toegevoegd aan optie ${option.optionId}:`,
+        imageUrl
+      );
+    });
+  });
+
+  console.log(
+    "🖼 Afbeelding toegevoegd aan alle geselecteerde opties:",
+    configurations
+  );
+}
