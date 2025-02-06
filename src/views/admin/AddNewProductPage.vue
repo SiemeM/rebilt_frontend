@@ -1,5 +1,6 @@
 <script setup>
 import { ref, toRaw, computed, onMounted, nextTick } from "vue";
+import { useRouter } from "vue-router";
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
 import { fetchPartnerData } from "../../services/apiService";
@@ -17,6 +18,7 @@ import ColorSelectionToggle from "../../components/ColorSelectionToggle.vue";
 import ImageUpload from "../../components/ImageUpload.vue";
 
 // Reactive variables
+const router = useRouter();
 const partnerConfigurations = ref([]);
 const productCode = ref("");
 const productName = ref("");
@@ -134,6 +136,9 @@ const addNewProduct = async () => {
       configurations: partnerConfigurations.value,
       file: uploadedFile.value, // This will pass the file URL
     });
+
+    // Navigeren naar de homepage nadat het product succesvol is toegevoegd
+    router.push("/");
   } catch (error) {
     console.error("❌ Error adding product:", error);
   }
