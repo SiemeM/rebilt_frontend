@@ -533,9 +533,6 @@ onMounted(async () => {
         <p>Brand</p>
         <p>Description</p>
         <p>Status</p>
-        <p v-for="config in partnerConfigurations" :key="config._id">
-          {{ config.fieldName || "N/A" }}
-        </p>
       </div>
 
       <ul v-if="data.length" class="list">
@@ -553,14 +550,12 @@ onMounted(async () => {
             <p>{{ product.productType }}</p>
             <p>{{ product.brand }}</p>
             <p>{{ product.description }}</p>
-            <p>{{ product.activeUnactive ? "Active" : "Inactive" }}</p>
-
-            <p
-              v-for="customConfig in product.configurations"
-              :key="customConfig._id"
+            <div
+              class="btn"
+              :class="{ active: product.activeInactive === 'active' }"
             >
-              {{ optionNames[customConfig._id] || "Geen naam gevonden" }}
-            </p>
+              <p>{{ product.activeInactive }}</p>
+            </div>
           </router-link>
         </li>
       </ul>
@@ -842,23 +837,27 @@ select {
   gap: 0.5em;
 }
 
-.products.mobile a .elements .btn {
+.products.mobile a .elements .btn,
+.products.desktop .btn {
   border-radius: 0.75rem;
   padding: 0.75rem 0.025rem;
   width: 60px;
   height: 26px;
 }
 
-.products.mobile a .elements .btn.active {
+.products.mobile a .elements .btn.active,
+.products.desktop .btn.active {
   background-color: #53e971;
   border: none;
 }
 
-.products.mobile a .elements .btn p {
+.products.mobile a .elements .btn p,
+.products.desktop .btn p {
   opacity: 1;
 }
 
-.products.mobile a .elements .btn.active p {
+.products.mobile a .elements .btn.active p,
+.products.desktop .btn.active p {
   color: #000;
   opacity: 1;
 }
