@@ -101,6 +101,20 @@ const handleFileUpload = (fileUrl) => {
   uploadedFile.value = fileUrl[0]; // Gebruik enkel de eerste URL als string
 };
 
+const addProductType = (productTypes, newType) => {
+  // Ensure productTypes is an array before proceeding
+  if (!Array.isArray(productTypes)) {
+    console.error("productTypes is not an array", productTypes);
+    return; // Stop execution if productTypes is not an array
+  }
+
+  if (!productTypes.includes(newType)) {
+    productTypes.push(newType);
+  } else {
+    console.warn("This product type already exists!");
+  }
+};
+
 const addNewProduct = async () => {
   try {
     if (!productName.value || !productPrice.value || !productCode.value) {
