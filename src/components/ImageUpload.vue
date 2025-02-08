@@ -1,5 +1,6 @@
 <template>
   <div class="color-upload-section">
+    <!-- Verborgen input voor het selecteren van bestanden -->
     <input
       type="file"
       :id="'images-' + index"
@@ -8,6 +9,7 @@
       @change="handleColorImageUpload($event, index)"
     />
 
+    <!-- Upload knop -->
     <div
       class="uploadImage"
       @click="() => (isModelLoaded ? null : triggerFileInput(index))"
@@ -22,6 +24,7 @@
         <p>Bestanden toevoegen</p>
       </div>
 
+      <!-- Lijst van geüploade bestanden -->
       <div
         v-for="(previewUrl, imgIndex) in previewImages(
           colorUploads[index]?.images
@@ -29,33 +32,29 @@
         :key="imgIndex"
         class="image-preview"
       >
-        <img
-          v-if="isImageFile(previewUrl)"
-          :src="previewUrl"
-          alt="Uploaded file preview"
-          width="100"
-        />
-        <div v-else>
+        <!-- Template voor afbeeldingen -->
+        <template v-if="isImageUrl(previewUrl)">
+          <img :src="previewUrl" alt="Uploaded file preview" width="100" />
+        </template>
+
+        <template v-else>
           <p>3D bestand geüpload:</p>
-          <div class="threejs-container" />
-          <!-- Upload 3D Model Button -->
+          <div :id="'threejs-' + index" class="threejs-container" />
           <button
             @click="triggerFileInput(index)"
             v-if="isModelLoaded"
             class="btn active"
           >
-            Upload 3D model
+            Upload nieuw 3D model
           </button>
-        </div>
+        </template>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { nextTick } from "vue";
-import { uploadFileToCloudinary } from "../services/fileService"; // Cloudinary upload function
-import { markRaw } from "vue";
+import { uploadFileToCloudinary } from "../services/fileService";
 
 export default {
   name: "ImageUpload",
@@ -71,7 +70,6 @@ export default {
       isModelLoaded: false,
     };
   },
-
   methods: {
     triggerFileInput(index) {
       const fileInput = document.getElementById(`images-${index}`);
@@ -84,80 +82,98 @@ export default {
 
     async handleColorImageUpload(event, index) {
       const files = event.target.files;
-      if (!files.length) return;
+      const validFiles = Array.from(files).filter((file) => {
+        if (!file) return false; // Extra check om te voorkomen dat file undefined is
+
+        if (this.partnerPackage === "pro" && this.isImageFile(file)) {
+          alert("❌ Pro-gebruikers kunnen alleen 3D-bestanden uploaden.");
+          return false;
+        }
+        if (this.partnerPackage !== "pro" && this.is3DFile(file)) {
+          alert(
+            "❌ Standaard-gebruikers kunnen alleen 2D-afbeeldingen uploaden."
+          );
+          return false;
+        }
+        return true;
+      });
+
+      if (!validFiles.length) {
+        console.warn("❌ Geen geldige bestanden geselecteerd.");
+        return;
+      }
 
       const uploadedUrls = [];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
+      for (let file of files) {
         const fileExtension = file.name.split(".").pop().toLowerCase();
 
-        // Validate the file extension based on package
+        // **Validatie per pakket**
         if (this.partnerPackage === "pro") {
-          if (["png", "jpg", "jpeg", "webp"].includes(fileExtension)) {
+          if (this.isImageFile(file.name)) {
             alert("Pro-gebruikers kunnen alleen 3D-bestanden uploaden.");
             return;
           }
-
-          if (["glb", "gltf", "obj"].includes(fileExtension)) {
-            try {
-              const secureUrl = await uploadFileToCloudinary(
-                file,
-                this.color.name,
-                this.partnerName
-              );
-              console.log("File uploaded successfully:", secureUrl);
-
-              // Add to the colorUploads array
-              this.colorUploads[index] = this.colorUploads[index] || {
-                images: [],
-              };
-              this.colorUploads[index].images.push(secureUrl);
-              uploadedUrls.push(secureUrl);
-
-              // Trigger 3D model rendering after upload
-              this.render3DModel(secureUrl, `threejs-${index}`, fileExtension);
-
-              // Emit the uploaded URLs to the parent component
-              this.$emit("file-uploaded", uploadedUrls);
-            } catch (error) {
-              console.error("Error uploading to Cloudinary:", error);
-            }
-          }
         } else {
-          if (["glb", "gltf", "obj"].includes(fileExtension)) {
+          if (this.is3DFile(file.name)) {
             alert(
               "Standaard-gebruikers kunnen alleen 2D-afbeeldingen uploaden."
             );
             return;
           }
-
-          if (["png", "jpg", "jpeg", "webp"].includes(fileExtension)) {
-            const imageUrl = URL.createObjectURL(file);
-            uploadedUrls.push(imageUrl);
-            this.colorUploads[index] = this.colorUploads[index] || {
-              images: [],
-            };
-            this.colorUploads[index].images.push(imageUrl);
-          }
         }
-      }
 
-      // Emit the uploaded URLs to the parent component
-      if (uploadedUrls.length) {
-        this.$emit("file-uploaded", uploadedUrls);
+        // **Upload logica**
+        try {
+          const secureUrl = await uploadFileToCloudinary(
+            file,
+            this.color.name,
+            this.partnerName
+          );
+          console.log("Bestand succesvol geüpload:", secureUrl);
+
+          this.colorUploads[index] = this.colorUploads[index] || { images: [] };
+          this.colorUploads[index].images.push(secureUrl);
+          uploadedUrls.push(secureUrl);
+
+          // **Render 3D model als het een 3D bestand is**
+          if (this.is3DFile(file.name)) {
+            this.render3DModel(secureUrl, `threejs-${index}`, fileExtension);
+          }
+
+          // **Emit naar parent**
+          this.$emit("file-uploaded", uploadedUrls);
+        } catch (error) {
+          console.error("Fout bij uploaden naar Cloudinary:", error);
+        }
       }
     },
 
     render3DModel(url, containerId, fileExtension) {
-      // 3D Model rendering logic
+      // Hier zou je Three.js of een andere 3D library kunnen gebruiken
+      console.log("Rendering 3D model:", url);
+      this.isModelLoaded = true;
     },
 
     previewImages(images) {
       return images || [];
     },
 
-    isImageFile(fileUrl) {
-      return /\.(jpeg|jpg|png|gif)$/i.test(fileUrl);
+    isImageFile(file) {
+      return file && file.type && file.type.startsWith("image/");
+    },
+
+    isImageUrl(url) {
+      return /\.(jpeg|jpg|png|gif|webp)$/i.test(url);
+    },
+
+    is3DFile(file) {
+      return (
+        file &&
+        file.type &&
+        ["model/gltf-binary", "model/gltf+json", "model/obj"].includes(
+          file.type
+        )
+      );
     },
   },
 };
@@ -190,7 +206,7 @@ export default {
 }
 
 .image-preview {
-  width: 100%;
+  width: 50px;
 }
 
 .image-preview img {

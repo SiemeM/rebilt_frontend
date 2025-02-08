@@ -175,29 +175,6 @@ export async function getcolors(partnerId) {
 const fetchedColors = ref([]); // Gebruik een ref voor reactieve kleuren
 
 // Zorg ervoor dat `fetchcolors` de `colors.value` goed bijwerkt:
-export const fetchcolors = async (partnerId) => {
-  try {
-    const selectedOptions = await getcolors(partnerId);
-
-    if (
-      !selectedOptions ||
-      !Array.isArray(selectedOptions) ||
-      selectedOptions.length === 0
-    ) {
-      console.error("❌ Geen geldige kleuren ontvangen");
-      return;
-    }
-
-    // Ensure that fetchedColors.value is properly updated
-    fetchedColors.value = selectedOptions.map((option) => ({
-      optionId: option.optionId || "",
-      name: option.color || "Unnamed Color",
-      images: option.images || [],
-    }));
-  } catch (error) {
-    console.error("❌ Fout in fetchcolors:", error);
-  }
-};
 
 export const load3DModel = async (filePath) => {
   if (!isSceneInitialized) {
@@ -338,54 +315,157 @@ async function uploadImage(file) {
   }
 }
 
-export const add2DProduct = async ({
-  productCode,
-  productName,
-  productType,
-  productPrice,
-  description,
-  brand,
-  activeInactive,
-  partnerId,
-  configurations,
-}) => {
+export const fetchcolors = async (partnerId) => {
   try {
-    // Log product details for debugging purposes
-    console.log("Adding 2D Product with these details:", {
-      productCode,
-      productName,
-      productType,
-      productPrice,
-      description,
-      brand,
-      activeInactive,
-      partnerId,
-      configurations,
-    });
+    console.log("Fetching colors for partnerId:", partnerId);
+    const selectedOptions = await getcolors(partnerId);
 
-    // Make POST request to add the 2D product
-    const response = await axios.post("/api/v1/products", {
-      productCode,
-      productName,
-      productType,
-      productPrice,
-      description,
-      brand,
-      activeInactive,
-      partnerId,
-      configurations,
-    });
-
-    if (response.status === 201) {
-      console.log("Product added successfully:", response.data);
-    } else {
-      console.error("❌ Failed to add 2D product.");
+    if (
+      !selectedOptions ||
+      !Array.isArray(selectedOptions) ||
+      selectedOptions.length === 0
+    ) {
+      console.error("❌ Geen geldige kleuren ontvangen");
+      return;
     }
+
+    console.log("Fetched selected options:", selectedOptions);
+
+    // Ensure that fetchedColors.value is properly updated
+    fetchedColors.value = selectedOptions.map((option) => {
+      console.log("Mapping option:", option);
+      return {
+        optionId: option.optionId || "",
+        name: option.color || "Unnamed Color",
+        images: option.images || [], // Ensure images are assigned here
+      };
+    });
+
+    console.log("Updated fetchedColors:", fetchedColors.value);
   } catch (error) {
-    console.error("❌ Error adding 2D product:", error);
-    throw error; // Rethrow error to be handled in the calling function
+    console.error("❌ Fout in fetchcolors:", error);
   }
 };
+
+export function add2DProduct(images, selectedConfigurationId, productData) {
+  try {
+    console.log("🚀 Start add2DProduct...");
+
+    // Controleer of selectedConfigurationId is gedefinieerd
+    if (!selectedConfigurationId) {
+      throw new Error("❌ selectedConfigurationId is niet gedefinieerd!");
+    }
+
+    // Controleer of images een array is en niet leeg
+    if (!Array.isArray(images) || images.length === 0) {
+      throw new Error("❌ Geen afbeeldingen om te uploaden!");
+    }
+
+    console.log("📸 Geüploade afbeeldingen:", images);
+
+    // Verwerk de afbeeldingen en formatteer ze voor opslag
+    const processedImages = images.map((imageUrl) => ({
+      url: imageUrl,
+      configurationId: selectedConfigurationId, // Koppel aan de configuratie
+    }));
+
+    console.log("📸 Verwerkte afbeeldingen met configuratie:", processedImages);
+
+    // Log de beschikbare configuraties voor debugging
+    console.log("Beschikbare configuraties:", productData.configurations);
+
+    // Zoek de juiste configuratie binnen productData aan de hand van configurationId
+    const configuration = productData.configurations.find(
+      (config) => config.configurationId._id === selectedConfigurationId
+    );
+
+    if (!configuration) {
+      console.error(
+        `❌ Configuratie met ID ${selectedConfigurationId} niet gevonden!`
+      );
+      return;
+    }
+
+    console.log("🔍 Gevonden configuratie:", configuration);
+
+    // Controleer of selectedOptions bestaat voor de gevonden configuratie, anders maak een lege array
+    if (
+      !configuration.selectedOptions ||
+      !Array.isArray(configuration.selectedOptions)
+    ) {
+      console.warn(
+        `⚠️ selectedOptions ontbreekt of is geen array voor configuratie ID: ${selectedConfigurationId}. Voeg lege array toe.`
+      );
+      configuration.selectedOptions = []; // Voeg lege array toe
+    }
+
+    // Als er geen geselecteerde opties zijn, voeg een standaard optie toe
+    if (configuration.selectedOptions.length === 0) {
+      console.log(
+        `⚠️ Geen geselecteerde opties voor configuratie ID: ${selectedConfigurationId}. Voeg standaard optie toe.`
+      );
+
+      configuration.selectedOptions.push({
+        optionId: "defaultOption", // Dit moet een bestaande optie zijn of iets dat je zelf definieert
+        images: [], // Voeg een lege array voor images toe
+      });
+    }
+
+    // Log de huidige selectedOptions
+    console.log("Huidige selectedOptions:", configuration.selectedOptions);
+
+    // Voeg de afbeeldingen toe aan de juiste optie in selectedOptions
+    configuration.selectedOptions.forEach((option) => {
+      console.log(`🔹 Optie ${option.optionId}:`, option);
+
+      // Zoek de optie in selectedOptions
+      let existingOption = configuration.selectedOptions.find(
+        (opt) => opt.optionId === option.optionId
+      );
+
+      if (!existingOption) {
+        // Als de optie nog niet in selectedOptions zit, voeg deze toe
+        existingOption = {
+          optionId: option.optionId,
+          images: [], // Zorg ervoor dat images een array is
+        };
+        configuration.selectedOptions.push(existingOption);
+      }
+
+      // Voeg afbeeldingen toe aan de gevonden optie
+      if (existingOption.images) {
+        existingOption.images.push(...processedImages.map((img) => img.url));
+      } else {
+        // Als images nog niet gedefinieerd is, definieer het als een lege array
+        existingOption.images = processedImages.map((img) => img.url);
+      }
+    });
+
+    console.log("✅ Bijgewerkte configuratie:", configuration);
+
+    // Zorg ervoor dat de configuraties een juiste structuur hebben (zoals in jouw voorbeeld JSON)
+    const formattedProductData = {
+      productCode: productData.productCode,
+      productName: productData.productName,
+      productType: productData.productType,
+      productPrice: productData.productPrice,
+      description: productData.description,
+      brand: productData.brand,
+      activeInactive: productData.activeInactive,
+      partnerId: productData.partnerId,
+      configurations: productData.configurations.map((config) => ({
+        configurationId: config.configurationId,
+        selectedOptions: config.selectedOptions, // Zorg ervoor dat selectedOptions correct wordt overgenomen
+      })),
+    };
+
+    console.log("📦 Bijgewerkte productdata:", formattedProductData);
+
+    return formattedProductData; // Geef het geüpdatete productData object terug
+  } catch (error) {
+    console.error("❌ Algemene fout:", error.message);
+  }
+}
 
 export const add3DProduct = async ({
   productCode,
@@ -502,6 +582,25 @@ export const add3DProduct = async ({
   } catch (error) {
     console.error("❌ Algemene fout in add3DProduct:", error);
   }
+};
+
+// Een voorbeeld van een manier om afbeeldingen aan de configuratie toe te voegen.
+const addImagesToConfiguration = (configurationId, imageUrls) => {
+  const updatedConfigurations = configurations.map((config) => {
+    if (config.configurationId === configurationId) {
+      return {
+        ...config,
+        selectedOptions: config.selectedOptions.map((option) => ({
+          ...option,
+          images: imageUrls, // Voeg de juiste afbeeldings-URLs hier toe
+        })),
+      };
+    }
+    return config;
+  });
+
+  // Update de configuraties
+  setConfigurations(updatedConfigurations);
 };
 
 function addImageToConfigurations(imageUrl, configurations) {

@@ -1,6 +1,10 @@
 <script setup>
 import { ref, toRaw, computed, onMounted, nextTick } from "vue";
 import { useRouter } from "vue-router";
+import axios from "axios";
+
+axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
+
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
 import { fetchPartnerData } from "../../services/apiService";
@@ -98,14 +102,14 @@ const handleFileUpload = (fileUrl) => {
   }
 
   // Zet de eerste waarde van de array als de URL
-  uploadedFile.value = fileUrl[0]; // Gebruik enkel de eerste URL als string
+  console.log(fileUrl);
+  uploadedFile.value = fileUrl; // Gebruik enkel de eerste URL als string
 };
 
 const addProductType = (productTypes, newType) => {
-  // Ensure productTypes is an array before proceeding
   if (!Array.isArray(productTypes)) {
     console.error("productTypes is not an array", productTypes);
-    return; // Stop execution if productTypes is not an array
+    return;
   }
 
   if (!productTypes.includes(newType)) {
@@ -117,6 +121,7 @@ const addProductType = (productTypes, newType) => {
 
 const addNewProduct = async () => {
   try {
+    // Validatie van verplichte velden
     if (!productName.value || !productPrice.value || !productCode.value) {
       console.error("❌ Missing required fields.");
       return;
@@ -127,7 +132,7 @@ const addNewProduct = async () => {
       return;
     }
 
-    // Make sure to check color selections
+    // Validatie of kleuren geselecteerd zijn
     if (
       Object.values(selectedColors.value).every((colors) => colors.length === 0)
     ) {
@@ -135,23 +140,89 @@ const addNewProduct = async () => {
       return;
     }
 
-    console.log(uploadedFile.value); // Debugging the file URL
+    console.log(uploadedFile.value); // Debugging de bestand-URL
 
-    // Validate partner configurations and make the API call
-    await add3DProduct({
-      productCode: productCode.value,
-      productName: productName.value,
-      productType: selectedType.value || "sunglasses",
-      productPrice: productPrice.value,
-      description: description.value,
-      brand: brand.value,
-      activeInactive: "active",
-      partnerId,
-      configurations: partnerConfigurations.value,
-      file: uploadedFile.value, // This will pass the file URL
+    // Toevoegen van afbeeldingen voor elke kleurconfiguratie
+    partnerConfigurations.value.forEach((config) => {
+      if (config.configurationDetails.fieldType === "color") {
+        const configId = config.configurationId._id;
+        const selectedColorOptions = selectedColors.value[configId] || [];
+
+        // Log om te controleren of we de geselecteerde kleuren hebben
+        console.log(
+          "Selected colors for configId:",
+          configId,
+          selectedColorOptions
+        );
+
+        config.options.forEach((option) => {
+          // Haal de afbeeldingen op voor de geselecteerde kleuropties
+          const colorImages =
+            fetchedColorsPerConfig[configId]?.find(
+              (color) => color.optionId === option.optionId
+            )?.images || []; // Gebruik een lege array als er geen afbeeldingen zijn
+
+          console.log("Color images for option", option.optionId, colorImages);
+
+          // Voeg de afbeeldingen toe aan de optie als de kleur geselecteerd is
+          if (
+            selectedColorOptions.some(
+              (selected) => selected.optionId === option.optionId
+            )
+          ) {
+            option.images = colorImages; // Kleurafbeeldingen toewijzen
+          }
+        });
+      }
     });
 
-    // Navigeren naar de homepage nadat het product succesvol is toegevoegd
+    // Maak de API-aanroep met de bijgewerkte configuraties en afbeeldingen
+    const partnerPackageResponse = await fetchPartnerPackage(partnerId);
+    partnerPackage.value = partnerPackageResponse || "";
+
+    if (partnerPackage.value == "pro") {
+      // Als partner "pro" is, voeg het 3D-product toe
+      await add3DProduct({
+        productCode: productCode.value,
+        productName: productName.value,
+        productType: selectedType.value || "sunglasses",
+        productPrice: productPrice.value,
+        description: description.value,
+        brand: brand.value,
+        activeInactive: "active",
+        partnerId,
+        configurations: partnerConfigurations.value,
+        file: uploadedFile.value,
+      });
+    } else {
+      // Als partner geen "pro" is, voeg het 2D-product toe
+      console.log(partnerPackage.value);
+      console.log(uploadedFile.value);
+
+      // Zorg ervoor dat de geselecteerde configuratie-ID wordt doorgegeven
+      const selectedConfigurationId =
+        partnerConfigurations.value[0]?.configurationId._id;
+
+      if (!selectedConfigurationId) {
+        console.error("❌ selectedConfigurationId ontbreekt!");
+        return;
+      }
+
+      // De afbeeldingen voor het 2D-product kunnen verschillende opties hebben, dus we moeten zorgen dat ze correct worden doorgegeven
+      await add2DProduct(uploadedFile.value, selectedConfigurationId, {
+        productCode: productCode.value,
+        productName: productName.value,
+        productType: selectedType.value || "sunglasses",
+        productPrice: productPrice.value,
+        description: description.value,
+        brand: brand.value,
+        activeInactive: "active",
+        partnerId,
+        configurations: partnerConfigurations.value,
+      });
+    }
+
+    // Redirect naar de homepagina na het toevoegen
     router.push("/");
   } catch (error) {
     console.error("❌ Error adding product:", error);
@@ -324,14 +395,22 @@ onMounted(async () => {
                     <DropdownToggleColor
                       :fieldName="config.configurationDetails.fieldName"
                       :dropdownStates="dropdownStates"
-                      :buttonText="buttonText"
+                      :buttonText="buttonText(config.configurationId._id)"
                     >
                       <ColorSelectionToggle
-                        v-model:selectedColors="selectedColors"
-                        :colors="colors.value"
+                        v-model:selectedColors="
+                          selectedColors[config.configurationId._id]
+                        "
+                        :colors="
+                          fetchedColorsPerConfig[config.configurationId._id] ||
+                          []
+                        "
                         :dropdownStates="dropdownStates"
                         :fieldName="config.configurationDetails.fieldName"
-                        :colorOptions="colors.value"
+                        :colorOptions="
+                          fetchedColorsPerConfig[config.configurationId._id] ||
+                          []
+                        "
                       />
                     </DropdownToggleColor>
                   </div>
@@ -341,14 +420,19 @@ onMounted(async () => {
           </div>
 
           <!-- Upload zone voor 'standard' pakket -->
+          <!-- Upload zone per geselecteerde kleur binnen een configuratie -->
           <template v-if="config.configurationDetails.fieldType === 'color'">
             <div
-              v-for="(selectedColor, colorIndex) in selectedColors"
+              v-for="(selectedColor, colorIndex) in selectedColors[
+                config.configurationId._id
+              ] || []"
               :key="colorIndex"
               class="column"
             >
               <p>{{ selectedColor.name }} - Upload images</p>
               <ImageUpload
+                @file-uploaded="handleFileUpload"
+                v-if="selectedColor.name"
                 :color="selectedColor"
                 :index="colorIndex"
                 :colorUploads="colorUploads"
