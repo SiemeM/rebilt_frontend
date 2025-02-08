@@ -312,15 +312,6 @@ function loadOBJModel(filePath) {
   });
 }
 
-function getSelectedFieldName() {
-  // Zoek het geselecteerde <h2> element met een specifieke klasse
-  const heading = document.querySelector("h2.selected-layer");
-  if (heading) {
-    return heading.innerText.trim().toLowerCase(); // Haal de tekst op, converteer naar kleine letters
-  }
-  return null;
-}
-
 // Zoek de kleur voor een bepaalde laag
 function getColorForLayer(newOption) {
   let productConfigs = productData.value.configurations || [];
@@ -828,7 +819,6 @@ async function fetchProductData(productCode) {
     isLoading.value = true;
     error.value = null;
 
-    // Haal productgegevens op
     const response = await fetch(`${baseURL}/products/${productCode}`, {
       method: "GET",
       headers: {
@@ -844,13 +834,9 @@ async function fetchProductData(productCode) {
     const product = result.data.product;
     productName.value = product.productName;
 
-    // Haal de configuraties voor dit product op
-    const configurations = product.configurations || []; // Default to an empty array if configurations is missing
-
-    // Maak een aparte array voor de namen van de opties
+    const configurations = product.configurations || [];
     optionNames.value = [];
 
-    // Verzamel de afbeeldingen van de geselecteerde opties
     let selectedOptionImages = [];
     const enrichedConfigurations = await Promise.all(
       configurations.map(async (config) => {
@@ -881,46 +867,21 @@ async function fetchProductData(productCode) {
           const configResult = await configResponse.json();
           const options = configResult.data.options || [];
 
-          // Gebruik de geselecteerde optie (bijvoorbeeld de eerste geselecteerde optie)
-          const selectedOptionData = config.selectedOptions[0]; // Hier kiezen we de eerste geselecteerde optie
+          const selectedOptionData = config.selectedOptions[0];
 
           let optionName = selectedOptionData?.name;
 
           if (!optionName && selectedOptionData?.optionId) {
-            // Haal de naam op via de aparte API-call
             const optionUrl = `${baseURL}/options/${selectedOptionData.optionId._id}`;
-            try {
-              const optionResponse = await fetch(optionUrl, {
-                method: "GET",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-              });
-
-              if (!optionResponse.ok) {
-                throw new Error(
-                  `Option fetch error! Status: ${optionResponse.status}`
-                );
-              }
-
-              const optionResult = await optionResponse.json();
-              optionName = optionResult.data?.name || `Option 1`; // Fallback naam
-            } catch (err) {
-              console.error(
-                `Error fetching option name for optionId ${selectedOptionData.optionId._id}:`,
-                err.message
-              );
-            }
+            const optionResponse = await fetch(optionUrl);
+            const optionResult = await optionResponse.json();
+            optionName = optionResult.data?.name || "Option 1";
           }
 
-          // Haal de afbeeldingen van de geselecteerde optie
           if (selectedOptionData?.images) {
             selectedOptionImages = selectedOptionData.images;
-          } else {
-            selectedOptionImages = [];
           }
 
-          // Update de geselecteerde configuratie met de geselecteerde optie
           const existingConfigIndex = selectedItems.value.findIndex(
             (item) => item.configurationId === selectedConfigId
           );
@@ -954,24 +915,21 @@ async function fetchProductData(productCode) {
       })
     );
 
-    // Update de productImages met de afbeeldingen van de geselecteerde optie
-    productImages.value = selectedOptionImages;
-
-    // Stel de eerste afbeelding in als selectedImage
     if (selectedOptionImages.length > 0) {
-      selectedImage.value = selectedOptionImages[0]; // De eerste afbeelding als geselecteerde afbeelding
+      productImages.value = selectedOptionImages;
+      selectedImage.value = selectedOptionImages[0];
+    } else {
+      console.warn("No images found for the selected option");
     }
 
-    // Update productData met de geselecteerde afbeeldingen en configuraties
     productData.value = {
       productName: product.productName,
       productCode: product.productCode,
       productPrice: product.productPrice,
-      images: selectedOptionImages, // Alleen de geselecteerde afbeeldingen van de eerste optie
-      configurations: enrichedConfigurations, // Voeg de verrijkte configuraties toe
+      images: selectedOptionImages,
+      configurations: enrichedConfigurations,
     };
 
-    // Werk de opties en geselecteerde items bij
     const optionNamesList = enrichedConfigurations.flatMap((config) =>
       config.selectedOptions.map((selectedOption) => selectedOption.optionName)
     );
@@ -1347,7 +1305,7 @@ onMounted(() => {
             v-for="(image, index) in productImages"
             :key="image._id"
             class="image"
-            :class="{ active: image.url === selectedImage }"
+            :class="{ active: image === selectedImage }"
             :style="{ backgroundImage: `url(${image})` }"
             @click="setSelectedImage(image)"
           ></div>
