@@ -500,10 +500,10 @@ li svg {
   display: none;
   position: absolute;
   z-index: 999;
-  top: 2%;
+  top: 4%;
   left: 2%;
-  width: 64px;
-  height: 64px;
+  width: 32px;
+  height: 32px;
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
