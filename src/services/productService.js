@@ -347,37 +347,38 @@ export const fetchcolors = async (partnerId) => {
   }
 };
 
-export function add2DProduct(images, selectedConfigurationId, productData) {
+import { v4 as uuidv4 } from "uuid";
+
+export async function add2DProduct(
+  images,
+  selectedConfigurationId,
+  productData
+) {
   try {
     console.log("🚀 Start add2DProduct...");
 
-    // Controleer of selectedConfigurationId is gedefinieerd
     if (!selectedConfigurationId) {
       throw new Error("❌ selectedConfigurationId is niet gedefinieerd!");
     }
 
-    // Controleer of images een array is en niet leeg
     if (!Array.isArray(images) || images.length === 0) {
       throw new Error("❌ Geen afbeeldingen om te uploaden!");
     }
 
     console.log("📸 Geüploade afbeeldingen:", images);
 
-    // Verwerk de afbeeldingen en formatteer ze voor opslag
     const processedImages = images.map((imageUrl) => ({
       url: imageUrl,
-      configurationId: selectedConfigurationId, // Koppel aan de configuratie
+      configurationId: selectedConfigurationId,
     }));
 
     console.log("📸 Verwerkte afbeeldingen met configuratie:", processedImages);
-
-    // Log de beschikbare configuraties voor debugging
     console.log("Beschikbare configuraties:", productData.configurations);
 
-    // Zoek de juiste configuratie binnen productData aan de hand van configurationId
-    const configuration = productData.configurations.find(
-      (config) => config.configurationId._id === selectedConfigurationId
-    );
+    const configuration = productData.configurations.find((config) => {
+      const configId = config.configurationId?._id || config.configurationId; // Fix voor ID-structuur
+      return configId === selectedConfigurationId;
+    });
 
     if (!configuration) {
       console.error(
@@ -388,62 +389,44 @@ export function add2DProduct(images, selectedConfigurationId, productData) {
 
     console.log("🔍 Gevonden configuratie:", configuration);
 
-    // Controleer of selectedOptions bestaat voor de gevonden configuratie, anders maak een lege array
     if (
       !configuration.selectedOptions ||
       !Array.isArray(configuration.selectedOptions)
     ) {
       console.warn(
-        `⚠️ selectedOptions ontbreekt of is geen array voor configuratie ID: ${selectedConfigurationId}. Voeg lege array toe.`
+        `⚠️ selectedOptions ontbreekt of is geen array. Voeg lege array toe.`
       );
-      configuration.selectedOptions = []; // Voeg lege array toe
+      configuration.selectedOptions = [];
     }
 
-    // Als er geen geselecteerde opties zijn, voeg een standaard optie toe
-    if (configuration.selectedOptions.length === 0) {
-      console.log(
-        `⚠️ Geen geselecteerde opties voor configuratie ID: ${selectedConfigurationId}. Voeg standaard optie toe.`
-      );
+    let optionId = configuration.options?.[0]?._id; // Pak de eerste optie als default
 
-      configuration.selectedOptions.push({
-        optionId: "defaultOption", // Dit moet een bestaande optie zijn of iets dat je zelf definieert
-        images: [], // Voeg een lege array voor images toe
-      });
+    if (!optionId) {
+      console.error(
+        `❌ Geen optionId gevonden voor configuratie ID: ${selectedConfigurationId}`
+      );
+      return;
     }
 
-    // Log de huidige selectedOptions
-    console.log("Huidige selectedOptions:", configuration.selectedOptions);
+    console.log(`🔹 Geselecteerde optionId: ${optionId}`);
 
-    // Voeg de afbeeldingen toe aan de juiste optie in selectedOptions
-    configuration.selectedOptions.forEach((option) => {
-      console.log(`🔹 Optie ${option.optionId}:`, option);
+    let existingOption = configuration.selectedOptions.find(
+      (opt) => opt.optionId === optionId
+    );
 
-      // Zoek de optie in selectedOptions
-      let existingOption = configuration.selectedOptions.find(
-        (opt) => opt.optionId === option.optionId
-      );
+    if (!existingOption) {
+      existingOption = {
+        _id: uuidv4(),
+        optionId: optionId,
+        images: [],
+      };
+      configuration.selectedOptions.push(existingOption);
+    }
 
-      if (!existingOption) {
-        // Als de optie nog niet in selectedOptions zit, voeg deze toe
-        existingOption = {
-          optionId: option.optionId,
-          images: [], // Zorg ervoor dat images een array is
-        };
-        configuration.selectedOptions.push(existingOption);
-      }
-
-      // Voeg afbeeldingen toe aan de gevonden optie
-      if (existingOption.images) {
-        existingOption.images.push(...processedImages.map((img) => img.url));
-      } else {
-        // Als images nog niet gedefinieerd is, definieer het als een lege array
-        existingOption.images = processedImages.map((img) => img.url);
-      }
-    });
+    existingOption.images.push(...processedImages.map((img) => img.url));
 
     console.log("✅ Bijgewerkte configuratie:", configuration);
 
-    // Zorg ervoor dat de configuraties een juiste structuur hebben (zoals in jouw voorbeeld JSON)
     const formattedProductData = {
       productCode: productData.productCode,
       productName: productData.productName,
@@ -454,14 +437,49 @@ export function add2DProduct(images, selectedConfigurationId, productData) {
       activeInactive: productData.activeInactive,
       partnerId: productData.partnerId,
       configurations: productData.configurations.map((config) => ({
-        configurationId: config.configurationId,
-        selectedOptions: config.selectedOptions, // Zorg ervoor dat selectedOptions correct wordt overgenomen
+        _id: uuidv4(),
+        configurationId: config.configurationId._id,
+        selectedOptions: Array.isArray(config.selectedOptions)
+          ? config.selectedOptions.map((opt) => ({
+              _id: opt._id || uuidv4(),
+              optionId: opt.optionId,
+              images: opt.images || [],
+            }))
+          : [],
       })),
     };
 
     console.log("📦 Bijgewerkte productdata:", formattedProductData);
 
-    return formattedProductData; // Geef het geüpdatete productData object terug
+    // ✅ **Stap 2: Stuur de data correct naar de backend**
+    const token = localStorage.getItem("jwtToken") || null;
+
+    const response = await fetch(`${baseURL}/products`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(formattedProductData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("❌ Server response error:", errorData);
+      throw new Error(errorData.message || "Onbekende serverfout");
+    }
+
+    // Lees de response.body maar één keer
+    const responseBody = await response.json(); // ✅ Verwijder de dubbele json-aanroep
+
+    console.log("🚨 Server response:", responseBody);
+
+    console.log(
+      "✅ Product succesvol opgeslagen in de database:",
+      responseBody
+    );
+
+    return responseBody;
   } catch (error) {
     console.error("❌ Algemene fout:", error.message);
   }
