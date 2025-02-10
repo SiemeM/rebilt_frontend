@@ -344,6 +344,7 @@ function loadOBJModel(filePath) {
 }
 
 // Zoek de kleur voor een bepaalde laag
+// Zoek de kleur voor een bepaalde laag
 function getColorForLayer(newOption) {
   let productConfigs = productData.value.configurations || [];
 
@@ -361,28 +362,7 @@ function getColorForLayer(newOption) {
     if (selectedOption) {
       const color = selectedOption.optionId?.name; // Pas eventueel aan op de structuur van je data
       if (color) {
-        // Controleer of de laag zichtbaar is
-        const layerElements = document.querySelectorAll("p");
-        let layerVisible = false;
-
-        layerElements.forEach((el) => {
-          if (el.textContent.trim() === fieldName) {
-            // Krijg de oudercontainer van het p-element
-            const parentElement = el.closest("li");
-
-            // Controleer of de oudercontainer zichtbaar is
-            const style = window.getComputedStyle(parentElement);
-            if (style.display !== "none" && style.visibility !== "hidden") {
-              layerVisible = true;
-            }
-          }
-        });
-
-        if (layerVisible) {
-          return color; // Laag is zichtbaar, retourneer kleur
-        }
-      } else {
-        console.warn(`Geen kleur gevonden voor ${newOption}`);
+        return color; // Laag is zichtbaar, retourneer kleur
       }
     } else {
       console.warn(`Geen geselecteerde optie gevonden voor ${newOption}`);
@@ -395,6 +375,7 @@ function getColorForLayer(newOption) {
   return "#FFFFFF"; // Standaard kleur
 }
 
+// Functie om de kleur toe te passen op de actieve laag
 function applyColorToActiveLayer(color) {
   if (!scene) {
     console.error("Scene is niet geïnitialiseerd!");
@@ -480,8 +461,6 @@ async function selectOption(optionId) {
 
   selectedOption.value = optionId;
 
-  let selectedOptionImages = [];
-
   try {
     const response = await fetch(`${baseURL}/products/${productId}`, {
       method: "GET",
@@ -495,88 +474,25 @@ async function selectOption(optionId) {
     }
 
     const result = await response.json();
-
     const product = result.data.product;
 
+    // Haal de configuraties op
     const configurations = product.configurations || [];
 
-    const enrichedConfigurations = configurations.map((config) => {
-      // Zoek de geselecteerde optie op basis van optionId
-      const selectedOptionData = config.selectedOptions.find(
-        (option) => option.optionId.name === optionId
-      );
-
-      if (!selectedOptionData) {
-        console.error(`Geen optie gevonden voor optionId ${optionId}`);
-        return config; // Stop verder proces voor deze configuratie
-      }
-
-      const optionName = selectedOptionData.optionId?.name;
-
-      // Update afbeeldingen als ze bestaan
-      if (selectedOptionData?.images) {
-        selectedOptionImages = selectedOptionData.images;
-      } else {
-        selectedOptionImages = [];
-      }
-
-      // Update de geselecteerde items
-      const existingConfigIndex = selectedItems.value.findIndex(
-        (item) => item.configurationId === config.configurationId
-      );
-
-      if (existingConfigIndex !== -1) {
-        selectedItems.value[existingConfigIndex].selectedItem = {
-          optionName: optionName,
-          images: selectedOptionImages,
-        };
-      } else {
-        selectedItems.value.push({
-          configurationId: config.configurationId,
-          selectedItem: {
-            optionName: optionName,
-            images: selectedOptionImages,
-          },
-        });
-      }
-
-      return { ...config, optionName };
-    });
-
-    // Zet de geselecteerde afbeeldingen in productImages
-    console.log(productImages.value);
-    productImages.value = selectedOptionImages;
-
-    // Zet de eerste afbeelding als selectedImage
-    console.log(selectedOptionImages.length);
-    if (selectedOptionImages.length > 0) {
-      selectedImage.value = selectedOptionImages[0];
+    // Zoek de kleur voor de laag op basis van de geselecteerde optie
+    const color = getColorForLayer(optionId);
+    if (color) {
+      applyColorToActiveLayer(color); // Pas de kleur toe op de actieve laag
     }
 
-    // Update productData
     productData.value = {
       productName: product.productName,
       productCode: product.productCode,
       productPrice: product.productPrice,
-      images: selectedOptionImages,
-      configurations: enrichedConfigurations,
+      configurations: configurations,
     };
-
-    const partnerId = product.partnerId;
-
-    if (partnerId) {
-      await fetchPartnerName(partnerId);
-      await fetchPartnerPackage(partnerId);
-      await fetchNumberOfPartnerConfigurations(partnerId);
-      await fetchLogoUrl(partnerId);
-      await fetchPartnerConfigurations(partnerId, product);
-    }
   } catch (err) {
     console.error("Error fetching product data:", err.message);
-    error.value =
-      "Er is een fout opgetreden bij het ophalen van de productgegevens.";
-  } finally {
-    isLoading.value = false;
   }
 }
 
@@ -1275,7 +1191,7 @@ watch(
       >
         <h2 class="fieldName">
           {{
-            configuration.fieldType === "Color"
+            configuration.configurationId?.fieldType === "color"
               ? "Choose the color for"
               : "Choose an option for"
           }}
@@ -1291,9 +1207,7 @@ watch(
             }"
             @click="selectOption(selectedOption.optionId?.name)"
             :style="{ backgroundColor: selectedOption.optionId?.name }"
-          >
-            {{ selectedOption.optionId?.name }}
-          </div>
+          ></div>
         </div>
       </div>
 
