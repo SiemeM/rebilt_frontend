@@ -495,61 +495,59 @@ export const add3DProduct = async ({
   activeInactive,
   partnerId,
   configurations,
-  file, // De file parameter bevat nu de URL van de geüploade afbeelding
+  file, // URL van de 3D-file
 }) => {
   try {
-    console.log("✅ Start add3DProduct met parameters...", {
-      productCode,
-      productName,
-      configurations,
+    console.log(
+      "🖼️ Originele Bestands-URL ontvangen:",
       file,
-    });
+      "Type:",
+      typeof file
+    );
 
-    if (!productName || !productPrice) {
-      console.error("❌ Productnaam en prijs zijn verplicht.");
-      return;
-    }
+    // **FIX: Extract de juiste string-URL uit Proxy(Array)**
+    const imageUrl = file && Array.isArray(file) ? file[0] : String(file);
 
-    if (!Array.isArray(configurations) || configurations.length === 0) {
-      console.error("❌ Geen configuraties gevonden voor de partner.");
+    console.log(
+      "🔍 Geëxtraheerde imageUrl:",
+      imageUrl,
+      "Type:",
+      typeof imageUrl
+    );
+
+    if (!imageUrl.startsWith("https://")) {
+      console.error("❌ Ongeldige bestands-URL na extractie:", imageUrl);
       return;
     }
 
     let validConfigurations = [];
 
-    // Verwerk de configuraties en voeg de geselecteerde opties toe
     for (const config of configurations) {
-      console.log("🔍 Bezig met configuratie:", config);
+      console.log("🔍 Bezig met configuratie:", config.configurationId);
 
       let selectedOptions = [];
 
-      if (config.configurationDetails?.fieldType === "color") {
-        console.log(
-          "🎨 Configuratie bevat een kleurveld:",
-          config.configurationDetails.fieldName
+      if (!Array.isArray(config.options) || config.options.length === 0) {
+        console.warn(
+          "⚠️ Geen opties beschikbaar voor configuratie:",
+          config.configurationId
         );
-
-        if (!Array.isArray(config.options) || config.options.length === 0) {
-          console.warn(
-            "⚠️ Geen opties beschikbaar in deze configuratie: ",
-            config.configurationDetails.fieldName
-          );
-          continue;
-        }
-
-        // Voeg opties toe voor elke kleurconfiguratie
-        const imageUrl =
-          typeof file === "string" && file.startsWith("https://") ? file : null;
-
-        const selectedOptionsForConfig = config.options.map((option) => ({
-          optionId: option.optionId?._id,
-          images: imageUrl ? [imageUrl] : [], // Voeg de geldige URL toe aan de images array
-          _id: `${option.optionId?._id}-${Date.now()}`,
-        }));
-
-        console.log("🔍 Geselecteerde opties:", selectedOptionsForConfig);
-        selectedOptions.push(...selectedOptionsForConfig);
+        continue;
       }
+
+      selectedOptions = config.options.map((option) => {
+        const optionId = option.optionId?._id || "onbekend-option-id";
+
+        console.log(`🛠️ Optie verwerkt: ${optionId}, imageUrl: ${imageUrl}`);
+
+        return {
+          optionId,
+          images: [imageUrl], // ✅ Nu correct ingevuld
+          _id: `${optionId}-${Date.now()}`,
+        };
+      });
+
+      console.log("📸 Geselecteerde opties met afbeeldingen:", selectedOptions);
 
       if (selectedOptions.length > 0) {
         validConfigurations.push({
@@ -564,7 +562,11 @@ export const add3DProduct = async ({
       return;
     }
 
-    // **Maak product aan met bijgewerkte configuraties**
+    console.log(
+      "🚀 Klaar om te verzenden, configuraties met afbeeldingen:",
+      JSON.stringify(validConfigurations, null, 2)
+    );
+
     const productData = {
       productCode,
       productName,
@@ -574,16 +576,13 @@ export const add3DProduct = async ({
       productPrice,
       activeInactive,
       partnerId,
-      configurations: validConfigurations.map((config) => ({
-        ...config,
-        selectedOptions: config.selectedOptions.map((option) => ({
-          ...option,
-          images: option.images.length > 0 ? option.images : [], // Zorg ervoor dat het veld images een lege array is als er geen afbeeldingen zijn
-        })),
-      })),
+      configurations: validConfigurations,
     };
 
-    console.log(productData);
+    console.log(
+      "📦 Productdata verzenden:",
+      JSON.stringify(productData, null, 2)
+    );
 
     const response = await axios.post(`${baseURL}/products`, productData, {
       headers: {
