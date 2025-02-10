@@ -61,6 +61,29 @@ export const filterProductsByType = (
   return filteredResults;
 };
 
+export const fetchProductById = async (id) => {
+  if (!id) {
+    console.error("Product ID is required!");
+    return null; // Return null if no ID is provided
+  }
+
+  try {
+    // Gebruik baseURL voor productie of lokaal
+    const response = await axios.get(`${baseURL}/products/${id}`);
+
+    if (response.status === 200) {
+      console.log("Product successfully fetched:", response.data);
+      return response.data?.data || null; // Return the product data or null if not found
+    } else {
+      console.error("Failed to fetch product:", response.status);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching product by ID:", error);
+    return null; // Return null in case of an error
+  }
+};
+
 export const fetchProducts = async (partnerId) => {
   // Controleer of partnerId bestaat
   if (!partnerId) {
@@ -123,7 +146,6 @@ export const fetchProductTypes = async (partnerId) => {
 
     // Convert the Set to an array before returning
     const productTypes = Array.from(productTypesSet);
-
     // Return de productTypes (Altijd als array)
     return productTypes || []; // Ensure it returns an array, even if no product types are found
   } catch (error) {
@@ -344,6 +366,19 @@ export const fetchcolors = async (partnerId) => {
     console.log("Updated fetchedColors:", fetchedColors.value);
   } catch (error) {
     console.error("❌ Fout in fetchcolors:", error);
+  }
+};
+
+export const addProductType = (productTypes, newType) => {
+  if (!Array.isArray(productTypes)) {
+    console.error("productTypes is not an array", productTypes);
+    return;
+  }
+
+  if (!productTypes.includes(newType)) {
+    productTypes.push(newType);
+  } else {
+    console.warn("This product type already exists!");
   }
 };
 

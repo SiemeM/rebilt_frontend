@@ -1,6 +1,5 @@
 <template>
   <div>
-    <!-- Dropdown voor het weergeven van kleur opties -->
     <div
       v-for="(option, index) in colorOptions"
       :key="option.optionId"
@@ -11,18 +10,19 @@
         :value="option.optionId"
         :checked="isSelected(option)"
         @click="toggleColor(option)"
+        :aria-label="`Select color ${option.color}`"
       />
-      <span
-        class="color-bullet"
-        :style="{ backgroundColor: option.name || 'transparent' }"
-      ></span>
-      <p>{{ option.name || "Unnamed Color" }}</p>
+      <span class="color-bullet" :style="{ backgroundColor: option.color }">
+        {{ option.name }}
+        <!-- Should display the color name -->
+      </span>
     </div>
 
-    <!-- Input veld voor het toevoegen van een nieuwe kleur -->
     <div v-if="isOpen" class="dropdown-add-option">
       <input v-model="newColor" type="text" placeholder="Add new color" />
-      <button @click="addColor">Add</button>
+      <button @click="addColor" :aria-label="`Add new color: ${newColor}`">
+        Add
+      </button>
     </div>
   </div>
 </template>
@@ -32,8 +32,9 @@ export default {
   name: "ColorSelectionToggle",
   props: {
     selectedColors: {
-      type: Array,
+      type: Object,
       required: true,
+      default: () => [],
     },
     dropdownStates: {
       type: Object,
@@ -46,12 +47,13 @@ export default {
     colorOptions: {
       type: Array,
       required: true,
+      default: () => [],
     },
   },
   data() {
     return {
-      newColor: "", // Houdt de invoer voor de nieuwe kleur bij
-      isAddingColor: false, // Voeg een flag toe om het toevoegen van een kleur te controleren
+      newColor: "",
+      isAddingColor: false,
     };
   },
   computed: {
@@ -60,14 +62,11 @@ export default {
     },
   },
   methods: {
-    // Controleer of een kleur is geselecteerd
     isSelected(option) {
       return this.selectedColors.some(
         (color) => color.optionId === option.optionId
       );
     },
-
-    // Toggle de kleur in de lijst van geselecteerde kleuren
     toggleColor(option) {
       const selectedColorsCopy = [...this.selectedColors];
       const index = selectedColorsCopy.findIndex(
@@ -77,45 +76,45 @@ export default {
       if (index === -1) {
         selectedColorsCopy.push({
           optionId: option.optionId,
-          name: option.name || "Unnamed Color",
+          name: option.color || "Unnamed Color",
           images: Array.isArray(option.images) ? option.images : [],
         });
       } else {
         selectedColorsCopy.splice(index, 1);
       }
 
-      // Emit de bijgewerkte lijst van geselecteerde kleuren
-      this.$emit("update:selectedColors", selectedColorsCopy);
-
-      // Sluit de dropdown alleen als een kleur is geselecteerd, niet als een kleur is toegevoegd
-      if (option.name) {
-        this.dropdownStates[this.fieldName] = false;
-      }
+      this.$emit("update:modelValue", selectedColorsCopy); // Correct the event emission to update:modelValue
     },
-
-    // Voeg een nieuwe kleur optie toe
     addColor() {
-      if (this.isAddingColor) return; // Voorkom herhaald klikken als het toevoegen bezig is
-      this.isAddingColor = true; // Zet de flag om aan te geven dat een kleur wordt toegevoegd
+      if (this.isAddingColor) return;
+      this.isAddingColor = true;
+
+      if (!this.newColor.trim()) {
+        console.warn("Color name cannot be empty.");
+        this.isAddingColor = false;
+        return;
+      }
 
       if (
-        this.newColor.trim() &&
-        !this.colorOptions.some(
-          (option) => option.name === this.newColor.trim()
+        this.colorOptions.some(
+          (option) => option.color === this.newColor.trim()
         )
       ) {
-        const newColorOption = {
-          optionId: Date.now(), // Genereer een unieke ID
-          name: this.newColor.trim(),
-          images: [],
-        };
-        this.colorOptions.push(newColorOption); // Voeg de nieuwe kleur toe aan de lijst
-        this.$emit("update:colorOptions", this.colorOptions); // Emit de bijgewerkte lijst van kleuren
-
-        this.newColor = ""; // Maak het invoerveld leeg
+        console.warn("This color already exists.");
+        this.isAddingColor = false;
+        return;
       }
 
-      this.isAddingColor = false; // Reset de flag
+      const newColorOption = {
+        optionId: Date.now(),
+        name: this.newColor.trim(),
+        images: [],
+      };
+
+      this.colorOptions.push(newColorOption);
+      this.$emit("update:colorOptions", this.colorOptions);
+      this.newColor = "";
+      this.isAddingColor = false;
     },
   },
 };

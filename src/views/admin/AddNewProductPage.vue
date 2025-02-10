@@ -13,6 +13,7 @@ import { fetchPartnerConfigurations } from "../../services/configurationService"
 import {
   fetchProductTypes,
   getcolors,
+  addProductType,
   add3DProduct,
   add2DProduct,
 } from "../../services/productService";
@@ -104,19 +105,6 @@ const handleFileUpload = (fileUrl) => {
   // Zet de eerste waarde van de array als de URL
   console.log(fileUrl);
   uploadedFile.value = fileUrl; // Gebruik enkel de eerste URL als string
-};
-
-const addProductType = (productTypes, newType) => {
-  if (!Array.isArray(productTypes)) {
-    console.error("productTypes is not an array", productTypes);
-    return;
-  }
-
-  if (!productTypes.includes(newType)) {
-    productTypes.push(newType);
-  } else {
-    console.warn("This product type already exists!");
-  }
 };
 
 const addNewProduct = async () => {

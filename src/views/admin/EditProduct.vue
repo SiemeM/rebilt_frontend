@@ -1,141 +1,121 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import axios from "axios";
+
+axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL;
+
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
+import { fetchPartnerData } from "../../services/apiService";
+import { checkToken, fetchPartnerPackage } from "../../services/authService";
+import { fetchPartnerConfigurations } from "../../services/configurationService";
+import {
+  fetchProductById,
+  fetchProductTypes,
+  getcolors,
+  addProductType,
+  add3DProduct,
+  add2DProduct,
+} from "../../services/productService";
+import DropdownToggle from "../../components/DropdownToggle.vue";
+import DropdownToggleColor from "../../components/DropdownToggleColor.vue";
+import ColorSelectionToggle from "../../components/ColorSelectionToggle.vue";
+import ImageUpload from "../../components/ImageUpload.vue";
 
-const router = useRouter();
-const route = useRoute();
-const jwtToken = localStorage.getItem("jwtToken");
-const errorMessage = ref("");
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
-const productTypes = ref([]); // Om de producttypes op te slaan
-const filteredProducts = ref([]);
-const selectedColors = ref([]);
-const selectedType = ref(""); // Om het geselecteerde producttype bij te houden
-const checkToken = () => {
-  if (!jwtToken) {
-    router.push("/login");
-  }
-};
+const router = useRouter();
+const route = useRoute();
+const productId = route.params.id;
+const jwtToken = localStorage.getItem("jwtToken");
+const tokenPayload = jwtToken ? JSON.parse(atob(jwtToken.split(".")[1])) : {};
+const partnerId = tokenPayload.companyId;
+console.log(partnerId);
+const partnerConfigurations = ref([]);
 const productCode = ref("");
-const productType = ref("sneaker");
-const activeInactive = ref("");
 const productName = ref("");
+const productType = ref("");
+const activeInactive = ref("");
 const brand = ref("");
 const productPrice = ref("");
 const description = ref("");
+const uploadedFile = ref(null);
+const selectedType = ref("");
+const partnerPackage = ref("");
 const images = ref([]);
 const selectedOptions = ref([]);
-const productConfigurations = ref([]);
-const partnerConfigurations = ref([]);
-const partnerName = ref("");
-const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1]));
-const partnerId = tokenPayload.companyId;
-const productId = ref(route.params.id);
-const selectedOption = ref(null);
+const selectedOption = ref([]);
+const colors = ref([]);
+const productTypes = ref([]);
+const dropdownStates = ref({
+  sole_top: false, // Begin met de status van de dropdown als gesloten
+});
+const fetchedColorsPerConfig = {};
 
-const fetchPartnerData = async () => {
-  try {
-    if (!partnerId) {
-      console.error("Partner ID (companyId) is not available in the token.");
-      router.push("/login");
-      return;
-    }
+const selectedColors = ref({});
 
-    const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${jwtToken}`,
-      },
-    });
-
-    const partner = response.data?.data?.partner;
-    if (partner) {
-      partnerName.value = partner.name || "Default"; // Dynamische partnernaam
-      await fetchPartnerConfigurations(partnerId); // Fetch partner configurations
-    } else {
-      console.error("Partner data not found in response");
-      partnerName.value = "Default";
-    }
-  } catch (error) {
-    console.error("Error fetching partner data:", error.response || error);
-    partnerName.value = "Default";
+const buttonText = (configId) => {
+  const selected = selectedColors.value[configId]?.length || 0;
+  if (selected === 0) {
+    return "Select colors";
   }
+
+  const colorNames = selectedColors.value[configId]
+    .slice(0, 2)
+    .map((color) => color.name)
+    .join(", ");
+
+  if (selectedColors.value[configId].length > 2) {
+    return `${colorNames} + ${selected - 2} more`;
+  }
+
+  return colorNames;
 };
 
-const fetchOptionNames = async (optionsData) => {
-  try {
-    // Filter out undefined or empty IDs before making API calls
-    const validOptions = optionsData.filter(
-      (option) => option.optionId && option.optionId !== "undefined"
-    );
+const handleFileUpload = (fileUrl) => {
+  uploadedFile.value = fileUrl;
+};
 
-    // If there are no valid optionIds, return an empty array or some default value
-    if (validOptions.length === 0) {
-      return optionsData.map(() => ({ name: "Unknown" })); // Return an object with name as 'Unknown'
+const fetchColorsFromSelectedOptions = async () => {
+  try {
+    for (let config of partnerConfigurations.value) {
+      if (config.selectedOptions && config.selectedOptions.length > 0) {
+        // Initialize the selectedColors for the current configuration if empty
+        if (!selectedColors.value[config.configurationId._id]) {
+          selectedColors.value[config.configurationId._id] = [];
+        }
+
+        // Create an empty array for storing colors of each configuration
+        fetchedColorsPerConfig[config.configurationId._id] = [];
+
+        for (let selectedOption of config.selectedOptions) {
+          // Fetch the color related to this optionId
+          const color = await getcolors(selectedOption.colorId);
+
+          if (color) {
+            fetchedColorsPerConfig[config.configurationId._id].push(color);
+            selectedColors.value[config.configurationId._id].push(color); // Populate selectedColors
+          }
+        }
+
+        console.log(
+          "Fetched colors for config:",
+          config.configurationId._id,
+          fetchedColorsPerConfig[config.configurationId._id]
+        );
+      }
     }
-
-    // Fetch data from the API for each optionId using the correct URL structure
-    const responses = await Promise.all(
-      validOptions.map((option) =>
-        axios.get(`${baseURL}/options/${option.optionId}`, {
-          headers: { Authorization: `Bearer ${jwtToken}` },
-        })
-      )
-    );
-
-    // Map the responses to return option names (or use value as fallback)
-    return responses.map((res, index) => {
-      const optionData = res.data?.data;
-      return {
-        optionId: validOptions[index].optionId, // Make sure we retain the optionId
-        name: optionData?.name || "Unknown",
-      };
-    });
   } catch (error) {
-    console.error("Error fetching option names:", error);
-    return optionsData.map(() => ({ name: "Unknown" })); // Return 'Unknown' for each optionId in case of an error
-  }
-};
-
-const fetchProducts = async () => {
-  try {
-    const response = await axios.get(`${baseURL}/products`, {
-      params: { partnerId },
-    });
-
-    const products = response.data?.data?.products || [];
-
-    // Haal de unieke producttypes op
-    const types = [...new Set(products.map((product) => product.productType))];
-
-    productTypes.value = types; // Sla de unieke producttypes op
-    filteredProducts.value = products; // Begin met alle producten
-  } catch (error) {
-    console.error("Error fetching products:", error);
-  }
-};
-
-// Functie om producten te filteren op basis van het geselecteerde type
-const filterProductsByType = () => {
-  if (selectedType.value) {
-    filteredProducts.value = filteredProducts.value.filter(
-      (product) => product.productType === selectedType.value
-    );
-  } else {
-    // Als er geen type is geselecteerd, toon dan alle producten
-    fetchProducts();
+    console.error("Error fetching colors for selected options:", error);
   }
 };
 
 const fetchProductData = async () => {
   try {
-    const response = await axios.get(`${baseURL}/products/${productId.value}`, {
+    const response = await axios.get(`${baseURL}/products/${productId}`, {
       headers: {
         Authorization: `Bearer ${jwtToken}`,
       },
@@ -164,13 +144,7 @@ const fetchProductData = async () => {
         }
       });
 
-      console.log(selectedOptions.value); // Check if selectedOptions is populated
-
-      // Handle the selectedOptions for each configuration (if necessary)
-      // After fetching the product data
-      console.log("^poiuhgy", productData.configurations);
       partnerConfigurations.value = productData.configurations.map((config) => {
-        console.log(config.selectedOptions);
         if (config.selectedOptions) {
           // Assuming selectedOptions is an array of selected colors
           config.selectedOptions = config.selectedOptions.map((option) => {
@@ -192,11 +166,6 @@ const fetchProductData = async () => {
         return config;
       });
 
-      console.log(
-        "partnerConfigurations",
-        partnerConfigurations.value[0].selectedOptions
-      );
-
       // Set selectedOption for the first configuration (if needed)
       selectedOption.value =
         productData.configurations[0]?.selectedOptions[0]?.colorId || "";
@@ -208,255 +177,58 @@ const fetchProductData = async () => {
   }
 };
 
-const fetchPartnerConfigurations = async () => {
-  if (!partnerId) {
-    console.warn("No partnerId provided.");
-    return;
-  }
-
-  try {
-    // Fetch partner configurations
-    const partnerResponse = await axios.get(
-      `${baseURL}/partnerConfigurations`,
-      {
-        headers: { Authorization: `Bearer ${jwtToken}` },
-        params: { partnerId },
-      }
-    );
-
-    const partnerConfigs = partnerResponse.data?.data || [];
-    const configurationsResponse = await axios.get(
-      `${baseURL}/configurations`,
-      {
-        headers: { Authorization: `Bearer ${jwtToken}` },
-      }
-    );
-
-    const configurations = configurationsResponse.data?.data || [];
-
-    partnerConfigurations.value = await Promise.all(
-      partnerConfigs.map(async (partnerConfig) => {
-        // Extract configurationId and match it with existing configurations
-        const matchingConfig = configurations.find(
-          (config) =>
-            String(config._id) === String(partnerConfig.configurationId._id)
-        );
-
-        if (!matchingConfig) {
-          console.warn(
-            `No matching configuration found for ${partnerConfig.configurationId._id}`
-          );
-        }
-
-        // Now, check if 'selectedOptions' is available in the matchingConfig or related data
-        const selectedOptions = matchingConfig?.selectedOptions || []; // Try getting selectedOptions from configurationId
-
-        // If no selectedOptions in matchingConfig, fall back to the partnerConfig options
-        const fallbackSelectedOptions = partnerConfig.options.map((option) => ({
-          colorName: option.optionId.name, // Use option's name as color name
-          colorId: option.optionId._id, // Use option's _id
-          colorImage: option.images[0] || "", // If no image, return empty string
-        }));
-
-        const formattedSelectedOptions = selectedOptions.length
-          ? selectedOptions.map((option) => ({
-              colorName: option.optionId.name,
-              colorId: option.optionId._id,
-              colorImage: option.images[0] || "",
-            }))
-          : fallbackSelectedOptions; // Use fallback if no selectedOptions in matchingConfig
-
-        // Fetch options for the matching configuration
-        const options = matchingConfig?.options
-          ? await fetchOptionNames(matchingConfig.options)
-          : [];
-
-        // Return the populated partnerConfig
-        return {
-          ...partnerConfig,
-          fieldName: matchingConfig?.fieldName || "Unknown",
-          fieldType: matchingConfig?.fieldType || "Text",
-          options, // Add options for the partner config
-          selectedOptions: formattedSelectedOptions, // Add the selected options
-          value:
-            formattedSelectedOptions.length > 0
-              ? formattedSelectedOptions[0].colorId // Use the first selected option as value
-              : "", // Empty if no selected options
-        };
-      })
-    );
-
-    console.log("partnerConfigurations", partnerConfigurations.value);
-  } catch (error) {
-    console.error("Error fetching partner configurations:", error);
-  }
-};
-
-const loadProductConfigurations = () => {
-  axios
-    .get(`${baseURL}/products/${productId.value}`)
-    .then((response) => {
-      const productData = response.data.data.product;
-
-      if (
-        productData.configurations &&
-        Array.isArray(productData.configurations)
-      ) {
-        productConfigurations.value = productData.configurations.map(
-          (config) => ({
-            ...config,
-            selectedOption: config.selectedOption || null,
-          })
-        );
-      } else {
-        console.error("Geen geldige configuraties gevonden in productdata.");
-        productConfigurations.value = [];
-      }
-    })
-    .catch((error) => {
-      console.error("Error bij het laden van het product:", error);
-    });
-};
-
 const editProduct = async () => {
-  const selectedConfigurations = productConfigurations.value
-    .map((config) => ({
-      configurationId: config.configurationId._id,
-      selectedOption: config.selectedOption ? config.selectedOption._id : null,
-    }))
-    .filter((config) => config.selectedOption !== null);
+  try {
+    if (!productName.value || !productPrice.value || !productCode.value) {
+      console.error("❌ Missing required fields.");
+      return;
+    }
 
-  const colorsWithImages = await Promise.all(
-    selectedColors.value.map(async (colorItem, index) => {
-      console.log("Processing color:", colorItem);
-      const uploadedImages = await Promise.all(
-        (colorUploads.value[index]?.images || []).map((file) =>
-          uploadImageToCloudinary(file, `${productName.value}-${index}`)
-        )
-      );
-      console.log("Uploaded images for color:", uploadedImages);
-      return {
-        color: colorItem,
-        images: uploadedImages,
-      };
-    })
-  );
+    if (!uploadedFile.value) {
+      console.error("❌ No file uploaded.");
+      return;
+    }
 
-  if (config.fieldType === "color" && selectedColors.value.length > 0) {
-    selectedColors.value.forEach((selectedColor) => {
-      const selectedOptionId = selectedColor._id;
-      const images =
-        colorsWithImages.find((color) => color.color._id === selectedColor._id)
-          ?.images || [];
-      console.log("Selected color and images:", selectedColor, images);
-
-      selectedOptions.push({
-        optionId: selectedOptionId,
-        images,
-        _id: `${selectedOptionId}-${Date.now()}`,
-      });
+    await updateProduct(productId, {
+      productCode: productCode.value,
+      productName: productName.value,
+      productType: selectedType.value,
+      productPrice: productPrice.value,
+      description: description.value,
+      brand: brand.value,
+      file: uploadedFile.value,
+      configurations: partnerConfigurations.value,
     });
-  }
 
-  try {
-    const response = await axios.put(
-      `${baseURL}/products/${productId.value}`,
-      productData,
-      {
-        headers: {
-          Authorization: `Bearer ${jwtToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (response.status === 200) {
-      router.push("/admin");
-    } else {
-      console.error("Fout bij het bijwerken van het product:", response.status);
-    }
+    router.push("/");
   } catch (error) {
-    console.error("Error bij het bewerken van het product:", error);
+    console.error("❌ Error updating product:", error);
   }
 };
 
-// Functie voor het uploaden van afbeeldingen naar Cloudinary
-const uploadImageToCloudinary = async (file, productName) => {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", "ycy4zvmj");
-  formData.append("cloud_name", "dzempjvto");
+watch(selectedColors, (newValue) => {
+  console.log("Updated selectedColors:", newValue);
+});
 
-  const folderName = `${
-    partnerName.value || "DefaultFolder"
-  }/Products/${productName}`;
-  formData.append("folder", folderName);
+onMounted(async () => {
+  await checkToken();
+  await fetchProductData();
+  const partnerPackageResponse = await fetchPartnerPackage(partnerId);
+  partnerPackage.value = partnerPackageResponse || "";
+  const fetchedProductTypes = await fetchProductTypes(partnerId);
+  productTypes.value = fetchedProductTypes;
 
-  try {
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/dzempjvto/image/upload`,
-      { method: "POST", body: formData }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Cloudinary upload failed: ${errorData.error.message}`);
-    }
-
-    const data = await response.json();
-    if (!data.secure_url) {
-      throw new Error("No secure_url found in Cloudinary response");
-    }
-
-    return data.secure_url;
-  } catch (error) {
-    console.error("Error uploading image:", error);
-    throw error;
-  }
-};
-
-const dropdownStates = ref({});
-
-const toggleDropdown = (fieldName) => {
-  console.log("Toggling dropdown for field:", fieldName);
-  if (fieldName) {
-    console.log("Before toggle:", dropdownStates.value);
-    for (const key in dropdownStates.value) {
-      if (key !== fieldName) {
-        dropdownStates.value[key] = false;
+  // Make sure selectedColors is populated after fetching configuration and colors
+  partnerConfigurations.value.forEach((config) => {
+    if (config.configurationId?.fieldType === "color") {
+      if (!selectedColors.value[config.configurationId._id]) {
+        selectedColors.value[config.configurationId._id] = [];
       }
     }
-    dropdownStates.value[fieldName] = !dropdownStates.value[fieldName];
-    console.log("After toggle:", dropdownStates.value);
-  } else {
-    console.warn("fieldName is not defined:", fieldName);
-  }
-};
+  });
 
-const toggleColorSelection = (option, fieldName) => {
-  console.log("Before toggle:", selectedColors.value);
-  const index = selectedColors.value.indexOf(option.optionId);
-  if (index === -1) {
-    // Voeg de kleur toe aan de selectie
-    selectedColors.value.push(option.optionId);
-  } else {
-    // Verwijder de kleur uit de selectie
-    selectedColors.value.splice(index, 1);
-  }
-
-  // Sluit de dropdown na selectie
-  dropdownStates.value[fieldName] = false;
-  console.log("After toggle:", selectedColors.value);
-};
-
-// Call restoreSelectedOption on mounted to ensure the data is restored
-onMounted(() => {
-  checkToken();
-  loadProductConfigurations();
-  checkToken();
-  fetchPartnerData();
-  fetchProductData();
-  fetchProducts();
+  // Fetch colors based on selected options and populate selectedColors
+  await fetchColorsFromSelectedOptions(); // <-- Added this line
 });
 </script>
 
@@ -480,24 +252,17 @@ onMounted(() => {
       <div class="row">
         <div class="column">
           <label for="productType">Type Of Product:</label>
-          <select
-            v-model="productType"
-            id="productType"
-            @change="filterProductsByType"
-          >
-            <!-- Controleer of productData bestaat en toon de placeholder indien nodig -->
-            <option value="" disabled selected>
-              {{ "Select product type" }}
-            </option>
-
-            <option
-              v-for="(type, index) in productTypes"
-              :key="index"
-              :value="type"
+          <div class="dropdown" v-if="productTypes.length > 0">
+            <DropdownToggle
+              v-model="selectedType"
+              :fieldName="'sole_top'"
+              :dropdownStates="dropdownStates"
+              :buttonText="'Select colors'"
+              :types="productTypes"
+              @addOption="addProductType(productTypes, $event)"
             >
-              {{ type }}
-            </option>
-          </select>
+            </DropdownToggle>
+          </div>
         </div>
         <div class="column">
           <label for="brand">Brand:</label>
@@ -521,124 +286,214 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="row">
-        <div class="column">
-          <label for="activeInactive">Active/Inactive:</label>
-          <select v-model="activeInactive" id="activeInactive">
-            <option value="" disabled>Maak een keuze</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </div>
-      </div>
+      <!-- Render partner configurations dynamically -->
+      <template v-if="partnerPackage == 'standard'">
+        <template
+          v-for="(config, index) in partnerConfigurations"
+          :key="config._id"
+        >
+          <div class="row">
+            <div class="column">
+              <label :for="config.configurationId.fieldName">
+                {{ config.configurationId.fieldName }}:
+              </label>
 
-      <!-- Dynamically render partner configurations -->
-      <div
-        v-for="config in partnerConfigurations"
-        :key="config._id"
-        class="row"
-      >
-        <div class="column">
-          <label :for="config.fieldName">{{ config.fieldName }}:</label>
+              <!-- Text field -->
+              <template v-if="config.configurationId.fieldType === 'Text'">
+                <input
+                  v-model="config.value"
+                  :id="config.configurationId.fieldName"
+                  type="text"
+                />
+              </template>
 
-          <!-- Text field -->
-          <template v-if="config.fieldType === 'Text'">
-            <input
-              v-model="config.value"
-              :id="config.fieldName"
-              type="text"
-              :placeholder="config.value || 'Enter text here'"
-            />
-          </template>
-
-          <!-- Dropdown field -->
-          <template v-else-if="config.fieldType === 'Dropdown'">
-            <select v-model="config.value" :id="config.fieldName">
-              <option value="" disabled>
-                {{
-                  config.value
-                    ? config.options.find(
-                        (option) => option.optionId === config.value
-                      )?.name
-                    : "Select an option"
-                }}
-              </option>
-              <option
-                v-for="(option, index) in config.options"
-                :key="index"
-                :value="option.optionId"
+              <!-- Dropdown field -->
+              <template
+                v-else-if="config.configurationId.fieldType === 'Dropdown'"
               >
-                {{ option.name || "Unnamed Option" }}
-              </option>
-            </select>
-          </template>
-
-          <!-- Color field -->
-          <template v-if="config.fieldType === 'color'">
-            <div class="dropdown">
-              <div
-                class="dropdown-selected"
-                @click="toggleDropdown(config.fieldName)"
-              >
-                <!-- Show selected colors -->
-                <p
-                  v-if="
-                    config.selectedOptions && config.selectedOptions.length > 0
-                  "
+                <DropdownToggleColor
+                  :fieldName="config.configurationId.fieldName"
+                  :dropdownStates="dropdownStates"
+                  buttonText="Toggle Dropdown"
                 >
-                  Selected color:
-                  <span
-                    v-for="(option, index) in config.selectedOptions"
-                    :key="index"
+                  <div
+                    v-for="(option, optionIndex) in configurations"
+                    :key="optionIndex"
                   >
-                    <span :style="{ color: option.colorName }">{{
-                      option.colorName
-                    }}</span>
-                    <span v-if="index !== config.selectedOptions.length - 1"
-                      >,
-                    </span>
-                  </span>
-                </p>
+                    <span
+                      class="color-bullet"
+                      :style="{ backgroundColor: color.name || 'transparent' }"
+                    ></span>
+                    {{ color.name || "Unnamed Color" }}
+                  </div>
+                </DropdownToggleColor>
+              </template>
 
-                <p v-else>Select color</p>
-              </div>
-
-              <div
-                v-if="dropdownStates[config.fieldName]"
-                class="dropdown-options"
+              <!-- Color field -->
+              <template
+                v-else-if="config.configurationId.fieldType === 'color'"
               >
-                <div
-                  v-for="(option, index) in config.selectedOptions"
-                  :key="index"
-                  class="dropdown-option"
-                  @click="toggleColorSelection(option, config.fieldName)"
-                >
-                  <!-- Checkbox for selecting colors -->
-                  <input
-                    type="checkbox"
-                    :value="option.colorId"
-                    v-model="selectedColors"
-                  />
-                  <span
-                    class="color-bullet"
-                    :style="{
-                      backgroundColor: option.colorName || 'transparent',
-                    }"
-                  ></span>
-                  <p>{{ option.colorName || "Unnamed Color" }}</p>
+                <div class="color-dropdown">
+                  <div class="dropdown">
+                    <DropdownToggleColor
+                      :fieldName="config.configurationId.fieldName"
+                      :dropdownStates="dropdownStates"
+                      :buttonText="buttonText(config.configurationId._id)"
+                    >
+                      <ColorSelectionToggle
+                        v-model="selectedColors[config.configurationId._id]"
+                        :colors="
+                          fetchedColorsPerConfig[config.configurationId._id] ||
+                          []
+                        "
+                        :dropdownStates="dropdownStates"
+                        :fieldName="config.configurationId.fieldName"
+                        :colorOptions="
+                          fetchedColorsPerConfig[config.configurationId._id] ||
+                          []
+                        "
+                      />
+                    </DropdownToggleColor>
+                  </div>
                 </div>
-              </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Upload zone voor 'standard' pakket -->
+          <!-- Upload zone per geselecteerde kleur binnen een configuratie -->
+          <template v-if="config.configurationId.fieldType === 'color'">
+            <div
+              v-for="(selectedColor, colorIndex) in selectedColors[
+                config.configurationId._id
+              ] || []"
+              :key="colorIndex"
+              class="column"
+            >
+              <p>{{ selectedColor.name }} - Upload images</p>
+              <ImageUpload
+                @file-uploaded="handleFileUpload"
+                v-if="selectedColor.name"
+                :color="selectedColor"
+                :index="colorIndex"
+                :colorUploads="colorUploads"
+                :partnerPackage="partnerPackage"
+                :partnerName="partnerName"
+              />
             </div>
           </template>
-        </div>
-      </div>
+        </template>
+      </template>
 
-      <button type="submit" class="btn active">Edit Product</button>
+      <!-- Submit Button -->
+      <template v-if="partnerPackage == 'pro'">
+        <template
+          v-for="(config, index) in partnerConfigurations"
+          :key="config._id"
+        >
+          <div class="row">
+            <div class="column">
+              <label
+                v-if="config.configurationId"
+                :for="config.configurationId.fieldName"
+              >
+                {{ config.configurationId.fieldName }}:
+              </label>
+
+              <!-- Text field -->
+              <template v-if="config.configurationId?.fieldType === 'Text'">
+                <input
+                  v-model="config.value"
+                  :id="config.configurationId.fieldName"
+                  type="text"
+                />
+              </template>
+
+              <!-- Dropdown field -->
+              <template
+                v-else-if="config.configurationId?.fieldType === 'Dropdown'"
+              >
+                <DropdownToggleColor
+                  :fieldName="config.configurationId.fieldName"
+                  :dropdownStates="dropdownStates"
+                  buttonText="Toggle Dropdown"
+                >
+                  <div
+                    v-for="(option, optionIndex) in configurations"
+                    :key="optionIndex"
+                  >
+                    <span
+                      class="color-bullet"
+                      :style="{
+                        backgroundColor: option.name || 'transparent',
+                      }"
+                    ></span>
+                  </div>
+                </DropdownToggleColor>
+              </template>
+
+              <!-- Color field -->
+              <template
+                v-else-if="config.configurationId.fieldType === 'color'"
+              >
+                <div class="color-dropdown">
+                  <div class="dropdown">
+                    <DropdownToggleColor
+                      :fieldName="config.configurationId.fieldName"
+                      :dropdownStates="dropdownStates"
+                      :buttonText="buttonText(config.configurationId._id)"
+                    >
+                      <p>
+                        {{
+                          console.log(
+                            selectedColors[config.configurationId._id] ||
+                              "No colors selected"
+                          )
+                        }}
+                      </p>
+                      <ColorSelectionToggle
+                        v-model="selectedColors[config.configurationId._id]"
+                        :colors="
+                          fetchedColorsPerConfig[config.configurationId._id] ||
+                          []
+                        "
+                        :dropdownStates="dropdownStates"
+                        :fieldName="config.configurationId.fieldName"
+                        :colorOptions="
+                          fetchedColorsPerConfig[config.configurationId._id] ||
+                          []
+                        "
+                      />
+                    </DropdownToggleColor>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <!-- Display one ImageUpload if there's at least one selected color -->
+        <!-- <template
+          v-if="
+            Object.values(selectedColors).some((colors) => colors.length > 0)
+          "
+        >
+          <ImageUpload
+            @file-uploaded="handleFileUpload"
+            :color="
+              Object.values(selectedColors).find(
+                (colors) => colors.length > 0
+              )[0]
+            "
+            :colorUploads="colorUploads"
+            :partnerPackage="partnerPackage"
+            :partnerName="partnerName"
+          />
+        </template> -->
+      </template>
+
+      <button class="btn active" type="submit">Update Product</button>
     </form>
-
-    <div v-if="errorMessage" class="error-message">
-      {{ errorMessage }}
-    </div>
   </div>
 </template>
 
@@ -648,7 +503,17 @@ onMounted(() => {
   margin-bottom: 72px;
 }
 
-form {
+.error-message {
+  color: red;
+  font-weight: bold;
+  padding: 10px;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 5px;
+}
+
+form,
+.color-dropdown {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -656,14 +521,9 @@ form {
   width: 100%;
 }
 
-form .row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-}
-
-form .column {
+form .row,
+form .column,
+.color-upload-section {
   display: flex;
   flex-direction: column;
   gap: 8px;
