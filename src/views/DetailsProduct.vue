@@ -32,7 +32,9 @@ const baseURL = isProduction
 const options = computed(() => optionNames.value);
 const partnerName = ref("");
 const partnerPackage = ref("");
-let scene, camera, rendererMobile, rendererDesktop;
+let scene = new THREE.Scene();
+
+let camera, rendererMobile, rendererDesktop;
 const objLoader = new OBJLoader();
 const dracoLoader = new DRACOLoader();
 const gltfLoader = new GLTFLoader();
@@ -53,6 +55,36 @@ const optionNames = ref([]);
 const selectedItems = ref([]);
 const productConfigs = ref([]);
 const partnerConfigurationsCount = ref([]);
+
+async function fetchPartnerName(partnerId) {
+  try {
+    const response = await fetch(`${baseURL}/partners/${partnerId}`);
+    if (!response.ok) throw new Error("Network response was not ok");
+    const data = await response.json();
+    partnerName.value = data.data.partner.name || "";
+  } catch (err) {
+    console.error("Error fetching partner package:", err);
+  }
+}
+
+async function fetchPartnerPackage(partnerId) {
+  try {
+    const response = await fetch(`${baseURL}/partners/${partnerId}`);
+    if (!response.ok) {
+      throw new Error("Failed to fetch partner package");
+    }
+    const data = await response.json();
+
+    // Controleer eerst of de gegevens beschikbaar zijn voordat je probeert 'package' te lezen
+    if (data && data.data && data.data.partner) {
+      partnerPackage.value = data.data.partner.package;
+    } else {
+      console.error("Partner data is incomplete:", data);
+    }
+  } catch (error) {
+    console.error("Error fetching partner package:", error);
+  }
+}
 
 onUnmounted(() => {
   window.removeEventListener("resize", onWindowResize);
@@ -267,7 +299,6 @@ function load3DModel(filePath) {
   }
 
   const fileExtension = filePath.split(".").pop().toLowerCase();
-
   if (fileExtension === "obj") {
     loadOBJModel(filePath); // Laad .obj bestand
   } else if (fileExtension === "glb" || fileExtension === "gltf") {
@@ -439,99 +470,19 @@ function applyColorToActiveLayer(color) {
   }
 }
 
-// function selectOption(optionName) {
-//   const productId = route.params.productId;
-
-//   if (!productId) {
-//     console.error("productId is undefined!");
-//     return;
-//   }
-
-//   selectedOption.value = optionName;
-//   selectedOptionName.value = optionName;
-
-//   fetch(`${baseURL}/products/${productId}`, {
-//     method: "GET",
-//     headers: { "Content-Type": "application/json" },
-//   })
-//     .then((response) => response.json())
-//     .then(async (result) => {
-//       const product = result.data.product;
-//       const configurations = product.configurations || [];
-
-//       const enrichedConfigurations = await Promise.all(
-//         configurations.map(async (config) => {
-//           let selectedConfigId = config.configurationId;
-//           if (typeof selectedConfigId === "object" && selectedConfigId._id) {
-//             selectedConfigId = selectedConfigId._id;
-//           }
-
-//           await loadOptionsForConfig(selectedConfigId);
-
-//           const fieldName =
-//             config.configurationId?.fieldName || "defaultFieldName"; // Fallback naar een standaardnaam
-
-//           // Verkrijg de kleur voor de geselecteerde optie
-//           const selectedLayerColor = getColorForLayer(optionName); // Verkrijg de kleur voor de geselecteerde optie
-
-//           // Controleer of de kleur en fieldName beide gedefinieerd zijn
-//           if (selectedLayerColor && fieldName) {
-//             // Vind alle p-elementen en kijk of het overeenkomt met de fieldName
-//             const layerElements = document.querySelectorAll("p");
-//             let layerVisible = false;
-
-//             layerElements.forEach((el) => {
-//               if (el.textContent.trim() === fieldName) {
-//                 // Krijg de oudercontainer van het p-element
-//                 const parentElement = el.closest("li");
-
-//                 // Controleer of de oudercontainer zichtbaar is
-//                 const style = window.getComputedStyle(parentElement);
-//                 if (style.display !== "none" && style.visibility !== "hidden") {
-//                   layerVisible = true;
-//                 }
-//               }
-//             });
-
-//             if (layerVisible) {
-//               applyColorToActiveLayer(selectedLayerColor); // Pas kleur toe
-//             }
-//           } else {
-//             console.error("Geen fieldName of kleur geselecteerd voor kleur.");
-//           }
-
-//           return config;
-//         })
-//       );
-
-//       productData.value = {
-//         ...productData.value,
-//         configurations: enrichedConfigurations,
-//       };
-//     })
-//     .catch((err) => {
-//       console.error("Error fetching product data:", err.message);
-//     });
-// }
-
 async function selectOption(optionId) {
-  console.log("Geselecteerde optie (optionId):", optionId);
-
   const productId = route.params.productId;
-  console.log("Route productId:", productId);
 
   if (!productId) {
     console.error("productId is undefined!");
     return;
   }
 
-  selectedOption.value = optionId; // Update de geselecteerde optie
-  console.log("Geselecteerde optie (selectedOption):", selectedOption.value);
+  selectedOption.value = optionId;
 
   let selectedOptionImages = [];
 
   try {
-    console.log("Bezig met ophalen van productgegevens...");
     const response = await fetch(`${baseURL}/products/${productId}`, {
       method: "GET",
       headers: {
@@ -539,29 +490,21 @@ async function selectOption(optionId) {
       },
     });
 
-    console.log("Product fetch response:", response);
-
     if (!response.ok) {
       throw new Error(`Product fetch error! Status: ${response.status}`);
     }
 
     const result = await response.json();
-    console.log("Product fetch result:", result);
 
     const product = result.data.product;
-    console.log("Product data:", product);
 
     const configurations = product.configurations || [];
-    console.log("Product configuraties:", configurations);
 
     const enrichedConfigurations = configurations.map((config) => {
-      console.log("Huidige configuratie:", config);
-
       // Zoek de geselecteerde optie op basis van optionId
       const selectedOptionData = config.selectedOptions.find(
         (option) => option.optionId.name === optionId
       );
-      console.log("Geselecteerde optie data:", selectedOptionData);
 
       if (!selectedOptionData) {
         console.error(`Geen optie gevonden voor optionId ${optionId}`);
@@ -570,41 +513,24 @@ async function selectOption(optionId) {
 
       const optionName = selectedOptionData.optionId?.name;
 
-      console.log("Optienaam:", optionName);
-
       // Update afbeeldingen als ze bestaan
       if (selectedOptionData?.images) {
         selectedOptionImages = selectedOptionData.images;
-        console.log(
-          "Afbeeldingen voor geselecteerde optie:",
-          selectedOptionImages
-        );
       } else {
         selectedOptionImages = [];
-        console.log("Geen afbeeldingen gevonden voor deze optie.");
       }
 
       // Update de geselecteerde items
       const existingConfigIndex = selectedItems.value.findIndex(
         (item) => item.configurationId === config.configurationId
       );
-      console.log(
-        "Bestaat deze configuratie al in selectedItems?",
-        existingConfigIndex !== -1
-      );
 
       if (existingConfigIndex !== -1) {
-        console.log(
-          "Bijwerken van bestaande configuratie in selectedItems:",
-          selectedItems.value[existingConfigIndex]
-        );
-
         selectedItems.value[existingConfigIndex].selectedItem = {
           optionName: optionName,
           images: selectedOptionImages,
         };
       } else {
-        console.log("Nieuwe configuratie toevoegen aan selectedItems.");
         selectedItems.value.push({
           configurationId: config.configurationId,
           selectedItem: {
@@ -614,21 +540,17 @@ async function selectOption(optionId) {
         });
       }
 
-      console.log("Geverrijkte configuratie:", { ...config, optionName });
-
       return { ...config, optionName };
     });
 
-    console.log("Geverrijkte configuraties:", enrichedConfigurations);
-
     // Zet de geselecteerde afbeeldingen in productImages
+    console.log(productImages.value);
     productImages.value = selectedOptionImages;
-    console.log("Bijgewerkte productImages:", productImages.value);
 
     // Zet de eerste afbeelding als selectedImage
+    console.log(selectedOptionImages.length);
     if (selectedOptionImages.length > 0) {
       selectedImage.value = selectedOptionImages[0];
-      console.log("Bijgewerkte selectedImage:", selectedImage.value);
     }
 
     // Update productData
@@ -639,13 +561,10 @@ async function selectOption(optionId) {
       images: selectedOptionImages,
       configurations: enrichedConfigurations,
     };
-    console.log("Bijgewerkte productData:", productData.value);
 
     const partnerId = product.partnerId;
-    console.log("Partner ID:", partnerId);
 
     if (partnerId) {
-      console.log("Bezig met ophalen van partnergegevens...");
       await fetchPartnerName(partnerId);
       await fetchPartnerPackage(partnerId);
       await fetchNumberOfPartnerConfigurations(partnerId);
@@ -658,7 +577,6 @@ async function selectOption(optionId) {
       "Er is een fout opgetreden bij het ophalen van de productgegevens.";
   } finally {
     isLoading.value = false;
-    console.log("Data ophalen voltooid. isLoading:", isLoading.value);
   }
 }
 
@@ -690,29 +608,50 @@ watch(selectedOptionName, (newOption) => {
   }
 });
 
+onMounted(async () => {
+  const productId = route.params.productId; // Verkrijg productId uit route parameters
+  if (!productId) return; // Als er geen productId is, doe dan niets
+
+  try {
+    isLoading.value = true; // Zet laadtijdindicator aan
+    error.value = null; // Reset eventuele foutmeldingen
+
+    // Haal productgegevens op
+    await fetchProductData(productId); // Gebruik de fetchProductData functie om productinformatie te laden
+
+    // Controleer of er een partnerId is en haal partnerinformatie op
+    const partnerId = productData.value.partnerId;
+    if (partnerId) {
+      await fetchPartnerPackage(partnerId); // Haal partnerpakket op
+    }
+
+    // Log geselecteerde afbeelding
+    console.log(selectedImage.value);
+
+    // Als het partnerpakket "pro" is en er een geselecteerde afbeelding is, laad dan het 3D-model
+    if (partnerPackage.value === "pro" && selectedImage.value) {
+      const container = document.querySelector(".model");
+
+      if (container) {
+        initializeScene(); // Initialiseer de scène voor het 3D-model
+
+        const filePath = `${selectedImage.value}`; // Dynamisch pad op basis van geselecteerde afbeelding
+        console.log(filePath); // Debug: Controleer het pad van het model
+
+        load3DModel(filePath); // Laad het 3D-model met het pad
+      } else {
+        console.error("3D container not found!"); // Foutmelding als de container niet wordt gevonden
+      }
+    }
+  } catch (err) {
+    console.error("Error fetching product data:", err.message);
+    error.value = "Error occurred while fetching product data."; // Zet foutmelding
+  } finally {
+    isLoading.value = false; // Zet laadtijdindicator uit
+  }
+});
+
 /* ---- 2D ---- */
-async function fetchPartnerName(partnerId) {
-  try {
-    const response = await fetch(`${baseURL}/partners/${partnerId}`);
-    if (!response.ok) throw new Error("Network response was not ok");
-    const data = await response.json();
-    partnerName.value = data.data.partner.name || "";
-  } catch (err) {
-    console.error("Error fetching partner package:", err);
-  }
-}
-
-async function fetchPartnerPackage(partnerId) {
-  try {
-    const response = await fetch(`${baseURL}/partners/${partnerId}`);
-    if (!response.ok) throw new Error("Network response was not ok");
-    const data = await response.json();
-    partnerPackage.value = data.data.partner.package || "";
-  } catch (err) {
-    console.error("Error fetching partner package:", err);
-  }
-}
-
 async function fetchNumberOfPartnerConfigurations(partnerId) {
   try {
     const response = await fetch(`${baseURL}/partnerConfigurations`);
@@ -838,6 +777,7 @@ async function fetchProductData(productCode) {
     optionNames.value = [];
 
     let selectedOptionImages = [];
+
     const enrichedConfigurations = await Promise.all(
       configurations.map(async (config) => {
         let selectedConfigId = config.configurationId;
@@ -878,8 +818,9 @@ async function fetchProductData(productCode) {
             optionName = optionResult.data?.name || "Option 1";
           }
 
+          // Voeg de geselecteerde afbeeldingen toe aan de array
           if (selectedOptionData?.images) {
-            selectedOptionImages = selectedOptionData.images;
+            selectedOptionImages.push(...selectedOptionData.images); // voeg toe i.p.v. overschrijven
           }
 
           const existingConfigIndex = selectedItems.value.findIndex(
@@ -915,9 +856,12 @@ async function fetchProductData(productCode) {
       })
     );
 
+    console.log(selectedOptionImages.length);
     if (selectedOptionImages.length > 0) {
       productImages.value = selectedOptionImages;
+      console.log(productImages.value);
       selectedImage.value = selectedOptionImages[0];
+      console.log(selectedImage.value);
     } else {
       console.warn("No images found for the selected option");
     }
@@ -1155,24 +1099,6 @@ watch(
   },
   { immediate: true }
 );
-
-watch(partnerPackage, (newPackage) => {
-  if (newPackage === "pro" && !isModelLoaded) {
-    const filePath = `${selectedImage.value}`; // Dynamisch pad gebaseerd op selectedImage
-    load3DModel(filePath); // Laad het model op basis van filePath
-  }
-});
-
-onMounted(() => {
-  if (partnerPackage.value == "pro") {
-    const container = document.querySelector(".model");
-    if (container) {
-      initializeScene(); // Initialiseert de scene als de container bestaat
-    } else {
-      console.error("3D container not found!"); // Meldt een fout als de container niet gevonden wordt
-    }
-  }
-});
 </script>
 
 <template>
