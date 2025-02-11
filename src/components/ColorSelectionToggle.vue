@@ -12,10 +12,10 @@
         @click="toggleColor(option)"
         :aria-label="`Select color ${option.color}`"
       />
-      <span class="color-bullet" :style="{ backgroundColor: option.color }">
-        {{ option.name }}
-        <!-- Should display the color name -->
+      <span class="color-bullet" :style="{ backgroundColor: option.name }">
       </span>
+      <span class="stroke">-</span>
+      <span class="color-name">{{ option.name }}</span>
     </div>
 
     <div v-if="isOpen" class="dropdown-add-option">
@@ -145,8 +145,18 @@ export default {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  margin-right: 10px;
+  margin-right: 0.5rem;
   display: inline-block;
+}
+
+.stroke {
+  margin-right: 0.5rem;
+}
+
+.stroke,
+.color-name {
+  color: var(--white);
+  font-size: 0.75rem;
 }
 
 input[type="checkbox"] {
@@ -177,7 +187,7 @@ p {
   padding: 4px 8px;
   border: none;
   border-radius: 4px;
-  background-color: var(--blue-500);
+  background-color: var(--blue-600);
   color: white;
   cursor: pointer;
 }

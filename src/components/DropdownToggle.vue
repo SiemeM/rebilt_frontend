@@ -133,7 +133,7 @@ export default {
   padding: 4px 8px;
   border: none;
   border-radius: 4px;
-  background-color: var(--blue-500);
+  background-color: var(--blue-600);
   color: white;
   cursor: pointer;
 }
