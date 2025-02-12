@@ -16,6 +16,7 @@
         class="color-bullet"
         :style="{ backgroundColor: option.name || 'transparent' }"
       ></span>
+      <p class="stroke">-</p>
       <p>{{ option.name || "Unnamed Color" }}</p>
     </div>
 
@@ -146,8 +147,17 @@ export default {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  margin-right: 10px;
+  margin-right: 0.5rem;
   display: inline-block;
+}
+
+.dropdown-option p {
+  opacity: 0.8;
+  font-size: 0.75rem;
+}
+
+.stroke {
+  margin-right: 0.5rem;
 }
 
 input[type="checkbox"] {

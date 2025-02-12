@@ -39,6 +39,7 @@ const activeInactive = ref("");
 const brand = ref("");
 const productPrice = ref("");
 const description = ref("");
+const colorUploads = ref([]);
 const uploadedFile = ref(null);
 const selectedType = ref("");
 const partnerPackage = ref("");
@@ -59,10 +60,8 @@ const fetchProductData = async () => {
     });
 
     const productData = response.data?.data?.product;
-    console.log(productData.configurations);
 
     if (productData) {
-      // Populate other product information
       productCode.value = productData.productCode;
       productName.value = productData.productName;
       productType.value = productData.productType;
@@ -70,20 +69,28 @@ const fetchProductData = async () => {
       brand.value = productData.brand;
       productPrice.value = productData.productPrice;
       description.value = productData.description;
-      images.value = productData.images || [];
 
-      // Handle selectedOptions correctly
-      selectedOptions.value = []; // Reset to empty array before populating
+      // **Bestaande afbeeldingen in colorUploads zetten**
+      let colorUploadsArray = [];
 
-      productData.configurations.forEach((config) => {
-        if (config.selectedOptions && config.selectedOptions.length > 0) {
-          selectedOptions.value.push(config.selectedOptions);
-        }
-      });
+      if (productData.configurations) {
+        productData.configurations.forEach((config, index) => {
+          let images = [];
 
-      // Set selectedOption for the first configuration (if needed)
-      selectedOption.value =
-        productData.configurations[0]?.selectedOptions[0]?.colorId || "";
+          if (config.selectedOptions) {
+            config.selectedOptions.forEach((option) => {
+              if (option.images && option.images.length > 0) {
+                images.push(...option.images);
+              }
+            });
+          }
+
+          colorUploadsArray[index] = { images };
+        });
+      }
+
+      colorUploads.value = colorUploadsArray; // Opslaan in Vue-reactive state
+      console.log("Opgeslagen colorUploads:", colorUploads.value);
     } else {
       console.error("Geen productdata gevonden.");
     }
@@ -205,7 +212,6 @@ onMounted(async () => {
       jwtToken
     );
 
-    console.log(partnerConfigs);
     partnerConfigurations.value = partnerConfigs || [];
 
     // Fetch colors
@@ -235,8 +241,6 @@ onMounted(async () => {
     } else {
       console.warn("⚠️ Geen kleuren gevonden.");
     }
-
-    console.log(rawFetchedColors);
 
     // Fetch product types
     const fetchedProductTypes = await fetchProductTypes(partnerId);
@@ -390,10 +394,7 @@ onMounted(async () => {
               <p>{{ selectedColor.name }} - Upload images</p>
               <ImageUpload
                 @file-uploaded="handleFileUpload"
-                v-if="selectedColor.name"
-                :color="selectedColor"
-                :index="colorIndex"
-                :colorUploads="colorUploads"
+                :existingFiles="images"
                 :partnerPackage="partnerPackage"
                 :partnerName="partnerName"
               />
@@ -494,11 +495,6 @@ onMounted(async () => {
         >
           <ImageUpload
             @file-uploaded="handleFileUpload"
-            :color="
-              Object.values(selectedColors).find(
-                (colors) => colors.length > 0
-              )[0]
-            "
             :colorUploads="colorUploads"
             :partnerPackage="partnerPackage"
             :partnerName="partnerName"

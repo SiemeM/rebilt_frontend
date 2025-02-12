@@ -32,7 +32,11 @@ export const uploadFileToCloudinary = async (
     const fileExtension = file.name.split(".").pop().toLowerCase();
     let uploadEndpoint;
 
-    if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].includes(fileExtension)) {
+    if (
+      ["jpg", "jpeg", "svg", "png", "gif", "bmp", "webp"].includes(
+        fileExtension
+      )
+    ) {
       uploadEndpoint = "https://api.cloudinary.com/v1_1/dzempjvto/image/upload"; // Afbeelding upload
     } else if (["glb", "obj", "gltf"].includes(fileExtension)) {
       uploadEndpoint = "https://api.cloudinary.com/v1_1/dzempjvto/raw/upload"; // 3D-bestand upload
