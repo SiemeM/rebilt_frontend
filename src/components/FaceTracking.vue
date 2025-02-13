@@ -7,11 +7,20 @@
 
 <script>
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"; // Import de GLTFLoader
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
-import * as faceMeshModule from "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.3/face_mesh.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
+import { FaceMesh } from "@mediapipe/face_mesh";
 
 export default {
+  server: {
+    proxy: {
+      "/mediapipe": {
+        target: "https://www.gstatic.com/mediapipe",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/mediapipe/, ""),
+      },
+    },
+  },
   data() {
     return {
       video: null,
@@ -27,38 +36,67 @@ export default {
     this.initializeCamera();
     this.setupFaceMesh();
     this.setup3DScene();
+    window.addEventListener("resize", this.onResize);
   },
   methods: {
     async initializeCamera() {
       this.video = this.$refs.videoElement;
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      this.video.srcObject = stream;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
+        this.video.srcObject = stream;
+        console.log("Camera succesvol gestart.");
+      } catch (error) {
+        console.error("Fout bij het starten van de camera:", error);
+      }
     },
+
     async setupFaceMesh() {
+      console.log("Bezig met het instellen van FaceMesh...");
+      window.Module = window.Module || {}; // Fix voor WebAssembly fout
+
       this.canvas = this.$refs.canvasElement;
       this.faceMesh = new FaceMesh({
         locateFile: (file) =>
-          `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+          `https://www.gstatic.com/mediapipe/face_mesh/${file}`,
       });
 
       this.faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true });
-      this.faceMesh.onResults(this.onResults);
+      this.faceMesh.onResults(this.onFaceMeshResults);
 
-      await this.faceMesh.initialize();
-      this.detectFaces();
-    },
-    async detectFaces() {
-      if (!this.video || !this.faceMesh) return;
-      await this.faceMesh.send({ image: this.video });
-      requestAnimationFrame(this.detectFaces);
-    },
-    onResults(results) {
-      console.log("Gezichtslandmarks:", results.multiFaceLandmarks);
-      if (results.multiFaceLandmarks.length > 0) {
-        const landmarks = results.multiFaceLandmarks[0];
-        this.updateModelPosition(landmarks);
+      try {
+        await this.faceMesh.initialize();
+        console.log("FaceMesh succesvol geïnitialiseerd");
+        this.detectFaces();
+      } catch (error) {
+        console.error("Fout bij het initialiseren van FaceMesh:", error);
       }
     },
+
+    async detectFaces() {
+      if (!this.video || !this.faceMesh) return;
+
+      try {
+        await this.faceMesh.send({ image: this.video });
+      } catch (error) {
+        console.error("Fout bij gezichtsdetectie:", error);
+      }
+
+      requestAnimationFrame(() => this.detectFaces());
+    },
+
+    onFaceMeshResults(results) {
+      console.log("FaceMesh resultaten:", results);
+      if (
+        !results.multiFaceLandmarks ||
+        results.multiFaceLandmarks.length === 0
+      )
+        return;
+      const landmarks = results.multiFaceLandmarks[0];
+      this.updateModelPosition(landmarks);
+    },
+
     setup3DScene() {
       this.scene = new THREE.Scene();
       this.camera = new THREE.PerspectiveCamera(
@@ -67,17 +105,18 @@ export default {
         0.1,
         1000
       );
-      this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas });
+      this.renderer = new THREE.WebGLRenderer({
+        canvas: this.canvas,
+        alpha: true,
+      });
       this.renderer.setSize(window.innerWidth, window.innerHeight);
 
-      // Laad het brilmodel via GLTFLoader met Draco-gecomprimeerd model
+      // Set up DRACOLoader to decode Draco compressed models
       const dracoLoader = new DRACOLoader();
-      dracoLoader.setDecoderPath(
-        "https://www.gstatic.com/draco/version_5.0.0/"
-      );
+      dracoLoader.setDecoderPath("https://www.gstatic.com/threejs/r121/draco/");
 
       const loader = new GLTFLoader();
-      loader.setDRACOLoader(dracoLoader);
+      loader.setDRACOLoader(dracoLoader); // Link DRACOLoader with GLTFLoader
 
       loader.load(
         "https://res.cloudinary.com/dzempjvto/raw/upload/v1739183774/Products/222233/k4du4mi1q2uvou11dfvy.glb",
@@ -87,24 +126,25 @@ export default {
         },
         undefined,
         (error) => {
-          console.error(
-            "Er is een fout opgetreden bij het laden van het model:",
-            error
-          );
+          console.error("Fout bij het laden van het 3D-model:", error);
         }
       );
 
-      this.camera.position.z = 1; // Zet de camera op een redelijke afstand van het object
+      this.camera.position.z = 1;
     },
-    updateModelPosition(landmarks) {
-      // Gebruik de gezichtslandmarks om de positie van het model aan te passen
-      const noseBridge = landmarks[1]; // Dit is een voorbeeld: neem de neusbrug als referentiepunt
-      if (this.model) {
-        this.model.position.set(noseBridge.x - 0.5, noseBridge.y - 0.5, 0);
-      }
 
-      // Render de scene met de camera
+    updateModelPosition(landmarks) {
+      const nose = landmarks[1]; // Neusbrug als referentiepunt
+      if (this.model) {
+        this.model.position.set(nose.x - 0.5, nose.y - 0.5, 0);
+      }
       this.renderer.render(this.scene, this.camera);
+    },
+
+    onResize() {
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+      this.camera.aspect = window.innerWidth / window.innerHeight;
+      this.camera.updateProjectionMatrix();
     },
   },
 };
@@ -124,20 +164,12 @@ video {
   width: 100%;
   height: 100%;
   position: absolute;
-  transform: scaleX(-1); /* Spiegelt de camera */
+  transform: scaleX(-1);
 }
 
 canvas {
   width: 100%;
   height: 100%;
   position: absolute;
-}
-
-@media (min-width: 1024px) {
-  .ar-container {
-    width: 50vw; /* Breedte op 50% van het scherm */
-    left: 12%; /* Links uitgelijnd */
-    height: 100vh;
-  }
 }
 </style>

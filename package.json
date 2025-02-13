@@ -16,6 +16,7 @@
     "@fortawesome/vue-fontawesome": "^3.0.8",
     "@google-cloud/vision": "^4.3.2",
     "@mediapipe/face_mesh": "^0.4.1633559619",
+    "@mediapipe/selfie_segmentation": "^0.1.1675465747",
     "ar.js": "^2.2.2",
     "axios": "^1.7.9",
     "dat.gui": "^0.7.9",

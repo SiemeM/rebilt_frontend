@@ -8,6 +8,14 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import DynamicStyle from "../components/DynamicStyle.vue";
 
 import FaceTracking from "../components/FaceTracking.vue";
+import {
+  onTouchStart,
+  onTouchMove,
+  onMouseDown,
+  onTouchEnd,
+  onMouseMove,
+  onMouseUp,
+} from "../services/productService";
 
 const isFaceTrackingVisible = ref(false); // Zorg ervoor dat deze reactive is
 
@@ -107,63 +115,6 @@ function onWindowResize() {
     camera.aspect = container.offsetWidth / container.offsetHeight;
     camera.updateProjectionMatrix();
   }
-}
-
-// Functie voor het starten van een muis/touch-interactie
-function onTouchStart(event) {
-  event.preventDefault(); // Voorkomt scrollen bij touch
-  isMouseDown = true;
-  prevMouseX = event.touches ? event.touches[0].clientX : event.clientX;
-  prevMouseY = event.touches ? event.touches[0].clientY : event.clientY;
-}
-
-// Functie voor muis/touchbewegingen
-function onTouchMove(event) {
-  if (!isMouseDown) return;
-
-  const deltaX =
-    (event.touches ? event.touches[0].clientX : event.clientX) - prevMouseX;
-  const deltaY =
-    (event.touches ? event.touches[0].clientY : event.clientY) - prevMouseY;
-
-  if (model) {
-    model.rotation.y += deltaX * rotationSpeed;
-    model.rotation.x += deltaY * rotationSpeed;
-  }
-
-  prevMouseX = event.touches ? event.touches[0].clientX : event.clientX;
-  prevMouseY = event.touches ? event.touches[0].clientY : event.clientY;
-}
-
-// Functie voor het beëindigen van de muis/touch-interactie
-function onTouchEnd() {
-  isMouseDown = false;
-}
-
-// Functies voor muisinteractie (voor desktop)
-function onMouseDown(event) {
-  isMouseDown = true;
-  prevMouseX = event.clientX;
-  prevMouseY = event.clientY;
-}
-
-function onMouseMove(event) {
-  if (!isMouseDown) return;
-
-  const deltaX = event.clientX - prevMouseX;
-  const deltaY = event.clientY - prevMouseY;
-
-  if (model) {
-    model.rotation.y += deltaX * rotationSpeed;
-    model.rotation.x += deltaY * rotationSpeed;
-  }
-
-  prevMouseX = event.clientX;
-  prevMouseY = event.clientY;
-}
-
-function onMouseUp() {
-  isMouseDown = false;
 }
 
 function logSceneLayers() {
