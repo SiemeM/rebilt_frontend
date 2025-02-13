@@ -513,7 +513,7 @@ li svg {
   position: absolute;
   top: 50%;
   left: calc(34.2% - 3.28%);
-  z-index: 999;
+  z-index: 2;
   display: flex;
   flex-direction: row;
   align-items: center;

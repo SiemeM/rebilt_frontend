@@ -7,6 +7,16 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import DynamicStyle from "../components/DynamicStyle.vue";
 
+import FaceTracking from "../components/FaceTracking.vue";
+
+const isFaceTrackingVisible = ref(false); // Zorg ervoor dat deze reactive is
+
+// Functie die de zichtbaarheid van FaceTracking toggelt
+function toggleFaceTracking() {
+  console.log("Toggling face tracking visibility");
+  isFaceTrackingVisible.value = !isFaceTrackingVisible.value; // Toggle de waarde
+}
+
 const sizes = ref([]);
 const materials = ref([]);
 const layers = ref([]);
@@ -1088,7 +1098,7 @@ watch(
         </div>
       </router-link>
       <div class="icon" v-if="partnerPackage === 'pro'">
-        <div @click="generateQRCode" class="AR">
+        <div @click="toggleFaceTracking" class="AR">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path
               d="M11.98 2.36a.75.75 0 00-.33.1L8.3 4.11H8.3a.08.08 0 00-.01.01.76.76 0 00-.31 1c.09.18.24.31.43.38.19.06.4.05.57-.04l2.26-1.13v2.7c0 .2.08.39.22.53a.76.76 0 001.08 0 .76.76 0 00.22-.54V4.34L15 5.47h.01a.76.76 0 001.03-.91.75.75 0 00-.34-.42l-.01-.01a.08.08 0 00-.01 0l-3.34-1.68a.75.75 0 00-.37-.09zm-5.57 2.8a.76.76 0 00-.34.08L2.72 6.9a.76.76 0 00-.42.7v3.9c0 .2.08.39.22.53a.76.76 0 001.07 0 .76.76 0 00.22-.54V8.81l2.26 1.13a.76.76 0 001.05-.91.76.76 0 00-.35-.42.08.08 0 00-.02-.02l-2-1 2-1c.3-.16.48-.52.4-.85a.77.77 0 00-.74-.58zm11.18 0a.77.77 0 00-.73.58c-.08.32.08.67.37.83l.02.02 2 1-2 1a.08.08 0 00-.02.02c-.17.1-.3.24-.35.42a.76.76 0 00.47.95c.19.06.4.05.58-.04l2.26-1.13v2.7c0 .2.08.39.22.53a.76.76 0 001.07 0 .76.76 0 00.22-.54V7.6a.76.76 0 00-.42-.69l-3.35-1.67a.76.76 0 00-.34-.08zm-2.24 4.47a.75.75 0 00-.33.08L12 11.2l-3.02-1.5a.76.76 0 00-1.05.91c.06.18.2.33.36.42a.08.08 0 000 .01h.01a.08.08 0 000 .01l2.94 1.47v2.89c0 .2.08.39.22.53a.76.76 0 001.08 0 .76.76 0 00.22-.53v-2.9l2.93-1.46.02-.02c.3-.16.45-.5.37-.83a.77.77 0 00-.73-.58zM3.01 14.11a.75.75 0 00-.7.75v3.9c-.01.29.15.56.41.69l3.35 1.67a.76.76 0 001.05-.91.76.76 0 00-.34-.42.08.08 0 00-.03-.02l-2-1 2-1 .02-.02c.17-.1.3-.24.35-.42a.76.76 0 00-.47-.95.77.77 0 00-.58.04l-2.26 1.13v-2.7c0-.2-.08-.4-.24-.55a.76.76 0 00-.56-.2zm17.88 0a.76.76 0 00-.7.75v2.69l-2.26-1.13a.76.76 0 00-1.05.91c.06.18.18.33.35.42a.08.08 0 00.01 0v.02a.08.08 0 00.01 0l2 1-2 1h-.01a.08.08 0 000 .01h-.01a.76.76 0 00.13 1.37c.18.07.39.06.57-.03l3.35-1.67c.26-.13.42-.4.42-.69v-3.9a.76.76 0 00-.8-.75zm-8.94 4.47a.08.08 0 00-.03 0 .75.75 0 00-.47.23.76.76 0 00-.2.52v2.69l-2.26-1.13a.08.08 0 00-.01 0 .76.76 0 00-1.03.91c.05.18.18.33.34.42l.01.01a.08.08 0 00.01.01l3.34 1.67c.22.12.49.11.7 0l3.34-1.67.02-.01a.76.76 0 00.31-1 .76.76 0 00-1-.34l-2.26 1.13v-2.7a.76.76 0 00-.8-.74z"
@@ -1097,6 +1107,9 @@ watch(
         </div>
         <p>AR</p>
       </div>
+
+      <!-- FaceTracking Component Tonen -->
+      <FaceTracking v-if="isFaceTrackingVisible" @close="toggleFaceTracking" />
     </div>
     <div class="rotate-informer desktop" v-if="partnerPackage === 'pro'">
       <svg
@@ -1122,7 +1135,7 @@ watch(
         <p class="name">{{ productName }}</p>
         <div class="icons">
           <div class="icon" v-if="partnerPackage === 'pro'">
-            <div @click="generateQRCode" class="AR">
+            <div @click="toggleFaceTracking" class="AR">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                 <path
                   d="M11.98 2.36a.75.75 0 00-.33.1L8.3 4.11H8.3a.08.08 0 00-.01.01.76.76 0 00-.31 1c.09.18.24.31.43.38.19.06.4.05.57-.04l2.26-1.13v2.7c0 .2.08.39.22.53a.76.76 0 001.08 0 .76.76 0 00.22-.54V4.34L15 5.47h.01a.76.76 0 001.03-.91.75.75 0 00-.34-.42l-.01-.01a.08.08 0 00-.01 0l-3.34-1.68a.75.75 0 00-.37-.09zm-5.57 2.8a.76.76 0 00-.34.08L2.72 6.9a.76.76 0 00-.42.7v3.9c0 .2.08.39.22.53a.76.76 0 001.07 0 .76.76 0 00.22-.54V8.81l2.26 1.13a.76.76 0 001.05-.91.76.76 0 00-.35-.42.08.08 0 00-.02-.02l-2-1 2-1c.3-.16.48-.52.4-.85a.77.77 0 00-.74-.58zm11.18 0a.77.77 0 00-.73.58c-.08.32.08.67.37.83l.02.02 2 1-2 1a.08.08 0 00-.02.02c-.17.1-.3.24-.35.42a.76.76 0 00.47.95c.19.06.4.05.58-.04l2.26-1.13v2.7c0 .2.08.39.22.53a.76.76 0 001.07 0 .76.76 0 00.22-.54V7.6a.76.76 0 00-.42-.69l-3.35-1.67a.76.76 0 00-.34-.08zm-2.24 4.47a.75.75 0 00-.33.08L12 11.2l-3.02-1.5a.76.76 0 00-1.05.91c.06.18.2.33.36.42a.08.08 0 000 .01h.01a.08.08 0 000 .01l2.94 1.47v2.89c0 .2.08.39.22.53a.76.76 0 001.08 0 .76.76 0 00.22-.53v-2.9l2.93-1.46.02-.02c.3-.16.45-.5.37-.83a.77.77 0 00-.73-.58zM3.01 14.11a.75.75 0 00-.7.75v3.9c-.01.29.15.56.41.69l3.35 1.67a.76.76 0 001.05-.91.76.76 0 00-.34-.42.08.08 0 00-.03-.02l-2-1 2-1 .02-.02c.17-.1.3-.24.35-.42a.76.76 0 00-.47-.95.77.77 0 00-.58.04l-2.26 1.13v-2.7c0-.2-.08-.4-.24-.55a.76.76 0 00-.56-.2zm17.88 0a.76.76 0 00-.7.75v2.69l-2.26-1.13a.76.76 0 00-1.05.91c.06.18.18.33.35.42a.08.08 0 00.01 0v.02a.08.08 0 00.01 0l2 1-2 1h-.01a.08.08 0 000 .01h-.01a.76.76 0 00.13 1.37c.18.07.39.06.57-.03l3.35-1.67c.26-.13.42-.4.42-.69v-3.9a.76.76 0 00-.8-.75zm-8.94 4.47a.08.08 0 00-.03 0 .75.75 0 00-.47.23.76.76 0 00-.2.52v2.69l-2.26-1.13a.08.08 0 00-.01 0 .76.76 0 00-1.03.91c.05.18.18.33.34.42l.01.01a.08.08 0 00.01.01l3.34 1.67c.22.12.49.11.7 0l3.34-1.67.02-.01a.76.76 0 00.31-1 .76.76 0 00-1-.34l-2.26 1.13v-2.7a.76.76 0 00-.8-.74z"
@@ -1131,6 +1144,12 @@ watch(
             </div>
             <p>AR</p>
           </div>
+
+          <!-- FaceTracking Component Tonen -->
+          <FaceTracking
+            v-if="isFaceTrackingVisible"
+            @close="toggleFaceTracking"
+          />
         </div>
       </div>
       <div class="model" v-if="partnerPackage === 'pro'"></div>
@@ -1253,117 +1272,6 @@ watch(
             </ul>
           </li>
         </ul>
-
-        <!-- Personal info form -->
-        <h3>Personal info</h3>
-        <!-- <form @submit.prevent="submitOrder">
-          <p style="display: none">{{ productCode }}</p>
-          <div class="row">
-            <div class="column">
-              <label for="firstname">First Name</label>
-              <input
-                type="text"
-                id="firstname"
-                name="firstname"
-                v-model="firstName"
-                placeholder="John"
-                required
-              />
-            </div>
-            <div class="column">
-              <label for="lastname">Last Name</label>
-              <input
-                type="text"
-                id="lastname"
-                name="lastname"
-                v-model="lastName"
-                placeholder="Doe"
-                required
-              />
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="column">
-              <label for="email">Email</label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                v-model="email"
-                placeholder="johndoe@gmail.com"
-                required
-              />
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="column">
-              <label for="street">Street</label>
-              <input
-                type="text"
-                id="street"
-                name="street"
-                v-model="street"
-                placeholder="Grote markt"
-                required
-              />
-            </div>
-            <div class="column">
-              <label for="house-number">House Number</label>
-              <input
-                type="text"
-                id="house-number"
-                name="house-number"
-                v-model="houseNumber"
-                placeholder="1"
-                required
-              />
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="column">
-              <label for="postalcode">Postal Code</label>
-              <input
-                type="text"
-                id="postalcode"
-                name="postalcode"
-                v-model="postalCode"
-                placeholder="2800"
-                required
-              />
-            </div>
-            <div class="column">
-              <label for="city">City</label>
-              <input
-                type="text"
-                id="city"
-                name="city"
-                v-model="city"
-                placeholder="Mechelen"
-                required
-              />
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="column">
-              <label for="message">Message</label>
-              <input
-                type="text"
-                id="message"
-                name="message"
-                v-model="message"
-                placeholder="Your message"
-              />
-            </div>
-          </div>
-
-          <button type="submit" class="btn active">Checkout</button>
-          <p class="errorMessage"></p>
-          <p class="successMessage"></p>
-        </form> -->
       </div>
       <div class="links">
         <a

@@ -248,69 +248,61 @@ export function loadGLBModel(url) {
   });
 }
 
-// Voorbeeld van wat de handlers kunnen doen
+// Functie voor het starten van een muis/touch-interactie
 export function onTouchStart(event) {
-  // Zorg ervoor dat we de initiële positie van de aanrakingen vastleggen
-  event.preventDefault();
-  const touches = event.changedTouches;
-  if (touches.length === 1) {
-    // Verwerk de aanraking voor de rotatie
-    // Bijvoorbeeld de hoek vastleggen op basis van de eerste aanraking
-    this.touchStart = {
-      x: touches[0].clientX,
-      y: touches[0].clientY,
-    };
-  }
+  event.preventDefault(); // Voorkomt scrollen bij touch
+  isMouseDown = true;
+  prevMouseX = event.touches ? event.touches[0].clientX : event.clientX;
+  prevMouseY = event.touches ? event.touches[0].clientY : event.clientY;
 }
 
+// Functie voor muis/touchbewegingen
 export function onTouchMove(event) {
-  event.preventDefault();
+  if (!isMouseDown) return;
 
-  if (this.touchStart) {
-    const touches = event.changedTouches;
-    const deltaX = touches[0].clientX - this.touchStart.x;
-    const deltaY = touches[0].clientY - this.touchStart.y;
+  const deltaX =
+    (event.touches ? event.touches[0].clientX : event.clientX) - prevMouseX;
+  const deltaY =
+    (event.touches ? event.touches[0].clientY : event.clientY) - prevMouseY;
 
-    // Hier roep je de rotateModel functie aan met de juiste context
-    if (this.rotateModel) {
-      this.rotateModel(deltaX, deltaY);
-    }
-
-    // Werk de touch start positie bij voor de volgende beweging
-    this.touchStart = { x: touches[0].clientX, y: touches[0].clientY };
+  if (model) {
+    model.rotation.y += deltaX * rotationSpeed;
+    model.rotation.x += deltaY * rotationSpeed;
   }
+
+  prevMouseX = event.touches ? event.touches[0].clientX : event.clientX;
+  prevMouseY = event.touches ? event.touches[0].clientY : event.clientY;
 }
 
-export function onTouchEnd(event) {
-  event.preventDefault();
-  // Hier kun je stoppen met rotatie of resetten van touch posities
-  this.touchStart = null;
+// Functie voor het beëindigen van de muis/touch-interactie
+export function onTouchEnd() {
+  isMouseDown = false;
 }
 
+// Functies voor muisinteractie (voor desktop)
 export function onMouseDown(event) {
-  event.preventDefault();
-  this.mouseStart = {
-    x: event.clientX,
-    y: event.clientY,
-  };
+  isMouseDown = true;
+  prevMouseX = event.clientX;
+  prevMouseY = event.clientY;
 }
 
 export function onMouseMove(event) {
-  event.preventDefault();
-  if (this.mouseStart) {
-    const deltaX = event.clientX - this.mouseStart.x;
-    const deltaY = event.clientY - this.mouseStart.y;
+  if (!isMouseDown) return;
 
-    this.rotateModel(deltaX, deltaY);
+  const deltaX = event.clientX - prevMouseX;
+  const deltaY = event.clientY - prevMouseY;
 
-    // Werk de muis start positie bij
-    this.mouseStart = { x: event.clientX, y: event.clientY };
+  if (model) {
+    model.rotation.y += deltaX * rotationSpeed;
+    model.rotation.x += deltaY * rotationSpeed;
   }
+
+  prevMouseX = event.clientX;
+  prevMouseY = event.clientY;
 }
 
-export function onMouseUp(event) {
-  event.preventDefault();
-  this.mouseStart = null;
+export function onMouseUp() {
+  isMouseDown = false;
 }
 
 async function uploadImage(file) {

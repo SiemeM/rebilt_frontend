@@ -32,16 +32,11 @@ export const checkToken = () => {
 
 export async function fetchPartnerPackage(partnerId) {
   try {
-    if (!partnerId) {
-      console.error("Partner ID ontbreekt. Doorverwijzen naar login...");
-      router.push("/login");
-      return null;
-    }
-
     const response = await fetch(`${baseURL}/partners/${partnerId}`);
     if (!response.ok) throw new Error("Network response was not ok");
     const data = await response.json();
     const packageData = data.data?.partner?.package || null; // Verifieer de structuur
+    console.log(packageData);
     return packageData; // Retourneer het partner package
   } catch (err) {
     console.error("Error fetching partner package:", err);
