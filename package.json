@@ -31,7 +31,8 @@
     "qrcode": "^1.5.4",
     "three": "^0.172.0",
     "vue": "^3.5.12",
-    "vue-router": "^4.0.13"
+    "vue-router": "^4.0.13",
+    "webxr-polyfill": "^2.0.3"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.0",
