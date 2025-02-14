@@ -1,15 +1,15 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import { useRoute } from "vue-router";
-import DynamicStyle from "../components/DynamicStyle.vue";
 import { fetchProducts, fetchProductTypes } from "../services/productService";
 import { fetchPartnerByName } from "../services/authService";
-
-const jwtToken = localStorage.getItem("jwtToken");
-const tokenPayload = jwtToken ? JSON.parse(atob(jwtToken.split(".")[1])) : {};
+import DynamicStyle from "../components/DynamicStyle.vue";
 
 const route = useRoute();
-const partnerName = route.query.partner || null; // Haal partnernaam op uit de query
+// Haal partnernaam op uit de URL en zet eventuele verbindingstekens (zoals streepjes of underscores) om naar spaties
+const partnerName = route.query.partner
+  ? route.query.partner.replace(/([A-Z])/g, " $1").trim()
+  : null;
 
 const partnerId = ref(null); // Partner ID van de opgegeven naam
 const products = ref([]); // Alle producten
@@ -17,12 +17,6 @@ const loading = ref(false); // Laadstatus
 const error = ref(null); // Foutstatus
 const filters = ref(["All"]); // Dynamische filters, standaard met "All"
 const activeFilter = ref("All"); // Actieve filterstatus
-
-// Bepaal de base URL op basis van de omgeving
-const isProduction = window.location.hostname !== "localhost";
-const baseURL = isProduction
-  ? "https://rebilt-backend.onrender.com/api/v1"
-  : "http://localhost:3000/api/v1";
 
 // Functie om producten op te halen
 const fetchAndSetProducts = async (partnerId) => {
@@ -58,22 +52,18 @@ onMounted(async () => {
     console.log("Partnernaam uit query:", partnerName); // Voeg dit toe om te controleren
 
     if (partnerName) {
+      // Haal de partner op via de naam uit de queryparameter
       const partner = await fetchPartnerByName(partnerName);
 
       if (partner && partner._id) {
         partnerId.value = partner._id;
-        await fetchAndSetProducts(partnerId.value); // Haal producten op
-        await fetchAndSetProductTypes(partnerId.value); // Haal filters op
+        await fetchAndSetProducts(partnerId.value); // Haal producten op voor de specifieke partner
+        await fetchAndSetProductTypes(partnerId.value); // Haal filters op voor de specifieke partner
       } else {
         error.value = `Geen partner gevonden met de naam "${partnerName}".`;
       }
-    } else if (tokenPayload.companyId) {
-      partnerId.value = tokenPayload.companyId;
-      await fetchAndSetProducts(partnerId.value); // Haal producten op
-      await fetchAndSetProductTypes(partnerId.value); // Haal filters op
     } else {
-      error.value =
-        "Geen partnernaam opgegeven en geen geldige token gevonden.";
+      error.value = "Geen geldige partnernaam opgegeven.";
     }
   } catch (err) {
     error.value = err.message;
