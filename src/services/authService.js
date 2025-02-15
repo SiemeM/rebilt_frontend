@@ -3,20 +3,6 @@ import { ref } from "vue";
 import router from "../router"; // Zorg ervoor dat de router correct is geïmporteerd
 import axios from "axios";
 
-const jwtToken = localStorage.getItem("jwtToken");
-let tokenPayload = null;
-
-if (jwtToken && jwtToken.split(".").length === 3) {
-  try {
-    tokenPayload = JSON.parse(atob(jwtToken.split(".")[1]));
-  } catch (error) {
-    console.error("Invalid JWT token:", error);
-  }
-} else {
-  console.warn("JWT token ontbreekt of is ongeldig.");
-}
-
-const partnerId = tokenPayload?.companyId || null;
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
@@ -52,7 +38,7 @@ export async function fetchPartnerByName(partnerName) {
 
   try {
     const response = await axios.get(
-      `${baseURL}/partners/partner/${partnerName}`,
+      `${baseURL}/partners/partner/${partnerName}`, // We zoeken op naam
       {
         headers: {
           "Content-Type": "application/json",
@@ -65,9 +51,45 @@ export async function fetchPartnerByName(partnerName) {
       console.log("Gevonden partner:", partner); // Controleer de waarde van partner
 
       if (partner) {
-        return partner;
+        return partner; // Hier geven we de partner met de ID terug
       } else {
         console.warn("Geen partner gevonden met deze naam.");
+        return null;
+      }
+    } else {
+      console.error(`Onverwachte statuscode ontvangen: ${response.status}`);
+      return null;
+    }
+  } catch (error) {
+    console.error("Fout tijdens het ophalen van de partner:", error.message);
+    return null;
+  }
+}
+
+export async function fetchPartnerById(partnerId) {
+  if (!partnerId || typeof partnerId !== "string") {
+    console.error("Partner ID is ongeldig of ontbreekt.");
+    return null;
+  }
+
+  try {
+    const response = await axios.get(
+      `${baseURL}/partners/${partnerId}`, // Hier gebruiken we het partner-ID om de gegevens op te halen
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (response.status === 200) {
+      const partner = response.data?.data || null; // Haal het gehele partnerobject op
+      console.log("Gevonden partner:", partner); // Controleer de waarde van partner
+
+      if (partner) {
+        return partner; // Return de partner
+      } else {
+        console.warn("Geen partner gevonden met dit ID.");
         return null;
       }
     } else {

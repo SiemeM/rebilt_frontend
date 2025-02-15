@@ -2,14 +2,11 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute } from "vue-router";
 import { fetchProducts, fetchProductTypes } from "../services/productService";
-import { fetchPartnerByName } from "../services/authService";
+import { fetchPartnerByName, fetchPartnerById } from "../services/authService";
 import DynamicStyle from "../components/DynamicStyle.vue";
 
 const route = useRoute();
 // Haal partnernaam op uit de URL en zet eventuele verbindingstekens (zoals streepjes of underscores) om naar spaties
-const partnerName = route.query.partner
-  ? route.query.partner.replace(/([A-Z])/g, " $1").trim()
-  : null;
 
 const partnerId = ref(null); // Partner ID van de opgegeven naam
 const products = ref([]); // Alle producten
@@ -49,21 +46,32 @@ onMounted(async () => {
   try {
     loading.value = true;
 
-    console.log("Partnernaam uit query:", partnerName); // Voeg dit toe om te controleren
+    // Stel de partnernaam in als queryparameter, bijv. 'OdetteLunettes'
+    const partnerName = route.query.partner
+      ? route.query.partner.replace(/([A-Z])/g, " $1").trim()
+      : null;
 
-    if (partnerName) {
-      // Haal de partner op via de naam uit de queryparameter
-      const partner = await fetchPartnerByName(partnerName);
+    console.log(partnerName);
+    // Zoek de partner op naam
+    const partner = await fetchPartnerByName(partnerName);
+    console.log(partner);
+    if (partner) {
+      const partnerId = partner._id; // Haal het ID uit de gevonden partner
+      console.log(partnerId);
+      // Nu kun je de partner ophalen op basis van het ID
+      const detailedPartner = await fetchPartnerById(partnerId);
+      await fetchAndSetProducts(partnerId); // Haal producten op
+      await fetchAndSetProductTypes(partnerId); // Haal filters op
 
-      if (partner && partner._id) {
-        partnerId.value = partner._id;
-        await fetchAndSetProducts(partnerId.value); // Haal producten op voor de specifieke partner
-        await fetchAndSetProductTypes(partnerId.value); // Haal filters op voor de specifieke partner
+      if (detailedPartner) {
+        console.log("Gedetailleerde partnerinformatie:", detailedPartner);
       } else {
-        error.value = `Geen partner gevonden met de naam "${partnerName}".`;
+        console.error(
+          "Geen gedetailleerde informatie gevonden voor deze partner."
+        );
       }
     } else {
-      error.value = "Geen geldige partnernaam opgegeven.";
+      console.error("Partner niet gevonden.");
     }
   } catch (err) {
     error.value = err.message;

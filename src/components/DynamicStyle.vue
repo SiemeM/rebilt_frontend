@@ -7,6 +7,11 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 const token = localStorage.getItem("jwtToken") || null;
 
+const isProduction = window.location.hostname !== "localhost";
+const baseURL = isProduction
+  ? "https://rebilt-backend.onrender.com/api/v1"
+  : "http://localhost:3000/api/v1";
+
 // Definieer fallback stijlen
 const fallbackStyle = {
   primary_color: "rgb(151, 71, 255)",
@@ -67,7 +72,7 @@ const getHouseStyleFromDatabase = async (id) => {
 
   try {
     const response = await axios.get(
-      `http://localhost:3000/api/v1/partners/${id}`,
+      `${baseURL}/partners/${partnerId}`,
       token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
     );
 
