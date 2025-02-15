@@ -62,7 +62,6 @@ const addConfiguration = async () => {
   };
 
   try {
-    console.log("Sending request to add configuration...");
     const response = await fetch(`${baseURL}/configurations`, {
       method: "POST",
       headers: {
@@ -81,7 +80,6 @@ const addConfiguration = async () => {
     }
 
     const result = await response.json();
-    console.log("Configuration added successfully:", result);
     router.back();
   } catch (error) {
     console.error("Error adding configuration:", error.message);

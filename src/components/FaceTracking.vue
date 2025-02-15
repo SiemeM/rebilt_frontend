@@ -46,14 +46,12 @@ export default {
           video: true,
         });
         this.video.srcObject = stream;
-        console.log("Camera succesvol gestart.");
       } catch (error) {
         console.error("Fout bij het starten van de camera:", error);
       }
     },
 
     async setupFaceMesh() {
-      console.log("Bezig met het instellen van FaceMesh...");
       window.Module = window.Module || {}; // Fix voor WebAssembly fout
 
       this.canvas = this.$refs.canvasElement;
@@ -67,7 +65,6 @@ export default {
 
       try {
         await this.faceMesh.initialize();
-        console.log("FaceMesh succesvol geïnitialiseerd");
         this.detectFaces();
       } catch (error) {
         console.error("Fout bij het initialiseren van FaceMesh:", error);
@@ -87,7 +84,6 @@ export default {
     },
 
     onFaceMeshResults(results) {
-      console.log("FaceMesh resultaten:", results);
       if (
         !results.multiFaceLandmarks ||
         results.multiFaceLandmarks.length === 0

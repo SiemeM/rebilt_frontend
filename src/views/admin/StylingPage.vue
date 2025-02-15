@@ -315,7 +315,6 @@ const updateHouseStyleInDatabase = async () => {
         headers: { Authorization: `Bearer ${token}` },
       }
     );
-    console.log("House style updated successfully:", response.data);
   } catch (error) {
     console.error("Error updating house style:", error);
   }

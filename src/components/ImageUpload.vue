@@ -129,7 +129,6 @@ export default {
             this.color.name,
             this.partnerName
           );
-          console.log("Bestand succesvol geüpload:", secureUrl);
 
           this.colorUploads[index] = this.colorUploads[index] || { images: [] };
           this.colorUploads[index].images.push(secureUrl);
@@ -150,7 +149,6 @@ export default {
 
     render3DModel(url, containerId, fileExtension) {
       // Hier zou je Three.js of een andere 3D library kunnen gebruiken
-      console.log("Rendering 3D model:", url);
       this.isModelLoaded = true;
     },
 

@@ -92,7 +92,6 @@ const addPartner = async () => {
     }
 
     const result = await response.json();
-    console.log("Partner succesvol toegevoegd:", result);
 
     // Redirect naar partnerspagina
     router.push("/admin/partners");

@@ -23,7 +23,6 @@ const isFaceTrackingVisible = ref(false); // Zorg ervoor dat deze reactive is
 
 // Functie die de zichtbaarheid van FaceTracking toggelt
 function toggleFaceTracking() {
-  console.log("Toggling face tracking visibility");
   isFaceTrackingVisible.value = !isFaceTrackingVisible.value; // Toggle de waarde
 }
 
@@ -504,9 +503,6 @@ onMounted(async () => {
       await fetchPartnerPackage(partnerId); // Haal partnerpakket op
     }
 
-    // Log geselecteerde afbeelding
-    console.log(selectedImage.value);
-
     // Als het partnerpakket "pro" is en er een geselecteerde afbeelding is, laad dan het 3D-model
     if (partnerPackage.value === "pro" && selectedImage.value) {
       const container = document.querySelector(".model");
@@ -515,7 +511,6 @@ onMounted(async () => {
         initializeScene(); // Initialiseer de scène voor het 3D-model
 
         const filePath = `${selectedImage.value}`; // Dynamisch pad op basis van geselecteerde afbeelding
-        console.log(filePath); // Debug: Controleer het pad van het model
 
         load3DModel(filePath); // Laad het 3D-model met het pad
       } else {
@@ -735,12 +730,9 @@ async function fetchProductData(productCode) {
       })
     );
 
-    console.log(selectedOptionImages.length);
     if (selectedOptionImages.length > 0) {
       productImages.value = selectedOptionImages;
-      console.log(productImages.value);
       selectedImage.value = selectedOptionImages[0];
-      console.log(selectedImage.value);
     } else {
       console.warn("No images found for the selected option");
     }

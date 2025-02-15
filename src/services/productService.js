@@ -72,7 +72,6 @@ export const fetchProductById = async (id) => {
     const response = await axios.get(`${baseURL}/products/${id}`);
 
     if (response.status === 200) {
-      console.log("Product successfully fetched:", response.data);
       return response.data?.data || null; // Return the product data or null if not found
     } else {
       console.error("Failed to fetch product:", response.status);
@@ -317,7 +316,6 @@ async function uploadImage(file) {
     });
 
     if (response.data && response.data.imageUrl) {
-      console.log("✅ Afbeelding geüpload: ", response.data.imageUrl);
       return response.data.imageUrl; // Zorg ervoor dat de URL correct wordt geretourneerd
     } else {
       console.error("❌ Geen geldige URL teruggekregen bij upload.");
@@ -331,7 +329,6 @@ async function uploadImage(file) {
 
 export const fetchcolors = async (partnerId) => {
   try {
-    console.log("Fetching colors for partnerId:", partnerId);
     const selectedOptions = await getcolors(partnerId);
 
     if (
@@ -343,19 +340,14 @@ export const fetchcolors = async (partnerId) => {
       return;
     }
 
-    console.log("Fetched selected options:", selectedOptions);
-
     // Ensure that fetchedColors.value is properly updated
     fetchedColors.value = selectedOptions.map((option) => {
-      console.log("Mapping option:", option);
       return {
         optionId: option.optionId || "",
         name: option.color || "Unnamed Color",
         images: option.images || [], // Ensure images are assigned here
       };
     });
-
-    console.log("Updated fetchedColors:", fetchedColors.value);
   } catch (error) {
     console.error("❌ Fout in fetchcolors:", error);
   }
@@ -382,8 +374,6 @@ export async function add2DProduct(
   productData
 ) {
   try {
-    console.log("🚀 Start add2DProduct...");
-
     if (!selectedConfigurationId) {
       throw new Error("❌ selectedConfigurationId is niet gedefinieerd!");
     }
@@ -392,15 +382,10 @@ export async function add2DProduct(
       throw new Error("❌ Geen afbeeldingen om te uploaden!");
     }
 
-    console.log("📸 Geüploade afbeeldingen:", images);
-
     const processedImages = images.map((imageUrl) => ({
       url: imageUrl,
       configurationId: selectedConfigurationId,
     }));
-
-    console.log("📸 Verwerkte afbeeldingen met configuratie:", processedImages);
-    console.log("Beschikbare configuraties:", productData.configurations);
 
     const configuration = productData.configurations.find((config) => {
       const configId = config.configurationId?._id || config.configurationId; // Fix voor ID-structuur
@@ -413,8 +398,6 @@ export async function add2DProduct(
       );
       return;
     }
-
-    console.log("🔍 Gevonden configuratie:", configuration);
 
     if (
       !configuration.selectedOptions ||
@@ -435,8 +418,6 @@ export async function add2DProduct(
       return;
     }
 
-    console.log(`🔹 Geselecteerde optionId: ${optionId}`);
-
     let existingOption = configuration.selectedOptions.find(
       (opt) => opt.optionId === optionId
     );
@@ -451,8 +432,6 @@ export async function add2DProduct(
     }
 
     existingOption.images.push(...processedImages.map((img) => img.url));
-
-    console.log("✅ Bijgewerkte configuratie:", configuration);
 
     const formattedProductData = {
       productCode: productData.productCode,
@@ -476,8 +455,6 @@ export async function add2DProduct(
       })),
     };
 
-    console.log("📦 Bijgewerkte productdata:", formattedProductData);
-
     // ✅ **Stap 2: Stuur de data correct naar de backend**
     const token = localStorage.getItem("jwtToken") || null;
 
@@ -499,13 +476,6 @@ export async function add2DProduct(
     // Lees de response.body maar één keer
     const responseBody = await response.json(); // ✅ Verwijder de dubbele json-aanroep
 
-    console.log("🚨 Server response:", responseBody);
-
-    console.log(
-      "✅ Product succesvol opgeslagen in de database:",
-      responseBody
-    );
-
     return responseBody;
   } catch (error) {
     console.error("❌ Algemene fout:", error.message);
@@ -525,22 +495,8 @@ export const add3DProduct = async ({
   file, // URL van de 3D-file
 }) => {
   try {
-    console.log(
-      "🖼️ Originele Bestands-URL ontvangen:",
-      file,
-      "Type:",
-      typeof file
-    );
-
     // **FIX: Extract de juiste string-URL uit Proxy(Array)**
     const imageUrl = file && Array.isArray(file) ? file[0] : String(file);
-
-    console.log(
-      "🔍 Geëxtraheerde imageUrl:",
-      imageUrl,
-      "Type:",
-      typeof imageUrl
-    );
 
     if (!imageUrl.startsWith("https://")) {
       console.error("❌ Ongeldige bestands-URL na extractie:", imageUrl);
@@ -550,8 +506,6 @@ export const add3DProduct = async ({
     let validConfigurations = [];
 
     for (const config of configurations) {
-      console.log("🔍 Bezig met configuratie:", config.configurationId);
-
       let selectedOptions = [];
 
       if (!Array.isArray(config.options) || config.options.length === 0) {
@@ -565,16 +519,12 @@ export const add3DProduct = async ({
       selectedOptions = config.options.map((option) => {
         const optionId = option.optionId?._id || "onbekend-option-id";
 
-        console.log(`🛠️ Optie verwerkt: ${optionId}, imageUrl: ${imageUrl}`);
-
         return {
           optionId,
           images: [imageUrl], // ✅ Nu correct ingevuld
           _id: `${optionId}-${Date.now()}`,
         };
       });
-
-      console.log("📸 Geselecteerde opties met afbeeldingen:", selectedOptions);
 
       if (selectedOptions.length > 0) {
         validConfigurations.push({
@@ -589,11 +539,6 @@ export const add3DProduct = async ({
       return;
     }
 
-    console.log(
-      "🚀 Klaar om te verzenden, configuraties met afbeeldingen:",
-      JSON.stringify(validConfigurations, null, 2)
-    );
-
     const productData = {
       productCode,
       productName,
@@ -606,23 +551,12 @@ export const add3DProduct = async ({
       configurations: validConfigurations,
     };
 
-    console.log(
-      "📦 Productdata verzenden:",
-      JSON.stringify(productData, null, 2)
-    );
-
     const response = await axios.post(`${baseURL}/products`, productData, {
       headers: {
         Authorization: `Bearer ${jwtToken}`,
         "Content-Type": "application/json",
       },
     });
-
-    if (response.status === 201) {
-      console.log("✅ 3D-product succesvol toegevoegd:", response.data);
-    } else {
-      console.error("❌ Fout bij toevoegen van 3D-product:", response);
-    }
   } catch (error) {
     console.error("❌ Algemene fout in add3DProduct:", error);
   }
@@ -654,8 +588,6 @@ function addImageToConfigurations(imageUrl, configurations) {
   }
 
   configurations.forEach((config) => {
-    console.log(`🔍 Configuratie: ${config.configurationId}`);
-
     if (!config.selectedOptions || config.selectedOptions.length === 0) {
       console.warn(
         `⚠️ Geen geselecteerde opties voor configuratie: ${config.configurationId}`
@@ -664,21 +596,10 @@ function addImageToConfigurations(imageUrl, configurations) {
     }
 
     config.selectedOptions.forEach((option) => {
-      console.log(`🎨 Optie ${option.optionId}:`, option);
-
       if (!option.images) {
         option.images = []; // Zorg ervoor dat images een array is
       }
       option.images.push(imageUrl); // Voeg de afbeelding toe
-      console.log(
-        `✅ Afbeelding toegevoegd aan optie ${option.optionId}:`,
-        imageUrl
-      );
     });
   });
-
-  console.log(
-    "🖼 Afbeelding toegevoegd aan alle geselecteerde opties:",
-    configurations
-  );
 }

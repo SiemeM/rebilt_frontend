@@ -119,7 +119,6 @@ const fetchConfigurations = async () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     configurations.value = response.data?.data || [];
-    console.log("All configurations loaded:", configurations.value); // Log all configurations
   } catch (error) {
     console.error("Error fetching configurations:", error);
     configurations.value = [];
@@ -151,7 +150,6 @@ const fetchPartnerConfigurations = async () => {
     partnerConfigurations.value = configs.filter(
       (config) => config.partnerId === partnerId
     );
-    console.log("Partner configurations loaded:", partnerConfigurations.value); // Log partner configurations
   } catch (error) {
     console.error("Error fetching partner configurations or options:", error);
     partnerConfigurations.value = [];
@@ -216,15 +214,8 @@ const confirmDelete = async () => {
         ? selectedConfigurations.value
         : partnerConfigurations.value.map((config) => config._id);
 
-    console.log("Products to delete:", productsToDelete);
-
-    // Debugging: Log partner configurations before attempting delete
-    console.log("Current partner configurations:", partnerConfigurations.value);
-
     // Start the deletion process
     for (const id of productsToDelete) {
-      console.log("Attempting to delete configuration with ID:", id);
-
       // Zoek naar de configuratie in de partner-configuraties
       const existingConfig = partnerConfigurations.value.find(
         (config) => config._id === id
@@ -244,25 +235,15 @@ const confirmDelete = async () => {
         }
       );
 
-      // Debugging: Log the response from the server
-      console.log("Delete response:", response);
-
       if (response.status === 200) {
         // Adjusted to 200 OK
         // Verwijder de configuratie uit de partner configuraties
         partnerConfigurations.value = partnerConfigurations.value.filter(
           (config) => config._id !== id
         );
-        console.log(
-          `Configuration with ID ${id} deleted from partner configurations.`
-        );
-
         // Optionally, also remove from all configurations
         configurations.value = configurations.value.filter(
           (config) => config._id !== id
-        );
-        console.log(
-          `Configuration with ID ${id} deleted from all configurations.`
         );
       } else {
         throw new Error(`Failed to delete configuration with ID ${id}`);

@@ -22,7 +22,6 @@ export async function fetchPartnerPackage(partnerId) {
     if (!response.ok) throw new Error("Network response was not ok");
     const data = await response.json();
     const packageData = data.data?.partner?.package || null; // Verifieer de structuur
-    console.log(packageData);
     return packageData; // Retourneer het partner package
   } catch (err) {
     console.error("Error fetching partner package:", err);
@@ -48,7 +47,6 @@ export async function fetchPartnerByName(partnerName) {
 
     if (response.status === 200) {
       const partner = response.data?.data || null; // Haal het gehele partnerobject op
-      console.log("Gevonden partner:", partner); // Controleer de waarde van partner
 
       if (partner) {
         return partner; // Hier geven we de partner met de ID terug
@@ -84,7 +82,6 @@ export async function fetchPartnerById(partnerId) {
 
     if (response.status === 200) {
       const partner = response.data?.data || null; // Haal het gehele partnerobject op
-      console.log("Gevonden partner:", partner); // Controleer de waarde van partner
 
       if (partner) {
         return partner; // Return de partner

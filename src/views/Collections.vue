@@ -19,7 +19,6 @@ const activeFilter = ref("All"); // Actieve filterstatus
 const fetchAndSetProducts = async (partnerId) => {
   try {
     const filteredProducts = await fetchProducts(partnerId);
-    console.log("Fetched products:", filteredProducts);
     products.value = filteredProducts; // Sla producten op in de state
   } catch (err) {
     console.error("Error fetching products:", err);
@@ -31,7 +30,6 @@ const fetchAndSetProducts = async (partnerId) => {
 const fetchAndSetProductTypes = async (partnerId) => {
   try {
     const productTypes = await fetchProductTypes(partnerId);
-    console.log("Fetched product types:", productTypes);
     filters.value = ["All", ...productTypes]; // Voeg filters toe
   } catch (err) {
     console.error("Error fetching product types:", err);
@@ -51,25 +49,14 @@ onMounted(async () => {
       ? route.query.partner.replace(/([A-Z])/g, " $1").trim()
       : null;
 
-    console.log(partnerName);
     // Zoek de partner op naam
     const partner = await fetchPartnerByName(partnerName);
-    console.log(partner);
     if (partner) {
       const partnerId = partner._id; // Haal het ID uit de gevonden partner
-      console.log(partnerId);
       // Nu kun je de partner ophalen op basis van het ID
       const detailedPartner = await fetchPartnerById(partnerId);
       await fetchAndSetProducts(partnerId); // Haal producten op
       await fetchAndSetProductTypes(partnerId); // Haal filters op
-
-      if (detailedPartner) {
-        console.log("Gedetailleerde partnerinformatie:", detailedPartner);
-      } else {
-        console.error(
-          "Geen gedetailleerde informatie gevonden voor deze partner."
-        );
-      }
     } else {
       console.error("Partner niet gevonden.");
     }

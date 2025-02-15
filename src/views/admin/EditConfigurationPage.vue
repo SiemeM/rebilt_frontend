@@ -151,7 +151,6 @@ const updateConfiguration = async () => {
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    console.log("Configuration updated:", response.data);
     router.back();
   } catch (error) {
     console.error("Error updating configuration:", error.message);

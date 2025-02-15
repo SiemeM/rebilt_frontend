@@ -90,7 +90,6 @@ const fetchProductData = async () => {
       }
 
       colorUploads.value = colorUploadsArray; // Opslaan in Vue-reactive state
-      console.log("Opgeslagen colorUploads:", colorUploads.value);
     } else {
       console.error("Geen productdata gevonden.");
     }
@@ -177,15 +176,12 @@ const fetchcolors = async (partnerId) => {
 const fetchedColorsPerConfig = {};
 
 const handleFileUpload = (fileUrl) => {
-  console.log("Bestand geüpload:", fileUrl);
-
   if (!fileUrl || !fileUrl[0]) {
     console.error("❌ Geen geldige afbeeldings-URL.");
     return;
   }
 
   // Zet de eerste waarde van de array als de URL
-  console.log(fileUrl);
   uploadedFile.value = fileUrl; // Gebruik enkel de eerste URL als string
 };
 

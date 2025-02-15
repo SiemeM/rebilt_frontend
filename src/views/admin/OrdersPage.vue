@@ -115,8 +115,6 @@ const fetchOrders = async () => {
       const productCode = order.productId.productCode;
     }
   });
-
-  console.log(ordersData); // Log the entire response for debugging
 };
 
 // Initial Fetch on Mount

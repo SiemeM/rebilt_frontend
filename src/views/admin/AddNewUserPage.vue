@@ -115,7 +115,6 @@ const addUser = async () => {
     }
 
     const userResult = await userResponse.json();
-    console.log("Gebruiker succesvol aangemaakt:", userResult);
 
     // Navigeer naar gebruikerspagina
     router.push("/admin/users");

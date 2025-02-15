@@ -63,18 +63,13 @@ const getHouseStyleFromDatabase = async (id) => {
   }
 
   try {
-    console.log(partnerId);
     const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${jwtToken}`,
       },
     });
-
-    console.log(response);
-    console.log(response.data.data.partner);
     const huisstijlData = response.data.data.partner || fallbackStyle;
-    console.log(huisstijlData);
     document.documentElement.style.setProperty(
       "--primary-color",
       huisstijlData.primary_color

@@ -95,15 +95,12 @@ const fetchcolors = async (partnerId) => {
 const fetchedColorsPerConfig = {};
 
 const handleFileUpload = (fileUrl) => {
-  console.log("Bestand geüpload:", fileUrl);
-
   if (!fileUrl || !fileUrl[0]) {
     console.error("❌ Geen geldige afbeeldings-URL.");
     return;
   }
 
   // Zet de eerste waarde van de array als de URL
-  console.log(fileUrl);
   uploadedFile.value = fileUrl; // Gebruik enkel de eerste URL als string
 };
 
@@ -128,20 +125,11 @@ const addNewProduct = async () => {
       return;
     }
 
-    console.log(uploadedFile.value); // Debugging de bestand-URL
-
     // Toevoegen van afbeeldingen voor elke kleurconfiguratie
     partnerConfigurations.value.forEach((config) => {
       if (config.configurationDetails.fieldType === "color") {
         const configId = config.configurationId._id;
         const selectedColorOptions = selectedColors.value[configId] || [];
-
-        // Log om te controleren of we de geselecteerde kleuren hebben
-        console.log(
-          "Selected colors for configId:",
-          configId,
-          selectedColorOptions
-        );
 
         config.options.forEach((option) => {
           // Haal de afbeeldingen op voor de geselecteerde kleuropties
@@ -149,8 +137,6 @@ const addNewProduct = async () => {
             fetchedColorsPerConfig[configId]?.find(
               (color) => color.optionId === option.optionId
             )?.images || []; // Gebruik een lege array als er geen afbeeldingen zijn
-
-          console.log("Color images for option", option.optionId, colorImages);
 
           // Voeg de afbeeldingen toe aan de optie als de kleur geselecteerd is
           if (
@@ -183,10 +169,6 @@ const addNewProduct = async () => {
         file: uploadedFile.value,
       });
     } else {
-      // Als partner geen "pro" is, voeg het 2D-product toe
-      console.log(partnerPackage.value);
-      console.log(uploadedFile.value);
-
       // Zorg ervoor dat de geselecteerde configuratie-ID wordt doorgegeven
       const selectedConfigurationId =
         partnerConfigurations.value[0]?.configurationId._id;
