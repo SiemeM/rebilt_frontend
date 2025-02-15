@@ -8,6 +8,8 @@ const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 const partnerPackage = ref("");
+const jwtToken = localStorage.getItem("jwtToken");
+const tokenPayload = jwtToken ? JSON.parse(atob(jwtToken.split(".")[1])) : {};
 
 export const checkToken = () => {
   if (!jwtToken || !tokenPayload) {

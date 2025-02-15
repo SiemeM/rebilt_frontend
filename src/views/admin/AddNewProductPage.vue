@@ -23,6 +23,7 @@ import ColorSelectionToggle from "../../components/ColorSelectionToggle.vue";
 import ImageUpload from "../../components/ImageUpload.vue";
 
 // Reactive variables
+
 const router = useRouter();
 const partnerConfigurations = ref([]);
 const productCode = ref("");
@@ -265,6 +266,7 @@ onMounted(async () => {
   <div class="content">
     <h1>Add new product</h1>
     <form @submit.prevent="addNewProduct">
+      <h3>Product info:</h3>
       <div class="row">
         <div class="column">
           <label for="productCode">Product Code:</label>
@@ -313,7 +315,7 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- Render partner configurations dynamically -->
+      <h3>Configurations:</h3>
       <template v-if="partnerPackage == 'standard'">
         <template
           v-for="(config, index) in partnerConfigurations"
@@ -414,91 +416,95 @@ onMounted(async () => {
         </template>
       </template>
 
-      <!-- Submit Button -->
       <template v-if="partnerPackage == 'pro'">
-        <template
-          v-for="(config, index) in partnerConfigurations"
-          :key="config._id"
-        >
-          <div class="row">
-            <div class="column">
-              <label
-                v-if="config.configurationDetails"
-                :for="config.configurationDetails.fieldName"
-              >
-                {{ config.configurationDetails.fieldName }}:
-              </label>
-
-              <!-- Text field -->
-              <template
-                v-if="config.configurationDetails?.fieldType === 'Text'"
-              >
-                <input
-                  v-model="config.value"
-                  :id="config.configurationDetails.fieldName"
-                  type="text"
-                />
-              </template>
-
-              <!-- Dropdown field -->
-              <template
-                v-else-if="
-                  config.configurationDetails?.fieldType === 'Dropdown'
-                "
-              >
-                <DropdownToggleColor
-                  :fieldName="config.configurationDetails.fieldName"
-                  :dropdownStates="dropdownStates"
-                  buttonText="Toggle Dropdown"
+        <div class="configurations">
+          <template
+            v-for="(config, index) in partnerConfigurations"
+            :key="config._id"
+          >
+            <div class="row">
+              <div class="column">
+                <label
+                  v-if="config.configurationDetails"
+                  :for="config.configurationDetails.fieldName"
                 >
-                  <div
-                    v-for="(option, optionIndex) in configurations"
-                    :key="optionIndex"
+                  {{ config.configurationDetails.fieldName }}:
+                </label>
+
+                <!-- Text field -->
+                <template
+                  v-if="config.configurationDetails?.fieldType === 'Text'"
+                >
+                  <input
+                    v-model="config.value"
+                    :id="config.configurationDetails.fieldName"
+                    type="text"
+                  />
+                </template>
+
+                <!-- Dropdown field -->
+                <template
+                  v-else-if="
+                    config.configurationDetails?.fieldType === 'Dropdown'
+                  "
+                >
+                  <DropdownToggleColor
+                    :fieldName="config.configurationDetails.fieldName"
+                    :dropdownStates="dropdownStates"
+                    buttonText="Toggle Dropdown"
                   >
-                    <span
-                      class="color-bullet"
-                      :style="{ backgroundColor: option.name || 'transparent' }"
-                    ></span>
-                    {{ option.name || "Unnamed Color" }}
-                  </div>
-                </DropdownToggleColor>
-              </template>
-
-              <!-- Color field -->
-              <template
-                v-else-if="config.configurationDetails?.fieldType === 'color'"
-              >
-                <div class="color-dropdown">
-                  <div class="dropdown">
-                    <DropdownToggleColor
-                      :fieldName="config.configurationDetails.fieldName"
-                      :dropdownStates="dropdownStates"
-                      :buttonText="buttonText(config.configurationId._id)"
+                    <div
+                      v-for="(option, optionIndex) in configurations"
+                      :key="optionIndex"
                     >
-                      <ColorSelectionToggle
-                        v-model:selectedColors="
-                          selectedColors[config.configurationId._id]
-                        "
-                        :colors="
-                          fetchedColorsPerConfig[config.configurationId._id] ||
-                          []
-                        "
-                        :dropdownStates="dropdownStates"
-                        :fieldName="config.configurationDetails.fieldName"
-                        :colorOptions="
-                          fetchedColorsPerConfig[config.configurationId._id] ||
-                          []
-                        "
-                      />
-                    </DropdownToggleColor>
-                  </div>
-                </div>
-              </template>
-            </div>
-          </div>
-        </template>
+                      <span
+                        class="color-bullet"
+                        :style="{
+                          backgroundColor: option.name || 'transparent',
+                        }"
+                      ></span>
+                      {{ option.name || "Unnamed Color" }}
+                    </div>
+                  </DropdownToggleColor>
+                </template>
 
-        <!-- Display one ImageUpload if there's at least one selected color -->
+                <!-- Color field -->
+                <template
+                  v-else-if="config.configurationDetails?.fieldType === 'color'"
+                >
+                  <div class="color-dropdown">
+                    <div class="dropdown">
+                      <DropdownToggleColor
+                        :fieldName="config.configurationDetails.fieldName"
+                        :dropdownStates="dropdownStates"
+                        :buttonText="buttonText(config.configurationId._id)"
+                      >
+                        <ColorSelectionToggle
+                          v-model:selectedColors="
+                            selectedColors[config.configurationId._id]
+                          "
+                          :colors="
+                            fetchedColorsPerConfig[
+                              config.configurationId._id
+                            ] || []
+                          "
+                          :dropdownStates="dropdownStates"
+                          :fieldName="config.configurationDetails.fieldName"
+                          :colorOptions="
+                            fetchedColorsPerConfig[
+                              config.configurationId._id
+                            ] || []
+                          "
+                        />
+                      </DropdownToggleColor>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+        <h3>Images:</h3>
         <template
           v-if="
             Object.values(selectedColors).some((colors) => colors.length > 0)
@@ -543,6 +549,10 @@ form,
   flex-direction: column;
   align-items: flex-end;
   gap: 16px;
+  width: 100%;
+}
+
+form h3 {
   width: 100%;
 }
 
@@ -678,6 +688,13 @@ button {
   background-color: #444;
 }
 
+.configurations {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 2rem;
+  width: 100%;
+}
+
 @media (min-width: 768px) {
   .content {
     margin: 0;
@@ -689,6 +706,16 @@ button {
     justify-content: space-between;
     gap: 120px;
     width: 100%;
+  }
+
+  .configurations {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .configurations {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 </style>
