@@ -170,7 +170,7 @@ const fetchPartnerID = async (partnerName) => {
   try {
     const formattedPartnerName = partnerName.replace(/([A-Z])/g, " $1").trim();
     const response = await axios.get(
-      `http://localhost:3000/api/v1/partners?partnerName=${formattedPartnerName}`
+      `${baseURL}/partners?partnerName=${formattedPartnerName}`
     );
 
     const partner = response.data.data.partners.find(
