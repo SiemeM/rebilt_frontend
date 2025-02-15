@@ -5,7 +5,9 @@ import { useRouter } from "vue-router";
 
 // Router en JWT-token ophalen
 const router = useRouter();
-const token = localStorage.getItem("jwtToken") || null;
+const jwtToken = localStorage.getItem("jwtToken");
+const tokenPayload = jwtToken ? JSON.parse(atob(jwtToken.split(".")[1])) : {};
+let partnerId = tokenPayload.companyId;
 
 const isProduction = window.location.hostname !== "localhost";
 const baseURL = isProduction
@@ -38,26 +40,17 @@ const fallbackStyle = {
 };
 
 // Refs voor partnerId en foutmeldingen
-const partnerId = ref(null);
 const error = ref(null);
 
 // Functie om partnerId op te halen
 const getPartnerId = async () => {
-  if (token) {
-    try {
-      const tokenPayload = JSON.parse(atob(token.split(".")[1]));
-      return tokenPayload?.companyId || null;
-    } catch (e) {
-      console.error("Fout bij het parsen van de JWT-token:", e);
-      return null;
-    }
+  if (jwtToken) {
+    const tokenPayload = JSON.parse(atob(jwtToken.split(".")[1]));
+    return tokenPayload?.companyId || null;
   } else {
     const partnerName = router.currentRoute.value.query.partner;
     if (partnerName) {
       return fetchPartnerID(partnerName);
-    } else {
-      console.error("Geen partnernaam opgegeven in de URL-query.");
-      return null;
     }
   }
 };
@@ -65,19 +58,23 @@ const getPartnerId = async () => {
 // Functie om huisstijl op te halen
 const getHouseStyleFromDatabase = async (id) => {
   if (!id) {
-    console.error("Geen partnerId beschikbaar om huisstijl op te halen.");
     applyFallbackStyles();
     return;
   }
 
   try {
-    const response = await axios.get(
-      `${baseURL}/partners/${partnerId}`,
-      token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
-    );
+    console.log(partnerId);
+    const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwtToken}`,
+      },
+    });
 
+    console.log(response);
+    console.log(response.data.data.partner);
     const huisstijlData = response.data.data.partner || fallbackStyle;
-
+    console.log(huisstijlData);
     document.documentElement.style.setProperty(
       "--primary-color",
       huisstijlData.primary_color
@@ -160,7 +157,6 @@ const getHouseStyleFromDatabase = async (id) => {
     // Fonts laden
     loadFonts(huisstijlData.fontFamilyBodyText, huisstijlData.fontFamilyTitles);
   } catch (error) {
-    console.error("Fout bij het ophalen van huisstijl:", error);
     applyFallbackStyles();
   }
 };
@@ -179,7 +175,6 @@ const fetchPartnerID = async (partnerName) => {
 
     return partner?._id || null;
   } catch (err) {
-    console.error("Fout bij het ophalen van de partner ID:", err);
     error.value = "Er is een fout opgetreden bij het ophalen van de partner.";
     return null;
   }
@@ -256,8 +251,8 @@ const loadFonts = (bodyFont, titleFont) => {
 
 // Component laden
 onMounted(async () => {
-  partnerId.value = await getPartnerId();
-  if (partnerId.value) {
+  partnerId = await getPartnerId();
+  if (partnerId) {
     await getHouseStyleFromDatabase(partnerId.value);
   } else {
     console.warn("Geen partner ID gevonden, fallback stijlen toepassen.");
