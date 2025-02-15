@@ -550,13 +550,6 @@ export const add3DProduct = async ({
       partnerId,
       configurations: validConfigurations,
     };
-
-    const response = await axios.post(`${baseURL}/products`, productData, {
-      headers: {
-        Authorization: `Bearer ${jwtToken}`,
-        "Content-Type": "application/json",
-      },
-    });
   } catch (error) {
     console.error("❌ Algemene fout in add3DProduct:", error);
   }
