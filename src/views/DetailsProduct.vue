@@ -1153,7 +1153,7 @@ watch(
         </div>
       </div>
       <div class="model" v-if="partnerPackage === 'pro'"></div>
-      <div class="bigImageWithImages">
+      <div class="bigImageWithImages" v-if="partnerPackage === 'standard'">
         <!-- Big Image Display -->
         <div
           class="bigImage"
