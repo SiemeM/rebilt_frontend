@@ -8,14 +8,6 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import DynamicStyle from "../components/DynamicStyle.vue";
 
 import FaceTracking from "../components/FaceTracking.vue";
-import {
-  onTouchStart,
-  onTouchMove,
-  onMouseDown,
-  onTouchEnd,
-  onMouseMove,
-  onMouseUp,
-} from "../services/productService";
 import ModelViewer from "../components/ModelViewer.vue";
 
 const showModel = ref(false);
@@ -24,6 +16,61 @@ const isFaceTrackingVisible = ref(false); // Zorg ervoor dat deze reactive is
 // Functie die de zichtbaarheid van FaceTracking toggelt
 function toggleFaceTracking() {
   isFaceTrackingVisible.value = !isFaceTrackingVisible.value; // Toggle de waarde
+}
+
+// Functies voor touch-events
+function onTouchStart(event) {
+  event.preventDefault(); // Voorkomt scrollen bij touch
+  isMouseDown = true;
+  const touch = event.touches ? event.touches[0] : event;
+  prevMouseX = touch.clientX;
+  prevMouseY = touch.clientY;
+}
+
+function onTouchMove(event) {
+  if (!isMouseDown) return;
+
+  const touch = event.touches ? event.touches[0] : event;
+  const deltaX = touch.clientX - prevMouseX;
+  const deltaY = touch.clientY - prevMouseY;
+
+  if (model) {
+    model.rotation.y += deltaX * rotationSpeed;
+    model.rotation.x += deltaY * rotationSpeed;
+  }
+
+  prevMouseX = touch.clientX;
+  prevMouseY = touch.clientY;
+}
+
+function onTouchEnd() {
+  isMouseDown = false;
+}
+
+// Functies voor muis-events (Desktop)
+function onMouseDown(event) {
+  isMouseDown = true;
+  prevMouseX = event.clientX;
+  prevMouseY = event.clientY;
+}
+
+function onMouseMove(event) {
+  if (!isMouseDown) return;
+
+  const deltaX = event.clientX - prevMouseX;
+  const deltaY = event.clientY - prevMouseY;
+
+  if (model) {
+    model.rotation.y += deltaX * rotationSpeed;
+    model.rotation.x += deltaY * rotationSpeed;
+  }
+
+  prevMouseX = event.clientX;
+  prevMouseY = event.clientY;
+}
+
+function onMouseUp() {
+  isMouseDown = false;
 }
 
 const sizes = ref([]);
@@ -125,7 +172,6 @@ function logSceneLayers() {
   }
 }
 
-// Toevoegen van eventlisteners bij de initialisatie
 function initializeScene() {
   if (isSceneInitialized) {
     return; // Voorkom herinitialisatie
@@ -192,16 +238,22 @@ function initializeScene() {
     scene.add(ambientLight);
 
     // Voeg eventlisteners toe voor zowel mobiele als desktop
-    containerModelMobile.addEventListener("mousedown", onMouseDown, false);
-    containerModelDesktop.addEventListener("mousedown", onMouseDown, false);
+    if (containerModelMobile) {
+      containerModelMobile.addEventListener("mousedown", onMouseDown, false);
+      containerModelMobile.addEventListener("touchstart", onTouchStart, false);
+    }
 
-    containerModelMobile.addEventListener("touchstart", onTouchStart, false);
-    containerModelDesktop.addEventListener("touchstart", onTouchStart, false);
+    if (containerModelDesktop) {
+      containerModelDesktop.addEventListener("mousedown", onMouseDown, false);
+      containerModelDesktop.addEventListener("touchstart", onTouchStart, false);
+    }
 
     window.addEventListener("mousemove", onMouseMove, false);
     window.addEventListener("touchmove", onTouchMove, false);
     window.addEventListener("mouseup", onMouseUp, false);
     window.addEventListener("touchend", onTouchEnd, false);
+
+    // Laad het model (zorg ervoor dat je het juiste pad gebruikt)
 
     // Initialiseer de scene en renderer
     isRendererInitialized = true;
@@ -215,12 +267,12 @@ function initializeScene() {
 }
 
 function animate() {
-  const rendererToUse =
-    window.innerWidth <= 768 ? rendererMobile : rendererDesktop;
+  requestAnimationFrame(animate);
 
-  if (rendererToUse) {
-    requestAnimationFrame(animate);
-    rendererToUse.render(scene, camera); // Render de scène
+  if (rendererMobile) {
+    rendererMobile.render(scene, camera);
+  } else if (rendererDesktop) {
+    rendererDesktop.render(scene, camera);
   }
 }
 

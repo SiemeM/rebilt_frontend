@@ -247,38 +247,36 @@ export function loadGLBModel(url) {
   });
 }
 
-// Functie voor het starten van een muis/touch-interactie
+// Functies voor touch-events
 export function onTouchStart(event) {
   event.preventDefault(); // Voorkomt scrollen bij touch
   isMouseDown = true;
-  prevMouseX = event.touches ? event.touches[0].clientX : event.clientX;
-  prevMouseY = event.touches ? event.touches[0].clientY : event.clientY;
+  const touch = event.touches ? event.touches[0] : event;
+  prevMouseX = touch.clientX;
+  prevMouseY = touch.clientY;
 }
 
-// Functie voor muis/touchbewegingen
 export function onTouchMove(event) {
   if (!isMouseDown) return;
 
-  const deltaX =
-    (event.touches ? event.touches[0].clientX : event.clientX) - prevMouseX;
-  const deltaY =
-    (event.touches ? event.touches[0].clientY : event.clientY) - prevMouseY;
+  const touch = event.touches ? event.touches[0] : event;
+  const deltaX = touch.clientX - prevMouseX;
+  const deltaY = touch.clientY - prevMouseY;
 
   if (model) {
     model.rotation.y += deltaX * rotationSpeed;
     model.rotation.x += deltaY * rotationSpeed;
   }
 
-  prevMouseX = event.touches ? event.touches[0].clientX : event.clientX;
-  prevMouseY = event.touches ? event.touches[0].clientY : event.clientY;
+  prevMouseX = touch.clientX;
+  prevMouseY = touch.clientY;
 }
 
-// Functie voor het beëindigen van de muis/touch-interactie
 export function onTouchEnd() {
   isMouseDown = false;
 }
 
-// Functies voor muisinteractie (voor desktop)
+// Functies voor muis-events (Desktop)
 export function onMouseDown(event) {
   isMouseDown = true;
   prevMouseX = event.clientX;
