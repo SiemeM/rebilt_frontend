@@ -5,10 +5,6 @@ import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
 
-// Router setup
-const router = useRouter();
-const domainName = ref("");
-
 // Reactive user object to store user details
 const user = reactive({
   firstName: "",
@@ -52,9 +48,13 @@ const parseJwt = (token) => {
   }
 };
 
+// Reactive references for partner data
 const tokenPayload = parseJwt(token);
 const userId = tokenPayload?.userId;
 const partnerId = tokenPayload?.companyId || null;
+const partnerPackage = ref("Standard Package"); // Set partner's package
+const partnerName = ref("");
+const allDomains = ref([]);
 
 if (!userId) {
   router.push("/login");
@@ -66,13 +66,151 @@ const baseURL =
     ? "https://rebilt-backend.onrender.com/api/v1"
     : "http://localhost:3000/api/v1";
 
+// Router setup
+const router = useRouter();
+const domainName = ref("");
+
+// Computed property om domeinnaam zonder de extensie te tonen
+const domainWithoutExtension = computed({
+  get() {
+    return domainName.value.replace(".rebilt.be", "");
+  },
+  set(value) {
+    domainName.value = value + ".rebilt.be";
+  },
+});
+
 // Reactive references for partner data and configurations
-const partnerPackage = ref(null);
 const configurations = ref([]);
 const partnerConfigurations = ref([]);
 const loadingConfigurations = ref(false);
 const optionsMap = reactive({});
 const isDataLoaded = ref(false); // Loading status flag
+
+// Valid domain check computed property
+const isValidDomain = computed(() => {
+  const domain = domainName.value.trim();
+  const domainWithoutExtension = domain.split(".")[0]; // Get the domain part before any extension
+
+  // Regular expression for valid domain name (only lowercase and hyphens)
+  const domainPattern = /^[a-z-]+$/; // Only lowercase letters and hyphens
+  const forbiddenExtensions = [".be", ".com", ".nl"];
+
+  // Check for uppercase letters
+  if (/[A-Z]/.test(domainWithoutExtension)) {
+    return {
+      isValid: false,
+      message: "The domain name cannot contain uppercase letters.",
+    };
+  }
+
+  // Check for numbers in the domain name (disallow digits)
+  if (/\d/.test(domainWithoutExtension)) {
+    return {
+      isValid: false,
+      message: "The domain name cannot contain numbers.",
+    };
+  }
+
+  // Check if domain contains any forbidden extensions
+  if (forbiddenExtensions.some((ext) => domainWithoutExtension.includes(ext))) {
+    return {
+      isValid: false,
+      message: "The domain name cannot contain .be, .com, .nl.",
+    };
+  }
+
+  // Check if domain matches the valid pattern (only lowercase and hyphens)
+  if (!domainPattern.test(domainWithoutExtension)) {
+    return {
+      isValid: false,
+      message:
+        "The domain name must only contain lowercase letters and hyphens.",
+    };
+  }
+
+  return { isValid: true, message: "" };
+});
+
+// Fetch all partner domains to check for duplicates
+const fetchAllDomains = async () => {
+  try {
+    const response = await axios.get(`${baseURL}/partners/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.data || typeof response.data !== "object") {
+      console.error("Ongeldige API response structuur:", response);
+      return [];
+    }
+
+    // Hier halen we de domeinen op uit de partners array
+    return response.data.data.partners.map((partner) => partner.domain);
+  } catch (error) {
+    console.error("❌ Error fetching partner domains:", error);
+    return [];
+  }
+};
+
+const updateDomain = async () => {
+  if (!partnerId) return;
+
+  const domain = domainName.value.trim();
+
+  // Prevent appending .rebilt.be if it's already present
+  let fullDomain = domain;
+  if (!domain.endsWith(".rebilt.be")) {
+    fullDomain += ".rebilt.be"; // Only append if it doesn't already have .rebilt.be
+  }
+
+  // Ensure that allDomains is an array
+  if (!Array.isArray(allDomains.value)) {
+    console.error("allDomains is not an array:", allDomains.value);
+    isValidDomain.value = {
+      isValid: false,
+      message: "Error: Domain list is not valid.",
+    };
+    return;
+  }
+
+  // Check if domain is already taken
+  if (allDomains.value.includes(fullDomain)) {
+    isValidDomain.value = {
+      isValid: false,
+      message: "Error: This domain name is already taken.",
+    };
+    return;
+  }
+
+  const partnerData = {
+    name: partnerName.value,
+    package: partnerPackage.value,
+    domain: fullDomain,
+  };
+
+  try {
+    const response = await axios.put(
+      `${baseURL}/partners/${partnerId}`,
+      partnerData, // Data must be in the body of a PUT request
+      {
+        headers: { Authorization: `Bearer ${token}` }, // Correct headers for the request
+      }
+    );
+
+    if (response.status === 200) {
+      isValidDomain.value = {
+        isValid: true,
+        message: "Domain updated successfully.",
+      };
+    }
+  } catch (error) {
+    console.error("Error updating domain:", error);
+    isValidDomain.value = {
+      isValid: false,
+      message: "Failed to update the domain.",
+    };
+  }
+};
 
 // Fetch user profile data
 const fetchUserProfile = async () => {
@@ -97,16 +235,16 @@ const fetchUserProfile = async () => {
   }
 };
 
-// Fetch partner data (if applicable)
 const fetchPartnerData = async () => {
   if (!partnerId) return;
-
   try {
     const response = await axios.get(`${baseURL}/partners/${partnerId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const partner = response.data?.data?.partner || {};
+    partnerName.value = partner.name || "No name available";
     partnerPackage.value = partner.package || "No package available";
+    domainName.value = partner.domain || ""; // Set initial domain value
   } catch (error) {
     console.error("Error fetching partner data:", error);
     partnerPackage.value = "Error loading partner data";
@@ -166,10 +304,10 @@ onMounted(async () => {
   await fetchPartnerConfigurations();
   await fetchConfigurations();
   isDataLoaded.value = true; // Data is fully loaded now
-});
 
-// Provide user data globally
-provide("user", user);
+  // Ensure you await the fetchAllDomains() promise
+  allDomains.value = await fetchAllDomains();
+});
 
 // Reactive data for product selection and deletion logic
 const selectedConfigurations = ref([]);
@@ -290,12 +428,27 @@ const getOptionsNames = (optionIds) => {
         <div class="column">
           <label for="website">Domain:</label>
           <div class="input-container">
-            <input type="text" v-model="domainName" placeholder="your-domain" />
+            <input
+              type="text"
+              v-model="domainWithoutExtension"
+              placeholder="your-domain"
+            />
             <span class="suffix">.rebilt.be</span>
           </div>
+          <!-- Display validation message -->
+          <p v-if="!isValidDomain.isValid" class="error-message">
+            {{ isValidDomain.message }}
+          </p>
         </div>
 
-        <a href="#" class="btn active">Publish website</a>
+        <!-- Disable button if domain is invalid -->
+        <button
+          @click="updateDomain"
+          class="btn active"
+          :disabled="!isValidDomain.isValid"
+        >
+          Publish Domain
+        </button>
       </div>
     </div>
     <div class="ourConfigurations">
@@ -385,6 +538,12 @@ const getOptionsNames = (optionIds) => {
 </template>
 
 <style scoped>
+.error-message {
+  color: red;
+  font-size: 0.9rem;
+  margin-top: 8px;
+}
+
 .content {
   width: 100%;
   height: 100vh;
