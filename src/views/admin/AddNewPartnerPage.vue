@@ -155,6 +155,7 @@ const addPartner = async () => {
             required
           >
             <option value="standard">Standard</option>
+            <option value="plus">Plus</option>
             <option value="pro">Pro</option>
           </select>
         </div>

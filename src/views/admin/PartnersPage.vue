@@ -307,6 +307,7 @@ onMounted(() => {
       <select class="filter" v-model="selectedFilter">
         <option value="all">All</option>
         <option value="standard">Standard</option>
+        <option value="plus">Plus</option>
         <option value="pro">Pro</option>
       </select>
     </div>

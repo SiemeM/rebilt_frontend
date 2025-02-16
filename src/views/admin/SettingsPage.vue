@@ -764,6 +764,9 @@ watch(
                 >
                   Standard
                 </option>
+                <option value="plus" :selected="selectedPackage === 'plus'">
+                  Plus
+                </option>
                 <option value="pro" :selected="selectedPackage === 'pro'">
                   Pro
                 </option>

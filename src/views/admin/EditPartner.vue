@@ -164,8 +164,9 @@ const updatePartner = async () => {
           <!-- Dropdown voor package -->
           <select v-model="partnerData.package" id="package" required>
             <option value="" disabled>Kies een pakket</option>
-            <option value="standard">standard</option>
-            <option value="pro">pro</option>
+            <option value="standard">Standard</option>
+            <option value="plus">Plus</option>
+            <option value="pro">Pro</option>
           </select>
         </div>
       </div>
