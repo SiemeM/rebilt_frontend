@@ -7,6 +7,7 @@ import DynamicStyle from "../../components/DynamicStyle.vue";
 
 // Router setup
 const router = useRouter();
+const domainName = ref("");
 
 // Reactive user object to store user details
 const user = reactive({
@@ -283,79 +284,100 @@ const getOptionsNames = (optionIds) => {
   <Navigation />
   <div class="overlay" v-if="isPopupVisible"></div>
   <div class="content">
-    <!-- Delete confirmation popup -->
-    <div class="popup" v-if="isPopupVisible">
-      <h2>Are you sure?</h2>
-      <p>Do you really want to delete the selected item(s)?</p>
-      <div class="popup-buttons">
-        <button @click="hidePopup">Cancel</button>
-        <button @click="confirmDelete" class="btn active">Delete</button>
+    <div class="publishWebsite">
+      <h2>Publish website</h2>
+      <div class="elements">
+        <div class="column">
+          <label for="website">Domain:</label>
+          <div class="input-container">
+            <input type="text" v-model="domainName" placeholder="your-domain" />
+            <span class="suffix">.rebilt.be</span>
+          </div>
+        </div>
+
+        <a href="#" class="btn active">Publish website</a>
       </div>
     </div>
-
-    <!-- Actions menu -->
-    <div class="menu">
-      <div class="btns">
-        <router-link to="/admin/settings" class="btn active">
-          <p>Add New <img src="../../assets/icons/add.svg" alt="icon" /></p>
-        </router-link>
-        <div
-          class="btn display"
-          :style="{
-            visibility:
-              selectedConfigurations.length > 0 ? 'visible' : 'hidden',
-          }"
-          @click="showPopup"
-        >
-          <p>Delete item(s)</p>
+    <div class="ourConfigurations">
+      <h2>Our configurations</h2>
+      <!-- Delete confirmation popup -->
+      <div class="popup" v-if="isPopupVisible">
+        <h2>Are you sure?</h2>
+        <p>Do you really want to delete the selected item(s)?</p>
+        <div class="popup-buttons">
+          <button @click="hidePopup">Cancel</button>
+          <button @click="confirmDelete" class="btn active">Delete</button>
         </div>
       </div>
 
-      <div class="search">
-        <img src="../../assets/icons/search.svg" alt="icon" />
-        <input placeholder="Search" v-model="searchTerm" />
-      </div>
-    </div>
+      <div class="elements">
+        <!-- Actions menu -->
+        <div class="menu">
+          <div class="btns">
+            <router-link to="/admin/settings" class="btn active">
+              <p>Add New <img src="../../assets/icons/add.svg" alt="icon" /></p>
+            </router-link>
+            <div
+              class="btn display"
+              :style="{
+                visibility:
+                  selectedConfigurations.length > 0 ? 'visible' : 'hidden',
+              }"
+              @click="showPopup"
+            >
+              <p>Delete item(s)</p>
+            </div>
+          </div>
 
-    <!-- Configurations table -->
-    <div class="configurations">
-      <div class="top">
-        <input
-          type="checkbox"
-          @change="selectAllPartnerConfigurations($event.target.checked)"
-        />
-        <p>Field Name</p>
-        <p>Type</p>
-        <p>Options</p>
-      </div>
+          <div class="search">
+            <img src="../../assets/icons/search.svg" alt="icon" />
+            <input placeholder="Search" v-model="searchTerm" />
+          </div>
+        </div>
 
-      <div class="table-container">
-        <div
-          v-for="config in partnerConfigurations"
-          :key="config._id"
-          class="listItem"
-        >
-          <input
-            type="checkbox"
-            :checked="selectedConfigurations.includes(config._id)"
-            @change="toggleSelection(config._id)"
-          />
-          <router-link
-            :to="{
-              name: 'EditConfiguration',
-              params: { id: config.configurationId },
-              query: { partnerId: config.partnerId },
-            }"
-          >
-            <p>{{ getFullConfiguration(config)?.fieldName || "No name" }}</p>
-          </router-link>
-          <p>{{ getFullConfiguration(config)?.fieldType || "No type" }}</p>
-          <p>
-            {{
-              getOptionsNames(getFullConfiguration(config)?.options) ||
-              "No options"
-            }}
-          </p>
+        <!-- Configurations table -->
+        <div class="configurations">
+          <div class="top">
+            <input
+              type="checkbox"
+              @change="selectAllPartnerConfigurations($event.target.checked)"
+            />
+            <p>Field Name</p>
+            <p>Type</p>
+            <p>Options</p>
+          </div>
+
+          <div class="table-container">
+            <div
+              v-for="config in partnerConfigurations"
+              :key="config._id"
+              class="listItem"
+            >
+              <input
+                type="checkbox"
+                :checked="selectedConfigurations.includes(config._id)"
+                @change="toggleSelection(config._id)"
+              />
+              <router-link
+                :to="{
+                  name: 'EditConfiguration',
+                  params: { id: config.configurationId },
+                  query: { partnerId: config.partnerId },
+                }"
+              >
+                <p>
+                  {{ getFullConfiguration(config)?.fieldName || "No name" }}
+                </p>
+              </router-link>
+              <p>{{ getFullConfiguration(config)?.fieldType || "No type" }}</p>
+              <p>
+                {{
+                  getOptionsNames(getFullConfiguration(config)?.options) ||
+                  "No options"
+                }}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -366,6 +388,54 @@ const getOptionsNames = (optionIds) => {
 .content {
   width: 100%;
   height: 100vh;
+}
+
+.publishWebsite,
+.ourConfigurations {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.publishWebsite .column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.input-container {
+  position: relative;
+  width: 100%;
+}
+
+.input-container input {
+  width: 100%;
+  padding: 0.25rem 0 0.25rem 1rem;
+  border: 1px solid var(--text-color);
+  border-radius: 4px;
+  transition: border-color 0.3s ease-in-out;
+  text-align: left;
+  height: 2rem;
+}
+
+.input-container .suffix {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-color);
+  opacity: 0.6;
+  pointer-events: none;
+  text-transform: lowercase;
+}
+
+.publishWebsite .elements,
+.ourConfigurations .elements {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .overlay {
@@ -440,6 +510,9 @@ const getOptionsNames = (optionIds) => {
   align-items: center;
 }
 
+.btn {
+  font-size: 1rem;
+}
 .btn.display {
   visibility: hidden;
   border: 1px solid #d34848;
@@ -566,5 +639,16 @@ select {
   padding: 16px;
   text-align: center;
   color: var(--text-color);
+}
+
+@media (min-width: 768px) {
+  .publishWebsite .elements {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+
+  .publishWebsite .btn {
+    white-space: nowrap;
+  }
 }
 </style>
