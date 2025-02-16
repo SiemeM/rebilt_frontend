@@ -1,1 +1,2 @@
-﻿Rebilt Frontend
+﻿Rebilt Frontend 
+Netlify should work
