@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
+import ProfilePicture from "../../components/ProfilePicture.vue";
 
 // Router setup
 const router = useRouter();
@@ -469,6 +470,8 @@ onMounted(async () => {
         <option value="optical">Optical</option>
         <option value="sun">Sun</option>
       </select>
+
+      <ProfilePicture />
     </div>
 
     <div class="search">
