@@ -1,9 +1,12 @@
 <script setup>
-import { ref, reactive, onMounted, computed, provide } from "vue";
+import { ref, reactive, onMounted, watch, provide, computed } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import Navigation from "../../components/navComponent.vue";
 import DynamicStyle from "../../components/DynamicStyle.vue";
+
+// Router setup
+const router = useRouter();
 
 // Reactive user object to store user details
 const user = reactive({
@@ -25,7 +28,7 @@ const user = reactive({
   activeUnactive: true,
 });
 
-// JWT Token handling
+// Authentication and token handling
 const token = localStorage.getItem("jwtToken");
 if (!token) {
   router.push("/login");
@@ -48,11 +51,35 @@ const parseJwt = (token) => {
   }
 };
 
-// Reactive references for partner data
 const tokenPayload = parseJwt(token);
 const userId = tokenPayload?.userId;
 const partnerId = tokenPayload?.companyId || null;
-const partnerPackage = ref("Standard Package"); // Set partner's package
+if (!userId) {
+  router.push("/login");
+}
+
+// Partner related data
+const partnerPackage = ref(null);
+const fallbackLogo = "../../assets/images/rebilt-favicon.svg";
+
+// Base URL depending on environment
+const isProduction = window.location.hostname !== "localhost";
+const baseURL = isProduction
+  ? "https://rebilt-backend.onrender.com/api/v1"
+  : "http://localhost:3000/api/v1";
+
+// Provide the user data to all components (including Navigation)
+provide("user", user);
+
+// Watch for changes in user data and log updates
+watch(
+  user,
+  (newUser) => {
+    console.log("User data updated:", newUser);
+  },
+  { deep: true }
+);
+
 const partnerName = ref("");
 const allDomains = ref([]);
 
@@ -60,14 +87,6 @@ if (!userId) {
   router.push("/login");
 }
 
-// API base URL
-const baseURL =
-  window.location.hostname !== "localhost"
-    ? "https://rebilt-backend.onrender.com/api/v1"
-    : "http://localhost:3000/api/v1";
-
-// Router setup
-const router = useRouter();
 const domainName = ref("");
 
 // Computed property om domeinnaam zonder de extensie te tonen

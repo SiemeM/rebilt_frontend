@@ -1,25 +1,78 @@
 <script setup>
-import { reactive, ref, computed, onMounted, inject } from "vue";
+import { ref, reactive, onMounted, watch, provide, computed } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 
-// Router instance for navigation
+// Router setup
 const router = useRouter();
 
-// Inject the user object from parent (settingsPage)
-const user = inject("user", () =>
-  reactive({
-    firstName: "",
-    lastName: "",
-    role: "",
-    profilePicture: "",
-  })
-);
+// Reactive user object to store user details
+const user = reactive({
+  firstName: "",
+  lastName: "",
+  email: "",
+  newEmail: "",
+  oldEmail: "",
+  password: "",
+  newPassword: "",
+  oldPassword: "",
+  newPasswordRepeat: "",
+  country: "",
+  city: "",
+  postalCode: "",
+  profilePicture: "",
+  bio: "",
+  role: "",
+  activeUnactive: true,
+});
 
-if (!user) {
-  console.error("No user data provided!");
-  router.push("/login"); // Verplicht de gebruiker om in te loggen als er geen `user` data is.
+provide("user", user);
+
+// Authentication and token handling
+const token = localStorage.getItem("jwtToken");
+
+const parseJwt = (token) => {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error("Error parsing JWT:", error);
+    return null;
+  }
+};
+
+const tokenPayload = parseJwt(token);
+const userId = tokenPayload?.userId;
+const partnerId = tokenPayload?.companyId || null;
+if (!tokenPayload || !userId) {
+  router.push("/login");
 }
+
+// Partner related data
+const partnerPackage = ref(null);
+const fallbackLogo = "../../assets/images/rebilt-favicon.svg";
+
+// Base URL depending on environment
+const isProduction = window.location.hostname !== "localhost";
+const baseURL = isProduction
+  ? "https://rebilt-backend.onrender.com/api/v1"
+  : "http://localhost:3000/api/v1";
+
+// Watch for changes in user data and log updates
+watch(
+  user,
+  (newUser) => {
+    console.log("User data updated:", newUser);
+  },
+  { deep: true }
+);
 
 // Function to extract user data from the JWT token (kan mogelijk overbodig zijn als we al `user` injecteren)
 const getUserDataFromToken = () => {
@@ -33,10 +86,6 @@ const getUserDataFromToken = () => {
     const role = decodedPayload.role;
     const profilePicture = decodedPayload.profilePicture || "";
 
-    if (!userId) {
-      console.error("User ID not found in token");
-    }
-
     return { userId, firstName, lastName, role, profilePicture }; // Return updated fields
   }
   console.error("No token found in localStorage");
@@ -45,14 +94,9 @@ const getUserDataFromToken = () => {
 
 // Function to fetch user data via API (kan eventueel worden vervangen door data in `user` injecteren)
 const fetchUserData = async (userId) => {
-  const isProduction = window.location.hostname !== "localhost";
-  const baseURL = isProduction
-    ? "https://rebilt-backend.onrender.com/api/v1"
-    : "http://localhost:3000/api/v1";
-
   try {
     const response = await axios.get(`${baseURL}/users/${userId}`);
-    const userData = response.data.data.user;
+    const userData = response.data?.data?.user || {};
     if (userData) {
       // Dynamically update the reactive user data
       user.firstName = userData.firstname || "";
@@ -146,6 +190,40 @@ function showLabel(label) {
 function hideLabel() {
   hoveredLabel.value = "";
 }
+
+// Fetch user profile data
+const fetchUserProfile = async () => {
+  try {
+    const response = await axios.get(`${baseURL}/users/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const userData = response.data?.data?.user || {};
+    user.firstName = userData.firstname || "";
+    user.lastName = userData.lastname || "";
+    user.email = userData.email || "";
+    user.oldEmail = userData.email || "";
+    user.country = userData.country || "";
+    user.city = userData.city || "";
+    user.postalCode = userData.postalCode || "";
+    user.profilePicture = userData.profilePicture || "";
+    user.bio = userData.bio || "";
+    user.role = userData.role || "";
+    user.activeUnactive = userData.activeUnactive ?? true;
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+  }
+};
+
+provide("user", user);
+provide("baseURL", baseURL);
+provide("partnerId", partnerId);
+provide("userId", userId);
+provide("token", token);
+console.log(token);
+
+onMounted(async () => {
+  await fetchUserProfile();
+});
 </script>
 
 <template>
