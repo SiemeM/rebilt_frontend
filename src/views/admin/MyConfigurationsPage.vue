@@ -425,7 +425,7 @@ const getOptionsNames = (optionIds) => {
     <div class="publishWebsite">
       <h2>Publish website</h2>
       <div class="elements">
-        <div class="column">
+        <div class="column input">
           <label for="website">Domain:</label>
           <div class="input-container">
             <input
@@ -436,19 +436,40 @@ const getOptionsNames = (optionIds) => {
             <span class="suffix">.rebilt.be</span>
           </div>
           <!-- Display validation message -->
-          <p v-if="!isValidDomain.isValid" class="error-message">
-            {{ isValidDomain.message }}
-          </p>
+          <span
+            :class="{
+              'error-message': !isValidDomain.isValid,
+              hidden: isValidDomain.isValid,
+            }"
+          >
+            {{ isValidDomain.message || "No errors yet" }}
+          </span>
         </div>
+        <div class="column">
+          <!-- Disable button if domain is invalid -->
+          <button
+            @click="updateDomain"
+            class="btn active"
+            :disabled="!isValidDomain.isValid"
+          >
+            Publish Domain
+          </button>
 
-        <!-- Disable button if domain is invalid -->
-        <button
-          @click="updateDomain"
-          class="btn active"
-          :disabled="!isValidDomain.isValid"
-        >
-          Publish Domain
-        </button>
+          <div class="publishedNotPublished">
+            <div
+              class="bullet"
+              :style="{
+                backgroundColor: isValidDomain.isValid ? '#53e971' : 'red',
+              }"
+            ></div>
+            <span
+              :style="{
+                color: isValidDomain.isValid ? '#53e971' : 'red',
+              }"
+              >{{ isValidDomain.isValid ? "Published" : "Not published" }}</span
+            >
+          </div>
+        </div>
       </div>
     </div>
     <div class="ourConfigurations">
@@ -538,10 +559,12 @@ const getOptionsNames = (optionIds) => {
 </template>
 
 <style scoped>
-.error-message {
+.publishWebsite .column span.error-message {
   color: red;
-  font-size: 0.9rem;
-  margin-top: 8px;
+}
+
+.hidden {
+  visibility: hidden;
 }
 
 .content {
@@ -561,7 +584,15 @@ const getOptionsNames = (optionIds) => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.publishWebsite .column.input {
   width: 100%;
+}
+
+.publishWebsite .column span {
+  text-transform: lowercase;
+  color: var(--text-color);
 }
 
 .input-container {
@@ -595,6 +626,19 @@ const getOptionsNames = (optionIds) => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.publishedNotPublished {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.publishedNotPublished .bullet {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
 }
 
 .overlay {
