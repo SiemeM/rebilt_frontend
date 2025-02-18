@@ -128,10 +128,7 @@ const setActiveFilter = (filter) => {
               "
               class="product-image"
               :style="{
-                backgroundImage:
-                  'url(' +
-                  product.configurations[0].selectedOptions[0].images[0] +
-                  ')',
+                backgroundImage: 'url(' + product.thumbnail + ')',
               }"
             ></div>
             <div v-else class="no-image-message">
