@@ -113,73 +113,30 @@ const addNewProduct = async () => {
       return;
     }
 
-    if (!uploadedFile.value) {
-      console.error("❌ No file uploaded.");
+    if (selectedType.value === "3d" && !uploadedFile.value) {
+      console.error("❌ No 3D model uploaded.");
       return;
     }
 
-    // Validatie of kleuren geselecteerd zijn
-    if (
-      Object.values(selectedColors.value).every((colors) => colors.length === 0)
-    ) {
-      console.error("❌ No colors selected.");
-      return;
-    }
-
-    // Toevoegen van afbeeldingen voor elke kleurconfiguratie
-    partnerConfigurations.value.forEach((config) => {
-      if (config.configurationDetails.fieldType === "color") {
-        const configId = config.configurationId._id;
-        const selectedColorOptions = selectedColors.value[configId] || [];
-
-        config.options.forEach((option) => {
-          // Haal de afbeeldingen op voor de geselecteerde kleuropties
-          const colorImages =
-            fetchedColorsPerConfig[configId]?.find(
-              (color) => color.optionId === option.optionId
-            )?.images || []; // Gebruik een lege array als er geen afbeeldingen zijn
-
-          // Voeg de afbeeldingen toe aan de optie als de kleur geselecteerd is
-          if (
-            selectedColorOptions.some(
-              (selected) => selected.optionId === option.optionId
-            )
-          ) {
-            option.images = colorImages; // Kleurafbeeldingen toewijzen
-          }
+    // Als het een 3D-product is, moeten we de thumbnail en 3D-model uploaden
+    if (partnerPackage.value == "pro") {
+      if (selectedType.value === "3d") {
+        await add3DProduct({
+          productCode: productCode.value,
+          productName: productName.value,
+          productType: selectedType.value || "sunglasses",
+          productPrice: productPrice.value,
+          description: description.value,
+          brand: brand.value,
+          activeInactive: "active",
+          partnerId,
+          configurations: partnerConfigurations.value,
+          file: uploadedFile.value, // Upload de thumbnail
+          modelFile: document.getElementById("3DModel").files[0], // Upload het 3D-model
         });
       }
-    });
-
-    // Maak de API-aanroep met de bijgewerkte configuraties en afbeeldingen
-    const partnerPackageResponse = await fetchPartnerPackage(partnerId);
-    partnerPackage.value = partnerPackageResponse || "";
-
-    if (partnerPackage.value == "pro") {
-      // Als partner "pro" is, voeg het 3D-product toe
-      await add3DProduct({
-        productCode: productCode.value,
-        productName: productName.value,
-        productType: selectedType.value || "sunglasses",
-        productPrice: productPrice.value,
-        description: description.value,
-        brand: brand.value,
-        activeInactive: "active",
-        partnerId,
-        configurations: partnerConfigurations.value,
-        file: uploadedFile.value,
-      });
     } else {
-      // Zorg ervoor dat de geselecteerde configuratie-ID wordt doorgegeven
-      const selectedConfigurationId =
-        partnerConfigurations.value[0]?.configurationId._id;
-
-      if (!selectedConfigurationId) {
-        console.error("❌ selectedConfigurationId ontbreekt!");
-        return;
-      }
-
-      // De afbeeldingen voor het 2D-product kunnen verschillende opties hebben, dus we moeten zorgen dat ze correct worden doorgegeven
+      // De 2D uploadzones blijven zoals ze waren
       await add2DProduct(uploadedFile.value, selectedConfigurationId, {
         productCode: productCode.value,
         productName: productName.value,
@@ -267,6 +224,16 @@ onMounted(async () => {
     <h1>Add new product</h1>
     <form @submit.prevent="addNewProduct">
       <h3>Product info:</h3>
+      <div class="row">
+        <div class="column">
+          <label for="2DOr3DProduct">Select Product Type:</label>
+          <select v-model="selectedType" id="2DOr3DProduct">
+            <option value="2D">2D Product</option>
+            <option value="3D">3D Product</option>
+          </select>
+        </div>
+      </div>
+
       <div class="row">
         <div class="column">
           <label for="productCode">Product Code:</label>
@@ -418,6 +385,7 @@ onMounted(async () => {
 
       <template v-if="partnerPackage == 'pro'">
         <div class="configurations">
+          <!-- Configuraties voor het product -->
           <template
             v-for="(config, index) in partnerConfigurations"
             :key="config._id"
@@ -454,7 +422,7 @@ onMounted(async () => {
                     buttonText="Toggle Dropdown"
                   >
                     <div
-                      v-for="(option, optionIndex) in configurations"
+                      v-for="(option, optionIndex) in config.options"
                       :key="optionIndex"
                     >
                       <span
@@ -504,25 +472,95 @@ onMounted(async () => {
             </div>
           </template>
         </div>
-        <h3>Images:</h3>
-        <template
-          v-if="
-            Object.values(selectedColors).some((colors) => colors.length > 0)
-          "
-        >
-          <ImageUpload
-            @file-uploaded="handleFileUpload"
-            :color="
-              Object.values(selectedColors).find(
-                (colors) => colors.length > 0
-              )[0]
-            "
-            :colorUploads="colorUploads"
-            :partnerPackage="partnerPackage"
-            :partnerName="partnerName"
-          />
-        </template>
+
+        <!-- Uploadzone voor 2D of 3D afhankelijk van keuze -->
+        <div v-if="selectedType === '2D'">
+          <h3>Upload Images for 2D Product:</h3>
+          <template
+            v-for="(config, index) in partnerConfigurations"
+            :key="config._id"
+          >
+            <!-- Upload zones per geselecteerde kleur binnen configuratie -->
+            <template v-if="config.configurationDetails.fieldType === 'color'">
+              <div
+                v-for="(selectedColor, colorIndex) in selectedColors[
+                  config.configurationId._id
+                ] || []"
+                :key="colorIndex"
+                class="column"
+              >
+                <p>{{ selectedColor.name }} - Upload images</p>
+                <ImageUpload
+                  @file-uploaded="handleFileUpload"
+                  :color="selectedColor"
+                  :index="colorIndex"
+                  :colorUploads="colorUploads"
+                  :partnerPackage="partnerPackage"
+                  :partnerName="partnerName"
+                />
+              </div>
+            </template>
+          </template>
+        </div>
+
+        <div v-if="selectedType === '3D'">
+          <template
+            v-for="(config, index) in partnerConfigurations"
+            :key="config._id"
+          >
+            <!-- 3D model upload zone -->
+            <template v-if="config.configurationDetails.fieldType === 'color'">
+              <div
+                v-for="(selectedColor, colorIndex) in selectedColors[
+                  config.configurationId._id
+                ] || []"
+                :key="colorIndex"
+                class="column"
+              >
+                <p>{{ selectedColor.name }} - Upload Thumbnail Image</p>
+                <ImageUpload
+                  @file-uploaded="handleFileUpload"
+                  :color="selectedColor"
+                  :index="colorIndex"
+                  :colorUploads="colorUploads"
+                  :partnerPackage="partnerPackage"
+                  :partnerName="partnerName"
+                  uploadType="thumbnail"
+                />
+              </div>
+            </template>
+          </template>
+
+          <h3>Upload 3D Model File:</h3>
+          <div class="row">
+            <div class="column">
+              <input
+                type="file"
+                @change="handleFileUpload"
+                accept=".glb,.fbx,.obj"
+              />
+              <p>Upload 3D model file (GLB, FBX, OBJ formats)</p>
+            </div>
+          </div>
+
+          <!-- Upload de thumbnail voor het 3D-model -->
+          <h3>Upload Thumbnail for 3D Model:</h3>
+          <div class="row">
+            <div class="column">
+              <ImageUpload
+                @file-uploaded="handleThumbnailUpload"
+                :color="null"
+                :index="null"
+                :colorUploads="colorUploads"
+                :partnerPackage="partnerPackage"
+                :partnerName="partnerName"
+                uploadType="3dThumbnail"
+              />
+            </div>
+          </div>
+        </div>
       </template>
+
       <button class="btn active" type="submit">Add Product</button>
     </form>
   </div>

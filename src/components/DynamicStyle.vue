@@ -213,6 +213,49 @@ const applyFallbackStyles = () => {
     "--body-font",
     fallbackStyle.fontFamilyBodyText
   );
+  document.documentElement.style.setProperty("--black", fallbackStyle.black);
+  document.documentElement.style.setProperty("--white", fallbackStyle.white);
+  document.documentElement.style.setProperty(
+    "--blue-600",
+    fallbackStyle.blue_600
+  );
+  document.documentElement.style.setProperty(
+    "--gray-100",
+    fallbackStyle.gray_100
+  );
+  document.documentElement.style.setProperty(
+    "--gray-200",
+    fallbackStyle.gray_200
+  );
+  document.documentElement.style.setProperty(
+    "--gray-300",
+    fallbackStyle.gray_300
+  );
+  document.documentElement.style.setProperty(
+    "--gray-400",
+    fallbackStyle.gray_400
+  );
+  document.documentElement.style.setProperty(
+    "--gray-500",
+    fallbackStyle.gray_500
+  );
+  document.documentElement.style.setProperty(
+    "--gray-600",
+    fallbackStyle.gray_600
+  );
+  document.documentElement.style.setProperty(
+    "--gray-700",
+    fallbackStyle.gray_700
+  );
+  document.documentElement.style.setProperty(
+    "--gray-800",
+    fallbackStyle.gray_800
+  );
+  document.documentElement.style.setProperty(
+    "--gray-900",
+    fallbackStyle.gray_900
+  );
+
   loadFonts(fallbackStyle.fontFamilyBodyText, fallbackStyle.fontFamilyTitles);
 };
 
