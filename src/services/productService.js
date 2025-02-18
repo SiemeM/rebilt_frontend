@@ -5,6 +5,8 @@ import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import { useRouter } from "vue-router";
+import { uploadFileToCloudinary } from "./fileService"; // Assuming the path is correct
+
 const router = useRouter();
 
 // Setup loaders
@@ -302,29 +304,6 @@ export function onMouseUp() {
   isMouseDown = false;
 }
 
-async function uploadImage(file) {
-  try {
-    const formData = new FormData();
-    formData.append("image", file);
-
-    const response = await axios.post("/upload-endpoint", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-
-    if (response.data && response.data.imageUrl) {
-      return response.data.imageUrl; // Zorg ervoor dat de URL correct wordt geretourneerd
-    } else {
-      console.error("❌ Geen geldige URL teruggekregen bij upload.");
-      return null;
-    }
-  } catch (error) {
-    console.error("❌ Fout bij het uploaden van de afbeelding:", error);
-    return null;
-  }
-}
-
 export const fetchcolors = async (partnerId) => {
   try {
     const selectedOptions = await getcolors(partnerId);
@@ -490,19 +469,21 @@ export const add3DProduct = async ({
   activeInactive,
   partnerId,
   configurations,
-  file, // URL van de 3D-file
+  file, // 3D file (in File object format)
 }) => {
   try {
-    // **FIX: Extract de juiste string-URL uit Proxy(Array)**
-    const imageUrl = file && Array.isArray(file) ? file[0] : String(file);
+    // Step 1: Upload the file to Cloudinary and get the secure URL
+    const imageUrl = await uploadFileToCloudinary(file, productName, partnerId);
 
-    if (!imageUrl.startsWith("https://")) {
-      console.error("❌ Ongeldige bestands-URL na extractie:", imageUrl);
+    // Step 2: Validate the URL (it should be an HTTPS URL)
+    if (!imageUrl || !imageUrl.startsWith("https://")) {
+      console.error("❌ Ongeldige bestands-URL:", imageUrl);
       return;
     }
 
     let validConfigurations = [];
 
+    // Process configurations and select options
     for (const config of configurations) {
       let selectedOptions = [];
 
@@ -519,7 +500,7 @@ export const add3DProduct = async ({
 
         return {
           optionId,
-          images: [imageUrl], // ✅ Nu correct ingevuld
+          images: [imageUrl], // Add the image URL (which is the 3D file URL here)
           _id: `${optionId}-${Date.now()}`,
         };
       });
@@ -537,6 +518,7 @@ export const add3DProduct = async ({
       return;
     }
 
+    // Create the product data object
     const productData = {
       productCode,
       productName,
@@ -548,49 +530,28 @@ export const add3DProduct = async ({
       partnerId,
       configurations: validConfigurations,
     };
+
+    // Step 3: Send the data to the backend
+    const token = localStorage.getItem("jwtToken") || null;
+
+    const response = await fetch(`${baseURL}/products`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(productData), // Send the correct product data
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("❌ Server response error:", errorData);
+      throw new Error(errorData.message || "Onbekende serverfout");
+    }
+
+    const responseBody = await response.json();
+    return responseBody;
   } catch (error) {
     console.error("❌ Algemene fout in add3DProduct:", error);
   }
 };
-
-// Een voorbeeld van een manier om afbeeldingen aan de configuratie toe te voegen.
-const addImagesToConfiguration = (configurationId, imageUrls) => {
-  const updatedConfigurations = configurations.map((config) => {
-    if (config.configurationId === configurationId) {
-      return {
-        ...config,
-        selectedOptions: config.selectedOptions.map((option) => ({
-          ...option,
-          images: imageUrls, // Voeg de juiste afbeeldings-URLs hier toe
-        })),
-      };
-    }
-    return config;
-  });
-
-  // Update de configuraties
-  setConfigurations(updatedConfigurations);
-};
-
-function addImageToConfigurations(imageUrl, configurations) {
-  if (!imageUrl) {
-    console.warn("⚠️ Geen geldige afbeelding URL om toe te voegen.");
-    return;
-  }
-
-  configurations.forEach((config) => {
-    if (!config.selectedOptions || config.selectedOptions.length === 0) {
-      console.warn(
-        `⚠️ Geen geselecteerde opties voor configuratie: ${config.configurationId}`
-      );
-      return;
-    }
-
-    config.selectedOptions.forEach((option) => {
-      if (!option.images) {
-        option.images = []; // Zorg ervoor dat images een array is
-      }
-      option.images.push(imageUrl); // Voeg de afbeelding toe
-    });
-  });
-}

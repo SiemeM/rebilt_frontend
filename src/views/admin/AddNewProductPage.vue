@@ -23,12 +23,12 @@ import ColorSelectionToggle from "../../components/ColorSelectionToggle.vue";
 import ImageUpload from "../../components/ImageUpload.vue";
 
 // Reactive variables
-
 const router = useRouter();
 const partnerConfigurations = ref([]);
 const productCode = ref("");
 const productName = ref("");
 const brand = ref("");
+const productType = ref("");
 const productPrice = ref("");
 const description = ref("");
 const colorUploads = ref([]);
@@ -95,63 +95,82 @@ const fetchcolors = async (partnerId) => {
 // Map colors per configuration
 const fetchedColorsPerConfig = {};
 
-const handleFileUpload = (fileUrl) => {
-  if (!fileUrl || !fileUrl[0]) {
+const handleFileUpload = (event) => {
+  const files = event.target.files;
+  console.log(files);
+  // Controleer of er daadwerkelijk bestanden zijn geselecteerd
+  if (!files || files.length === 0) {
     console.error("❌ Geen geldige afbeeldings-URL.");
     return;
   }
 
-  // Zet de eerste waarde van de array als de URL
-  uploadedFile.value = fileUrl; // Gebruik enkel de eerste URL als string
+  // Verkrijg het eerste bestand in de lijst (indien er meerdere bestanden zijn geselecteerd)
+  const file = files[0];
+
+  // Zorg ervoor dat het bestand een naam heeft en valideer het bestandstype
+  if (!file || !file.name) {
+    console.error("❌ Bestand heeft geen naam.");
+    return;
+  }
+
+  // Zet de eerste waarde van de file als de URL
+  uploadedFile.value = file; // Werk met het bestand zelf, niet de URL
 };
+
+const handleThumbnailUpload = (event) => {
+  const files = event.target.files;
+  console.log(files);
+
+  // Controleer of er daadwerkelijk bestanden zijn geselecteerd
+  if (!files || files.length === 0) {
+    console.error("❌ Geen geldige afbeeldings-URL.");
+    return;
+  }
+
+  // Verkrijg het eerste bestand in de lijst
+  const file = files[0];
+
+  // Zorg ervoor dat het bestand een naam heeft
+  if (!file || !file.name) {
+    console.error("❌ Bestand heeft geen naam.");
+    return;
+  }
+
+  // Gebruik het bestand zelf voor verdere verwerking
+  uploadedFile.value = file; // Stel de waarde van uploadedFile in op het bestand zelf
+};
+
+const modelFileInput = ref(null);
 
 const addNewProduct = async () => {
   try {
-    // Validatie van verplichte velden
-    if (!productName.value || !productPrice.value || !productCode.value) {
-      console.error("❌ Missing required fields.");
-      return;
-    }
-
-    if (selectedType.value === "3d" && !uploadedFile.value) {
+    if (selectedType.value === "3D" && !uploadedFile.value) {
       console.error("❌ No 3D model uploaded.");
       return;
     }
 
-    // Als het een 3D-product is, moeten we de thumbnail en 3D-model uploaden
+    let modelFile = modelFileInput.value?.files[0];
+    console.log(modelFile);
+    if (selectedType.value === "3D" && !modelFile) {
+      console.error("❌ No 3D model file selected.");
+      return;
+    }
+
     if (partnerPackage.value == "pro") {
-      if (selectedType.value === "3d") {
-        await add3DProduct({
-          productCode: productCode.value,
-          productName: productName.value,
-          productType: selectedType.value || "sunglasses",
-          productPrice: productPrice.value,
-          description: description.value,
-          brand: brand.value,
-          activeInactive: "active",
-          partnerId,
-          configurations: partnerConfigurations.value,
-          file: uploadedFile.value, // Upload de thumbnail
-          modelFile: document.getElementById("3DModel").files[0], // Upload het 3D-model
-        });
-      }
-    } else {
-      // De 2D uploadzones blijven zoals ze waren
-      await add2DProduct(uploadedFile.value, selectedConfigurationId, {
+      await add3DProduct({
         productCode: productCode.value,
         productName: productName.value,
-        productType: selectedType.value || "sunglasses",
+        productType: productType.value,
         productPrice: productPrice.value,
         description: description.value,
         brand: brand.value,
         activeInactive: "active",
         partnerId,
         configurations: partnerConfigurations.value,
+        file: uploadedFile.value, // Thumbnail file
+        modelFile, // 3D Model file
       });
     }
-
-    // Redirect naar de homepagina na het toevoegen
-    router.push("/");
   } catch (error) {
     console.error("❌ Error adding product:", error);
   }
@@ -250,7 +269,7 @@ onMounted(async () => {
           <label for="productType">Type Of Product:</label>
           <div class="dropdown" v-if="productTypes.length > 0">
             <DropdownToggle
-              v-model="selectedType"
+              v-model="productType"
               :fieldName="'sole_top'"
               :dropdownStates="dropdownStates"
               :buttonText="'Select colors'"
@@ -503,59 +522,33 @@ onMounted(async () => {
           </template>
         </div>
 
-        <div v-if="selectedType === '3D'">
-          <template
-            v-for="(config, index) in partnerConfigurations"
-            :key="config._id"
-          >
-            <!-- 3D model upload zone -->
-            <template v-if="config.configurationDetails.fieldType === 'color'">
-              <div
-                v-for="(selectedColor, colorIndex) in selectedColors[
-                  config.configurationId._id
-                ] || []"
-                :key="colorIndex"
-                class="column"
-              >
-                <p>{{ selectedColor.name }} - Upload Thumbnail Image</p>
-                <ImageUpload
-                  @file-uploaded="handleFileUpload"
-                  :color="selectedColor"
-                  :index="colorIndex"
-                  :colorUploads="colorUploads"
-                  :partnerPackage="partnerPackage"
-                  :partnerName="partnerName"
-                  uploadType="thumbnail"
+        <div v-if="selectedType === '3D'" class="uploadzones">
+          <div class="uploadzone">
+            <h3>Upload 3D Model File:</h3>
+            <div class="row">
+              <div class="column">
+                <input
+                  ref="modelFileInput"
+                  type="file"
+                  @change="handleFileUpload"
+                  accept=".glb,.fbx,.obj"
                 />
+                <p>Upload 3D model file (GLB, FBX, OBJ formats)</p>
               </div>
-            </template>
-          </template>
-
-          <h3>Upload 3D Model File:</h3>
-          <div class="row">
-            <div class="column">
-              <input
-                type="file"
-                @change="handleFileUpload"
-                accept=".glb,.fbx,.obj"
-              />
-              <p>Upload 3D model file (GLB, FBX, OBJ formats)</p>
             </div>
           </div>
-
-          <!-- Upload de thumbnail voor het 3D-model -->
-          <h3>Upload Thumbnail for 3D Model:</h3>
-          <div class="row">
-            <div class="column">
-              <ImageUpload
-                @file-uploaded="handleThumbnailUpload"
-                :color="null"
-                :index="null"
-                :colorUploads="colorUploads"
-                :partnerPackage="partnerPackage"
-                :partnerName="partnerName"
-                uploadType="3dThumbnail"
-              />
+          <div class="uploadzone">
+            <!-- Upload de thumbnail voor het 3D-model -->
+            <h3>Upload Thumbnail for 3D Model:</h3>
+            <div class="row">
+              <div class="column">
+                <input
+                  type="file"
+                  @change="handleThumbnailUpload"
+                  accept=".jpeg,.jpg,.png,.gif"
+                />
+                <p>Upload Thumbnail (JPG, PNG, GIF formats)</p>
+              </div>
             </div>
           </div>
         </div>
@@ -731,6 +724,19 @@ button {
   grid-template-columns: repeat(1, 1fr);
   gap: 2rem;
   width: 100%;
+}
+
+.uploadzones {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 1rem;
+  width: 100%;
+}
+
+.uploadzones .uploadzone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 @media (min-width: 768px) {
