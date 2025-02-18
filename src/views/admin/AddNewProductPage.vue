@@ -34,7 +34,8 @@ const description = ref("");
 const colorUploads = ref([]);
 const dropdownStates = ref({});
 const uploadedFile = ref(null);
-
+const thumbnail = ref(null);
+const modelFile = ref(null);
 const newColorName = ref("");
 const newProducts = ref([]);
 
@@ -97,7 +98,6 @@ const fetchedColorsPerConfig = {};
 
 const handleFileUpload = (event) => {
   const files = event.target.files;
-  console.log(files);
   // Controleer of er daadwerkelijk bestanden zijn geselecteerd
   if (!files || files.length === 0) {
     console.error("❌ Geen geldige afbeeldings-URL.");
@@ -119,57 +119,55 @@ const handleFileUpload = (event) => {
 
 const handleThumbnailUpload = (event) => {
   const files = event.target.files;
-  console.log(files);
 
-  // Controleer of er daadwerkelijk bestanden zijn geselecteerd
   if (!files || files.length === 0) {
     console.error("❌ Geen geldige afbeeldings-URL.");
     return;
   }
 
-  // Verkrijg het eerste bestand in de lijst
   const file = files[0];
-
-  // Zorg ervoor dat het bestand een naam heeft
   if (!file || !file.name) {
     console.error("❌ Bestand heeft geen naam.");
     return;
   }
 
-  // Gebruik het bestand zelf voor verdere verwerking
-  uploadedFile.value = file; // Stel de waarde van uploadedFile in op het bestand zelf
+  // Update the thumbnail value for the thumbnail file
+  thumbnail.value = file; // Use a separate reference for the thumbnail file
 };
 
 const modelFileInput = ref(null);
 
 const addNewProduct = async () => {
   try {
-    if (selectedType.value === "3D" && !uploadedFile.value) {
-      console.error("❌ No 3D model uploaded.");
-      return;
-    }
+    if (selectedType.value === "3D") {
+      // Check if the 3D model file is selected
+      let modelFile = modelFileInput.value?.files[0]; // Correctly accessing the file
+      if (!modelFile) {
+        console.error("❌ No 3D model file selected.");
+        return;
+      }
 
-    let modelFile = modelFileInput.value?.files[0];
-    console.log(modelFile);
-    if (selectedType.value === "3D" && !modelFile) {
-      console.error("❌ No 3D model file selected.");
-      return;
-    }
+      if (!thumbnail.value) {
+        console.error("❌ No thumbnail image uploaded.");
+        return;
+      }
 
-    if (partnerPackage.value == "pro") {
-      await add3DProduct({
-        productCode: productCode.value,
-        productName: productName.value,
-        productType: productType.value,
-        productPrice: productPrice.value,
-        description: description.value,
-        brand: brand.value,
-        activeInactive: "active",
-        partnerId,
-        configurations: partnerConfigurations.value,
-        file: uploadedFile.value, // Thumbnail file
-        modelFile, // 3D Model file
-      });
+      if (partnerPackage.value == "pro") {
+        await add3DProduct({
+          productCode: productCode.value,
+          productName: productName.value,
+          productType: productType.value || "sunglasses",
+          productPrice: productPrice.value,
+          description: description.value,
+          brand: brand.value,
+          activeInactive: "active",
+          partnerId,
+          configurations: partnerConfigurations.value,
+          file: modelFile, // Thumbnail file
+          modelFile: modelFile, // Correct reference to the model file
+          thumbnail: thumbnail.value, // Correct reference to the thumbnail
+        });
+      }
     }
   } catch (error) {
     console.error("❌ Error adding product:", error);

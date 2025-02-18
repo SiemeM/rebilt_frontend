@@ -114,7 +114,6 @@ export default {
         }
 
         const fileExtension = file.name.split(".").pop().toLowerCase();
-        console.log(fileExtension);
 
         try {
           const secureUrl = await uploadFileToCloudinary(
@@ -122,7 +121,6 @@ export default {
             this.color.name,
             this.partnerName
           );
-          console.log(secureUrl);
 
           // Voeg de thumbnail toe aan de uploads
           this.colorUploads[index] = this.colorUploads[index] || { images: [] };
@@ -186,14 +184,12 @@ export default {
           continue;
         }
 
-        console.log(file.name);
         // Controleer of de naam van het bestand beschikbaar is
         if (!file.name) {
           console.error("❌ Bestand heeft geen naam.");
           continue;
         }
 
-        console.log(fileExtension);
         const fileExtension = file.name.split(".").pop().toLowerCase();
 
         try {

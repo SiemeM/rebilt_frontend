@@ -65,15 +65,6 @@ const baseURL = isProduction
   ? "https://rebilt-backend.onrender.com/api/v1"
   : "http://localhost:3000/api/v1";
 
-// Watch for changes in user data and log updates
-watch(
-  user,
-  (newUser) => {
-    console.log("User data updated:", newUser);
-  },
-  { deep: true }
-);
-
 // Function to extract user data from the JWT token (kan mogelijk overbodig zijn als we al `user` injecteren)
 const getUserDataFromToken = () => {
   const token = localStorage.getItem("jwtToken");
@@ -219,7 +210,6 @@ provide("baseURL", baseURL);
 provide("partnerId", partnerId);
 provide("userId", userId);
 provide("token", token);
-console.log(token);
 
 onMounted(async () => {
   await fetchUserProfile();

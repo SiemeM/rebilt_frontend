@@ -11,7 +11,7 @@ export const uploadFileToCloudinary = async (
   partnerName
 ) => {
   try {
-    // Controleer of het bestand is meegegeven
+    // Controleer of het bestand en de naam aanwezig zijn
     if (!file || !file.name) {
       throw new Error("No file provided or file name is missing.");
     }

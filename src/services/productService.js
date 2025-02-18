@@ -470,23 +470,35 @@ export const add3DProduct = async ({
   partnerId,
   configurations,
   file, // 3D file (in File object format)
+  thumbnail, // Thumbnail image (in File object format)
 }) => {
   try {
-    // Step 1: Upload the file to Cloudinary and get the secure URL
-    const imageUrl = await uploadFileToCloudinary(file, productName, partnerId);
+    // Upload de bestanden naar Cloudinary en verkrijg de URL's
+    const modelUrl = await uploadFileToCloudinary(file, productName, partnerId);
+    const thumbnailUrl = await uploadFileToCloudinary(
+      thumbnail,
+      productName,
+      partnerId
+    );
 
-    // Step 2: Validate the URL (it should be an HTTPS URL)
-    if (!imageUrl || !imageUrl.startsWith("https://")) {
-      console.error("❌ Ongeldige bestands-URL:", imageUrl);
+    // Stap 3: Valideer de URLs
+    if (!modelUrl || !modelUrl.startsWith("https://")) {
+      console.error("❌ Ongeldige 3D-model URL:", modelUrl);
       return;
     }
 
+    if (!thumbnailUrl || !thumbnailUrl.startsWith("https://")) {
+      console.error("❌ Ongeldige thumbnail URL:", thumbnailUrl);
+      return;
+    }
+
+    // Stap 4: Verwerk de configuraties
     let validConfigurations = [];
 
-    // Process configurations and select options
     for (const config of configurations) {
       let selectedOptions = [];
 
+      // Controleer of de configuratie opties aanwezig zijn
       if (!Array.isArray(config.options) || config.options.length === 0) {
         console.warn(
           "⚠️ Geen opties beschikbaar voor configuratie:",
@@ -500,8 +512,8 @@ export const add3DProduct = async ({
 
         return {
           optionId,
-          images: [imageUrl], // Add the image URL (which is the 3D file URL here)
-          _id: `${optionId}-${Date.now()}`,
+          images: [modelUrl], // De 3D model URL wordt hier opgeslagen
+          _id: `${optionId}-${Date.now()}`, // Unieke ID voor elke optie
         };
       });
 
@@ -513,12 +525,13 @@ export const add3DProduct = async ({
       }
     }
 
+    // Als er geen geldige configuraties zijn, stop
     if (validConfigurations.length === 0) {
       console.error("❌ Geen geldige configuraties gevonden");
       return;
     }
 
-    // Create the product data object
+    // Stap 5: Maak het productdata object
     const productData = {
       productCode,
       productName,
@@ -529,9 +542,11 @@ export const add3DProduct = async ({
       activeInactive,
       partnerId,
       configurations: validConfigurations,
+      modelFile: modelUrl, // De model file URL wordt hier opgeslagen
+      thumbnail: thumbnailUrl, // De thumbnail URL wordt hier opgeslagen
     };
 
-    // Step 3: Send the data to the backend
+    // Stap 6: Verstuur de data naar de server
     const token = localStorage.getItem("jwtToken") || null;
 
     const response = await fetch(`${baseURL}/products`, {
@@ -540,15 +555,17 @@ export const add3DProduct = async ({
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(productData), // Send the correct product data
+      body: JSON.stringify(productData), // De juiste productdata wordt verzonden
     });
 
+    // Foutcontrole op de server respons
     if (!response.ok) {
       const errorData = await response.json();
       console.error("❌ Server response error:", errorData);
       throw new Error(errorData.message || "Onbekende serverfout");
     }
 
+    // Ontvang en verwerk de serverresponse
     const responseBody = await response.json();
     return responseBody;
   } catch (error) {
