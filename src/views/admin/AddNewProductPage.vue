@@ -377,7 +377,7 @@ onMounted(async () => {
       <div class="row">
         <div class="column">
           <label for="productType">Type Of Product:</label>
-          <div class="dropdown" v-if="productTypes.length > 0">
+          <div class="dropdown">
             <DropdownToggle
               v-model="productType"
               :fieldName="'sole_top'"
