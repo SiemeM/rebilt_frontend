@@ -86,8 +86,15 @@ const selectedImage = ref(null);
 const route = useRoute();
 const router = useRouter();
 const productId = ref(null);
-const productData = ref({ productName: "", productCode: "", productPrice: 0 });
+const productData = ref({
+  productName: "",
+  productCode: "",
+  productPrice: 0,
+  productModelFile: "",
+});
 const productName = ref("");
+const productModelFile = ref("");
+
 const isLoading = ref(true);
 const error = ref(null);
 const logoUrl = ref("");
@@ -503,6 +510,7 @@ async function selectOption(optionId) {
       productName: product.productName,
       productCode: product.productCode,
       productPrice: product.productPrice,
+      productModelFile: product.productModelFile,
       configurations: configurations,
     };
   } catch (err) {
@@ -697,7 +705,10 @@ async function fetchProductData(productCode) {
 
     const result = await response.json();
     const product = result.data.product;
+    console.log(result.data.product);
     productName.value = product.productName;
+    productModelFile.value = product.modelFile;
+    console.log(product.modelFile);
 
     const configurations = product.configurations || [];
     optionNames.value = [];
@@ -793,6 +804,7 @@ async function fetchProductData(productCode) {
       productName: product.productName,
       productCode: product.productCode,
       productPrice: product.productPrice,
+      productModelFile: product.productModelFile,
       images: selectedOptionImages,
       configurations: enrichedConfigurations,
     };
@@ -1031,7 +1043,8 @@ watch(
       class="logoConfigurator"
       :style="{ backgroundImage: `url(${logoUrl})` }"
     ></div>
-    <div class="carousel" v-if="partnerPackage === 'standard'">
+
+    <div class="carousel" v-if="productModelFile == null">
       <div class="top">
         <div
           class="icon"
@@ -1071,8 +1084,7 @@ watch(
         ></div>
       </div>
     </div>
-
-    <div class="model desktop"></div>
+    <div class="model desktop" v-if="productModelFile"></div>
     <div class="icons desktop">
       <router-link :to="`/`">
         <div class="icon">
@@ -1110,7 +1122,7 @@ watch(
       <!-- FaceTracking Component Tonen -->
       <!-- <FaceTracking v-if="isFaceTrackingVisible" @close="toggleFaceTracking" /> -->
     </div>
-    <div class="rotate-informer desktop" v-if="partnerPackage === 'pro'">
+    <div class="rotate-informer desktop" v-if="productModelFile != null">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="24"
@@ -1152,8 +1164,9 @@ watch(
           /> -->
         </div>
       </div>
-      <div class="model" v-if="partnerPackage === 'pro'"></div>
-      <div class="bigImageWithImages" v-if="partnerPackage === 'standard'">
+
+      <div class="model" v-if="productModelFile != null"></div>
+      <div class="bigImageWithImages" v-if="productModelFile == null">
         <!-- Big Image Display -->
         <div
           class="bigImage"
@@ -1173,7 +1186,7 @@ watch(
         </div>
       </div>
 
-      <div class="rotate-informer desktop" v-if="partnerPackage === 'pro'">
+      <div class="rotate-informer desktop" v-if="productModelFile != null">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="24"
