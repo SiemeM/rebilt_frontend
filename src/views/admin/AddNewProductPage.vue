@@ -137,11 +137,6 @@ const addNewProduct = async () => {
       return;
     }
 
-    if (!uploadedFile.value) {
-      console.error("❌ No file uploaded.");
-      return;
-    }
-
     // Validatie of kleuren geselecteerd zijn
     if (
       Object.values(selectedColors.value).every((colors) => colors.length === 0)
@@ -149,8 +144,6 @@ const addNewProduct = async () => {
       console.error("❌ No colors selected.");
       return;
     }
-
-    console.log(uploadedFile.value); // Debugging de bestand-URL
 
     // Toevoegen van afbeeldingen voor elke kleurconfiguratie
     partnerConfigurations.value.forEach((config) => {
@@ -189,6 +182,8 @@ const addNewProduct = async () => {
     // Maak de API-aanroep met de bijgewerkte configuraties en afbeeldingen
     const partnerPackageResponse = await fetchPartnerPackage(partnerId);
     partnerPackage.value = partnerPackageResponse || "";
+
+    let modelFile = modelFileInput.value?.files[0];
 
     if (partnerPackage.value == "pro" && selectedType.value === "3D") {
       await add3DProduct({
@@ -353,7 +348,7 @@ onMounted(async () => {
     <h1>Add new product</h1>
     <form @submit.prevent="addNewProduct">
       <h3>Product info:</h3>
-      <div class="row">
+      <div class="row" v-if="partnerPackage == 'pro'">
         <div class="column">
           <label for="2DOr3DProduct">Select Product Type:</label>
           <select v-model="selectedType" id="2DOr3DProduct">
