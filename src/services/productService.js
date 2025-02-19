@@ -355,7 +355,6 @@ export async function add2DProduct({
   file,
   configurationId,
   configurations, // Je ontvangt nu een reguliere array van configuraties
-  thumbnail,
   images,
 }) {
   try {
@@ -447,20 +446,6 @@ export async function add2DProduct({
       existingOption.images = [...processedImages.map((img) => img.url)];
     }
 
-    // Verwerk de thumbnail als het aanwezig is
-    let thumbnailUrl = null;
-    if (thumbnail) {
-      thumbnailUrl = await uploadFileToCloudinary(
-        thumbnail,
-        productName,
-        partnerId
-      );
-      if (!thumbnailUrl || !thumbnailUrl.startsWith("https://")) {
-        console.error("❌ Ongeldige thumbnail URL:", thumbnailUrl);
-        return;
-      }
-    }
-
     // Format de productdata voor verzending
     const formattedProductData = {
       productCode: productCode || "",
@@ -482,7 +467,6 @@ export async function add2DProduct({
             }))
           : [],
       })),
-      thumbnail: thumbnailUrl || null,
     };
 
     // Verstuur de data naar de backend

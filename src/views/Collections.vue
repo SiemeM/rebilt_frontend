@@ -81,6 +81,18 @@ const filteredProducts = computed(() => {
 const setActiveFilter = (filter) => {
   activeFilter.value = filter;
 };
+
+function getFirstImage(product) {
+  // Zoek naar de eerste afbeelding in de configuraties
+  for (const config of product.configurations) {
+    for (const option of config.selectedOptions) {
+      if (option.images && option.images.length > 0) {
+        return option.images[0]; // Retourneer de eerste afbeelding die gevonden wordt
+      }
+    }
+  }
+  return ""; // Retourneer een lege string als geen afbeelding gevonden is
+}
 </script>
 
 <template>
@@ -128,9 +140,11 @@ const setActiveFilter = (filter) => {
               "
               class="product-image"
               :style="{
-                backgroundImage: 'url(' + product.thumbnail + ')',
+                backgroundImage:
+                  'url(' + (product.thumbnail || getFirstImage(product)) + ')',
               }"
             ></div>
+
             <div v-else class="no-image-message">
               Geen afbeelding beschikbaar
             </div>

@@ -631,20 +631,6 @@ onMounted(async () => {
               </div>
             </template>
           </template>
-          <div class="uploadzone">
-            <!-- Upload de thumbnail voor het 3D-model -->
-            <h3>Upload Thumbnail for 3D Model:</h3>
-            <div class="row">
-              <div class="column">
-                <input
-                  type="file"
-                  @change="handleThumbnailUpload"
-                  accept=".jpeg,.jpg,.png,.gif"
-                />
-                <p>Upload Thumbnail (JPG, PNG, GIF formats)</p>
-              </div>
-            </div>
-          </div>
         </div>
 
         <div v-if="selectedType === '3D'" class="uploadzones">
