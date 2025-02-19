@@ -1086,7 +1086,7 @@ watch(
     </div>
     <div class="model desktop" v-if="productModelFile"></div>
     <div class="icons desktop">
-      <router-link :to="`/`">
+      <a @click="$router.go(-1)">
         <div class="icon">
           <div>
             <svg
@@ -1105,7 +1105,7 @@ watch(
           </div>
           <p>Home</p>
         </div>
-      </router-link>
+      </a>
       <div class="icon" v-if="partnerPackage === 'pro'">
         <div @click="showModel = !showModel" class="AR">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
