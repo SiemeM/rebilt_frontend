@@ -96,29 +96,21 @@ const fetchcolors = async (partnerId) => {
 // Map colors per configuration
 const fetchedColorsPerConfig = {};
 
-const handleFileUpload = (event) => {
-  const files = event.target.files;
-  // Controleer of er daadwerkelijk bestanden zijn geselecteerd
-  if (!files || files.length === 0) {
-    console.error("❌ Geen geldige afbeeldings-URL.");
+const handleFileUpload = (uploadedUrls) => {
+  if (!uploadedUrls || uploadedUrls.length === 0) {
+    console.error("❌ Geen geldige upload-URL ontvangen.");
     return;
   }
 
-  // Verkrijg het eerste bestand in de lijst (indien er meerdere bestanden zijn geselecteerd)
-  const file = files[0];
+  console.log("✅ Bestanden succesvol geüpload:", uploadedUrls);
 
-  // Zorg ervoor dat het bestand een naam heeft en valideer het bestandstype
-  if (!file || !file.name) {
-    console.error("❌ Bestand heeft geen naam.");
-    return;
-  }
-
-  // Zet de eerste waarde van de file als de URL
-  uploadedFile.value = file; // Werk met het bestand zelf, niet de URL
+  // Voorbeeld: Voeg de eerste geüploade URL toe aan een state variabele
+  uploadedFile.value = uploadedUrls[0]; // Werk nu met de URL i.p.v. een bestand
 };
 
 const handleThumbnailUpload = (event) => {
   const files = event.target.files;
+  console.log(files);
 
   if (!files || files.length === 0) {
     console.error("❌ Geen geldige afbeeldings-URL.");
@@ -139,36 +131,156 @@ const modelFileInput = ref(null);
 
 const addNewProduct = async () => {
   try {
-    if (selectedType.value === "3D") {
-      // Check if the 3D model file is selected
-      let modelFile = modelFileInput.value?.files[0]; // Correctly accessing the file
-      if (!modelFile) {
-        console.error("❌ No 3D model file selected.");
+    // Validatie van verplichte velden
+    if (!productName.value || !productPrice.value || !productCode.value) {
+      console.error("❌ Missing required fields.");
+      return;
+    }
+
+    if (!uploadedFile.value) {
+      console.error("❌ No file uploaded.");
+      return;
+    }
+
+    // Validatie of kleuren geselecteerd zijn
+    if (
+      Object.values(selectedColors.value).every((colors) => colors.length === 0)
+    ) {
+      console.error("❌ No colors selected.");
+      return;
+    }
+
+    console.log(uploadedFile.value); // Debugging de bestand-URL
+
+    // Toevoegen van afbeeldingen voor elke kleurconfiguratie
+    partnerConfigurations.value.forEach((config) => {
+      if (config.configurationDetails.fieldType === "color") {
+        const configId = config.configurationId._id;
+        const selectedColorOptions = selectedColors.value[configId] || [];
+
+        // Log om te controleren of we de geselecteerde kleuren hebben
+        console.log(
+          "Selected colors for configId:",
+          configId,
+          selectedColorOptions
+        );
+
+        config.options.forEach((option) => {
+          // Haal de afbeeldingen op voor de geselecteerde kleuropties
+          const colorImages =
+            fetchedColorsPerConfig[configId]?.find(
+              (color) => color.optionId === option.optionId
+            )?.images || []; // Gebruik een lege array als er geen afbeeldingen zijn
+
+          console.log("Color images for option", option.optionId, colorImages);
+
+          // Voeg de afbeeldingen toe aan de optie als de kleur geselecteerd is
+          if (
+            selectedColorOptions.some(
+              (selected) => selected.optionId === option.optionId
+            )
+          ) {
+            option.images = colorImages; // Kleurafbeeldingen toewijzen
+          }
+        });
+      }
+    });
+
+    // Maak de API-aanroep met de bijgewerkte configuraties en afbeeldingen
+    const partnerPackageResponse = await fetchPartnerPackage(partnerId);
+    partnerPackage.value = partnerPackageResponse || "";
+
+    if (partnerPackage.value == "pro" && selectedType.value === "3D") {
+      await add3DProduct({
+        productCode: productCode.value,
+        productName: productName.value,
+        productType: productType.value || "sunglasses", // Zorg ervoor dat dit correct wordt ingevuld
+        productPrice: productPrice.value,
+        description: description.value,
+        brand: brand.value,
+        activeInactive: "active",
+        partnerId,
+        configurations: partnerConfigurations.value,
+        file: modelFile, // 3D model bestand
+        thumbnail: thumbnail.value, // Correcte verwijzing naar de thumbnail
+      });
+    }
+
+    if (partnerPackage.value == "pro" && selectedType.value === "2D") {
+      console.log(partnerPackage.value);
+      console.log(uploadedFile.value);
+
+      // Controleer of partnerConfigurations correct is gedefinieerd en niet leeg is
+      if (
+        !partnerConfigurations.value ||
+        partnerConfigurations.value.length === 0
+      ) {
+        console.error("❌ Geen geldige configuraties gevonden!");
         return;
       }
 
-      if (!thumbnail.value) {
-        console.error("❌ No thumbnail image uploaded.");
+      // Log de configuraties om te zien of ze goed zijn geladen
+      console.log("Partner configurations:", partnerConfigurations.value);
+
+      // Controleer of de configuratie-ID beschikbaar is
+      const selectedConfigurationId =
+        partnerConfigurations.value[0]?.configurationId?._id || null;
+
+      // Log de configuratie-ID voor debugging
+      console.log(
+        "selectedConfigurationId in addNewProduct:",
+        selectedConfigurationId
+      );
+
+      if (!selectedConfigurationId) {
+        console.error("❌ selectedConfigurationId ontbreekt in addNewProduct!");
         return;
       }
 
-      if (partnerPackage.value == "pro") {
-        await add3DProduct({
+      // Controleer of er afbeeldingen zijn om door te geven
+      if (!uploadedFile.value) {
+        console.error("❌ Geen afbeeldingen om te uploaden!");
+        return;
+      }
+
+      // Zorg ervoor dat de afbeeldingen in de juiste structuur zijn
+      const images = Array.isArray(uploadedFile.value)
+        ? uploadedFile.value
+        : [uploadedFile.value]; // Zet het bestand om naar een array als het een enkel bestand is
+
+      // De afbeeldingen voor het 2D-product kunnen verschillende opties hebben, dus we moeten zorgen dat ze correct worden doorgegeven
+      try {
+        // Converteer de Proxy naar een eenvoudig array-object voor doorgeven aan add2DProduct
+        const configurations = JSON.parse(
+          JSON.stringify(partnerConfigurations.value)
+        );
+        console.log(
+          "Partner configurations passed to add2DProduct:",
+          configurations
+        );
+
+        // Geef de gegevens door aan de functie
+        await add2DProduct({
+          file: uploadedFile.value,
+          configurationId: selectedConfigurationId,
+          configurations: configurations, // Geef de configuraties direct door
           productCode: productCode.value,
           productName: productName.value,
-          productType: productType.value || "sunglasses",
+          productType: selectedType.value || "sunglasses",
           productPrice: productPrice.value,
           description: description.value,
           brand: brand.value,
           activeInactive: "active",
           partnerId,
-          configurations: partnerConfigurations.value,
-          file: modelFile, // Thumbnail file
-          modelFile: modelFile, // Correct reference to the model file
-          thumbnail: thumbnail.value, // Correct reference to the thumbnail
+          images: images, // Zorg ervoor dat de afbeeldingen een array zijn en doorgegeven worden
         });
+      } catch (error) {
+        console.error("Fout bij het toevoegen van product:", error);
       }
     }
+
+    // Redirect naar de homepagina na het toevoegen
+    router.push("/");
   } catch (error) {
     console.error("❌ Error adding product:", error);
   }
@@ -491,7 +603,7 @@ onMounted(async () => {
         </div>
 
         <!-- Uploadzone voor 2D of 3D afhankelijk van keuze -->
-        <div v-if="selectedType === '2D'">
+        <div v-if="selectedType === '2D'" class="uploadzones">
           <h3>Upload Images for 2D Product:</h3>
           <template
             v-for="(config, index) in partnerConfigurations"
@@ -509,6 +621,7 @@ onMounted(async () => {
                 <p>{{ selectedColor.name }} - Upload images</p>
                 <ImageUpload
                   @file-uploaded="handleFileUpload"
+                  v-if="selectedColor.name"
                   :color="selectedColor"
                   :index="colorIndex"
                   :colorUploads="colorUploads"
@@ -518,6 +631,20 @@ onMounted(async () => {
               </div>
             </template>
           </template>
+          <div class="uploadzone">
+            <!-- Upload de thumbnail voor het 3D-model -->
+            <h3>Upload Thumbnail for 3D Model:</h3>
+            <div class="row">
+              <div class="column">
+                <input
+                  type="file"
+                  @change="handleThumbnailUpload"
+                  accept=".jpeg,.jpg,.png,.gif"
+                />
+                <p>Upload Thumbnail (JPG, PNG, GIF formats)</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div v-if="selectedType === '3D'" class="uploadzones">

@@ -140,6 +140,11 @@ export default {
 
     async handleColorImageUpload(event, index) {
       const files = event.target.files;
+      console.log("📂 Bestanden geselecteerd:", files);
+      console.log("🔢 Index van upload:", index);
+      console.log("👤 Partner Package:", this.partnerPackage);
+      console.log("🎨 Kleur:", this.color?.name);
+      console.log("👥 Partner naam:", this.partnerName);
 
       // Controleer of er daadwerkelijk bestanden zijn geselecteerd
       if (!files || files.length === 0) {
@@ -148,14 +153,14 @@ export default {
       }
 
       const validFiles = Array.from(files).filter((file) => {
-        // Controleer of het bestand geldig is (niet null of undefined)
         if (!file) return false; // Extra check om te voorkomen dat file null of undefined is
-        // **Pro-gebruikers kunnen zowel afbeeldingen als 3D-bestanden uploaden**
+
+        // Pro-gebruikers kunnen zowel afbeeldingen als 3D-bestanden uploaden
         if (this.partnerPackage === "pro" && this.is3DFile(file)) {
-          return true; // Laat Pro-gebruikers 3D-bestanden uploaden
+          return true;
         }
 
-        // **Standaard-gebruikers kunnen alleen 2D-afbeeldingen uploaden**
+        // Standaard-gebruikers mogen alleen 2D-afbeeldingen uploaden
         if (this.partnerPackage !== "pro" && this.is3DFile(file)) {
           alert(
             "❌ Standaard-gebruikers kunnen alleen 2D-afbeeldingen uploaden."
@@ -163,12 +168,8 @@ export default {
           return false;
         }
 
-        // **Validatie voor afbeeldingen voor zowel Pro als Standaard-gebruikers**
-        if (this.isImageFile(file)) {
-          return true;
-        }
-
-        return false;
+        // Controleer of het bestand een afbeelding is
+        return this.isImageFile(file);
       });
 
       if (!validFiles.length) {
@@ -177,7 +178,7 @@ export default {
       }
 
       const uploadedUrls = [];
-      for (let file of files) {
+      for (let file of validFiles) {
         // Extra check of file null is
         if (!file) {
           console.error("❌ Bestand is null.");
@@ -190,28 +191,34 @@ export default {
           continue;
         }
 
-        const fileExtension = file.name.split(".").pop().toLowerCase();
-
         try {
+          console.log("🚀 Uploading file:", file.name);
           const secureUrl = await uploadFileToCloudinary(
             file,
-            this.color.name,
-            this.partnerName
+            this.color?.name || "default_color",
+            this.partnerName || "default_partner"
           );
+          console.log("✅ Upload geslaagd! URL:", secureUrl);
 
+          // Voeg de geüploade afbeelding toe aan de lijst
           this.colorUploads[index] = this.colorUploads[index] || { images: [] };
           this.colorUploads[index].images.push(secureUrl);
           uploadedUrls.push(secureUrl);
 
-          // **Render 3D model als het een 3D bestand is**
-          if (this.is3DFile(file.name)) {
+          // Render 3D model als het een 3D bestand is
+          if (this.is3DFile(file)) {
+            const fileExtension = file.name.split(".").pop().toLowerCase();
             this.render3DModel(secureUrl, `threejs-${index}`, fileExtension);
           }
 
-          // **Emit naar parent**
+          // Emit naar parent component
           this.$emit("file-uploaded", uploadedUrls);
         } catch (error) {
-          console.error("Fout bij uploaden naar Cloudinary:", error);
+          console.error(
+            "❌ Fout bij uploaden naar Cloudinary:",
+            error.message,
+            error
+          );
         }
       }
     },

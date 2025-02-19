@@ -345,52 +345,88 @@ export const addProductType = (productTypes, newType) => {
 
 import { v4 as uuidv4 } from "uuid";
 
-export async function add2DProduct(
+export async function add2DProduct({
+  productCode,
+  productName,
+  productType,
+  productPrice,
+  description,
+  brand,
+  file,
+  configurationId,
+  configurations, // Je ontvangt nu een reguliere array van configuraties
+  thumbnail,
   images,
-  selectedConfigurationId,
-  productData
-) {
+}) {
   try {
-    if (!selectedConfigurationId) {
-      throw new Error("❌ selectedConfigurationId is niet gedefinieerd!");
-    }
+    // Log de ontvangen gegevens voor debugging
+    console.log(
+      "Received selectedConfigurationId in add2DProduct:",
+      configurationId
+    );
+    console.log("Received configurations:", productCode); // Debug de ontvangen configuraties
+    console.log("Received images:", images); // Debug de ontvangen afbeeldingen
 
-    if (!Array.isArray(images) || images.length === 0) {
-      throw new Error("❌ Geen afbeeldingen om te uploaden!");
-    }
-
-    const processedImages = images.map((imageUrl) => ({
-      url: imageUrl,
-      configurationId: selectedConfigurationId,
-    }));
-
-    const configuration = productData.configurations.find((config) => {
-      const configId = config.configurationId?._id || config.configurationId; // Fix voor ID-structuur
-      return configId === selectedConfigurationId;
-    });
-
-    if (!configuration) {
-      console.error(
-        `❌ Configuratie met ID ${selectedConfigurationId} niet gevonden!`
-      );
+    // Controleer of configurations correct is gedefinieerd
+    if (!configurations || configurations.length === 0) {
+      console.error("❌ Geen geldige configuraties ontvangen in add2DProduct!");
       return;
     }
 
+    // Controleer of selectedConfigurationId geldig is
+    if (!configurationId) {
+      console.error("❌ selectedConfigurationId is niet gedefinieerd!");
+      throw new Error("❌ selectedConfigurationId is niet gedefinieerd!");
+    }
+
+    // Verwerk de afbeeldingen naar een array indien nodig
+    let imageArray = [];
+    if (Array.isArray(images)) {
+      imageArray = images;
+    } else if (typeof images === "string" && images.trim()) {
+      imageArray = [images]; // Maak een array met de enkele afbeelding
+    }
+
+    // Controleer of er afbeeldingen zijn en of ze geldig zijn
+    if (imageArray.length === 0) {
+      console.error("❌ Geen afbeeldingen om te uploaden!");
+      throw new Error("❌ Geen afbeeldingen om te uploaden!");
+    }
+
+    // Verwerk de 2D afbeeldingen naar een formaat met URL en configuratie ID
+    const processedImages = imageArray.map((imageUrl) => ({
+      url: imageUrl,
+      configurationId: configurationId,
+    }));
+
+    // Zoek naar de juiste configuratie in de ontvangen configuraties
+    const configuration = configurations.find((config) => {
+      const configId = config.configurationId?._id || config.configurationId;
+      return configId === configurationId;
+    });
+
+    if (!configuration) {
+      console.error(`❌ Configuratie met ID ${configurationId} niet gevonden!`);
+      return;
+    }
+
+    // Controleer of de geselecteerde opties een array zijn
     if (
       !configuration.selectedOptions ||
       !Array.isArray(configuration.selectedOptions)
     ) {
       console.warn(
-        `⚠️ selectedOptions ontbreekt of is geen array. Voeg lege array toe.`
+        "⚠️ selectedOptions ontbreekt of is geen array. Voeg lege array toe."
       );
       configuration.selectedOptions = [];
     }
 
-    let optionId = configuration.options?.[0]?._id; // Pak de eerste optie als default
+    // Gebruik de eerste optie als default
+    let optionId = configuration.options?.[0]?._id;
 
     if (!optionId) {
       console.error(
-        `❌ Geen optionId gevonden voor configuratie ID: ${selectedConfigurationId}`
+        `❌ Geen optionId gevonden voor configuratie ID: ${configurationId}`
       );
       return;
     }
@@ -400,26 +436,42 @@ export async function add2DProduct(
     );
 
     if (!existingOption) {
-      existingOption = {
-        _id: uuidv4(),
-        optionId: optionId,
-        images: [],
-      };
+      existingOption = { _id: uuidv4(), optionId: optionId, images: [] };
       configuration.selectedOptions.push(existingOption);
     }
 
-    existingOption.images.push(...processedImages.map((img) => img.url));
+    // Voeg de nieuwe afbeeldingen toe aan de geselecteerde optie
+    if (existingOption.images) {
+      existingOption.images.push(...processedImages.map((img) => img.url));
+    } else {
+      existingOption.images = [...processedImages.map((img) => img.url)];
+    }
 
+    // Verwerk de thumbnail als het aanwezig is
+    let thumbnailUrl = null;
+    if (thumbnail) {
+      thumbnailUrl = await uploadFileToCloudinary(
+        thumbnail,
+        productName,
+        partnerId
+      );
+      if (!thumbnailUrl || !thumbnailUrl.startsWith("https://")) {
+        console.error("❌ Ongeldige thumbnail URL:", thumbnailUrl);
+        return;
+      }
+    }
+
+    // Format de productdata voor verzending
     const formattedProductData = {
-      productCode: productData.productCode,
-      productName: productData.productName,
-      productType: productData.productType,
-      productPrice: productData.productPrice,
-      description: productData.description,
-      brand: productData.brand,
-      activeInactive: productData.activeInactive,
-      partnerId: productData.partnerId,
-      configurations: productData.configurations.map((config) => ({
+      productCode: productCode || "",
+      productName: productName || "",
+      productType: productType || "",
+      productPrice: productPrice || 0,
+      description: description || "",
+      brand: brand || "",
+      activeInactive: "active", // Default waarde
+      partnerId,
+      configurations: configurations.map((config) => ({
         _id: uuidv4(),
         configurationId: config.configurationId._id,
         selectedOptions: Array.isArray(config.selectedOptions)
@@ -430,11 +482,11 @@ export async function add2DProduct(
             }))
           : [],
       })),
+      thumbnail: thumbnailUrl || null,
     };
 
-    // ✅ **Stap 2: Stuur de data correct naar de backend**
+    // Verstuur de data naar de backend
     const token = localStorage.getItem("jwtToken") || null;
-
     const response = await fetch(`${baseURL}/products`, {
       method: "POST",
       headers: {
@@ -450,12 +502,12 @@ export async function add2DProduct(
       throw new Error(errorData.message || "Onbekende serverfout");
     }
 
-    // Lees de response.body maar één keer
-    const responseBody = await response.json(); // ✅ Verwijder de dubbele json-aanroep
-
+    // Verwerk de serverrespons
+    const responseBody = await response.json();
     return responseBody;
   } catch (error) {
     console.error("❌ Algemene fout:", error.message);
+    console.error("Fout in add2DProduct:", error);
   }
 }
 
