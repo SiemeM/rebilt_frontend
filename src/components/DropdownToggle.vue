@@ -1,7 +1,7 @@
 <template>
   <div class="dropdown-selected" @click="toggleDropdown">
     <!-- Trigger button for dropdown, display selected value or buttonText -->
-    <p>{{ selectedOption || buttonText }}</p>
+    <p class="text">{{ selectedOption || buttonText }}</p>
 
     <!-- Dropdown content -->
     <div v-if="isOpen" class="dropdown-options" @click.stop>
@@ -140,5 +140,10 @@ export default {
 
 .dropdown-add-option button:hover {
   background-color: var(--blue-600);
+}
+
+.dropdown-selected .text {
+  opacity: 0.6;
+  font-size: 0.875rem;
 }
 </style>

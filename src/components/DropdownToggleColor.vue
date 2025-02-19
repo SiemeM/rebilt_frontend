@@ -1,7 +1,7 @@
 <template>
   <div class="dropdown-selected" @click="toggleDropdown">
     <!-- Trigger button for dropdown -->
-    <p>{{ buttonText }}</p>
+    <p class="text">{{ buttonText }}</p>
 
     <!-- Dropdown content -->
     <div v-if="isOpen" class="dropdown-options" @click.stop>
@@ -78,5 +78,10 @@ export default {
   max-height: 200px;
   overflow-y: auto;
   margin-top: 4px;
+}
+
+.dropdown-selected .text {
+  opacity: 0.6;
+  font-size: 0.875rem;
 }
 </style>

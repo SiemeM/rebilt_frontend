@@ -382,7 +382,7 @@ onMounted(async () => {
               v-model="productType"
               :fieldName="'sole_top'"
               :dropdownStates="dropdownStates"
-              :buttonText="'Select colors'"
+              :buttonText="'Select type of product'"
               :types="productTypes"
               @addOption="addProductType(productTypes, $event)"
             >
