@@ -1120,7 +1120,7 @@ watch(
       <ModelViewer v-if="showModel" />
 
       <!-- FaceTracking Component Tonen -->
-      <!-- <FaceTracking v-if="isFaceTrackingVisible" @close="toggleFaceTracking" /> -->
+      <FaceTracking v-if="isFaceTrackingVisible" @close="toggleFaceTracking" />
     </div>
     <div class="rotate-informer desktop" v-if="productModelFile != null">
       <svg
@@ -1158,10 +1158,10 @@ watch(
 
           <ModelViewer v-if="showModel" />
           <!-- FaceTracking Component Tonen -->
-          <!-- <FaceTracking
+           <FaceTracking
             v-if="isFaceTrackingVisible"
             @close="toggleFaceTracking"
-          /> -->
+          /> 
         </div>
       </div>
 
