@@ -28,6 +28,8 @@ export default {
   mounted() {
     console.log("FaceTracking component gemonteerd");
     this.initializeCamera();
+    console.log("🔄 Component mounted - start setup");
+    this.setupCamera();
     this.setupFaceMesh();
     this.setupThreeJS();
     window.addEventListener("resize", this.onResize);
