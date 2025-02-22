@@ -8,7 +8,6 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import DynamicStyle from "../components/DynamicStyle.vue";
 
 import FaceTracking from "../components/FaceTracking.vue";
-import ModelViewer from "../components/ModelViewer.vue";
 
 const showModel = ref(false);
 const isFaceTrackingVisible = ref(false); // Zorg ervoor dat deze reactive is
@@ -1117,11 +1116,7 @@ watch(
         <p>AR</p>
       </div>
 
-<<<<<<< HEAD
       <!-- <ModelViewer v-if="showModel" /> -->
-=======
-<!-- <ModelViewer v-if="showModel" /> -->
->>>>>>> e5d8a891185c1d82f772df3f0c1152d4b23531f2
 
       <!-- FaceTracking Component Tonen -->
       <FaceTracking v-if="isFaceTrackingVisible" @close="toggleFaceTracking" />
@@ -1162,17 +1157,17 @@ watch(
 
           <!-- <ModelViewer v-if="showModel" /> -->
           <!-- FaceTracking Component Tonen -->
-<<<<<<< HEAD
+          <<<<<<< HEAD
           <FaceTracking
             v-if="isFaceTrackingVisible"
             @close="toggleFaceTracking"
           />
-=======
-           <FaceTracking
+          =======
+          <FaceTracking
             v-if="isFaceTrackingVisible"
             @close="toggleFaceTracking"
-          /> 
->>>>>>> e5d8a891185c1d82f772df3f0c1152d4b23531f2
+          />
+          >>>>>>> e5d8a891185c1d82f772df3f0c1152d4b23531f2
         </div>
       </div>
 

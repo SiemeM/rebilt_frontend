@@ -26,13 +26,8 @@ export default {
   },
 
   mounted() {
-<<<<<<< HEAD
     console.log("FaceTracking component gemonteerd");
     this.initializeCamera();
-=======
-    console.log("🔄 Component mounted - start setup");
-    this.setupCamera();
->>>>>>> e5d8a891185c1d82f772df3f0c1152d4b23531f2
     this.setupFaceMesh();
     this.setupThreeJS();
     window.addEventListener("resize", this.onResize);
@@ -44,7 +39,9 @@ export default {
       console.log("📸 Camera setup gestart...");
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
         this.video.srcObject = stream;
         console.log("✅ Camera succesvol gestart!");
       } catch (error) {
@@ -54,9 +51,10 @@ export default {
 
     async setupFaceMesh() {
       console.log("🧠 FaceMesh setup gestart...");
-      
+
       this.faceMesh = new FaceMesh({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+        locateFile: (file) =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
       });
 
       this.faceMesh.setOptions({
@@ -93,7 +91,12 @@ export default {
       this.threeCanvas = this.$refs.canvasElement;
 
       this.scene = new THREE.Scene();
-      this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      this.camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
       this.camera.position.z = 1;
 
       this.renderer = new THREE.WebGLRenderer({ alpha: true });
@@ -112,7 +115,7 @@ export default {
 
       const dracoLoader = new DRACOLoader();
       dracoLoader.setDecoderPath("https://www.gstatic.com/threejs/r121/draco/");
-      
+
       const loader = new GLTFLoader();
       loader.setDRACOLoader(dracoLoader);
 
@@ -135,12 +138,18 @@ export default {
 
     onFaceMeshResults(results) {
       console.log("🧑‍🦰 FaceMesh resultaten ontvangen...");
-      if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+      if (
+        !results.multiFaceLandmarks ||
+        results.multiFaceLandmarks.length === 0
+      ) {
         console.warn("⚠️ Geen gezichtslandmarks gedetecteerd!");
         return;
       }
 
-      console.log("🎯 Gezichtslandmarks gevonden:", results.multiFaceLandmarks[0]);
+      console.log(
+        "🎯 Gezichtslandmarks gevonden:",
+        results.multiFaceLandmarks[0]
+      );
       this.updateModelPosition(results.multiFaceLandmarks[0]);
     },
 
