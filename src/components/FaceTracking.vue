@@ -29,7 +29,7 @@ export default {
     this.initCamera().then(() => {
       this.initFaceMesh();
       this.initThreeJS();
-    });
+    }).catch(error => console.error("🚨 Fout bij initialisatie:", error));
     window.addEventListener("resize", this.onResize);
   },
 
