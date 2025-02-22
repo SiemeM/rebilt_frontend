@@ -1117,7 +1117,11 @@ watch(
         <p>AR</p>
       </div>
 
+<<<<<<< HEAD
       <!-- <ModelViewer v-if="showModel" /> -->
+=======
+<!-- <ModelViewer v-if="showModel" /> -->
+>>>>>>> e5d8a891185c1d82f772df3f0c1152d4b23531f2
 
       <!-- FaceTracking Component Tonen -->
       <FaceTracking v-if="isFaceTrackingVisible" @close="toggleFaceTracking" />
@@ -1158,10 +1162,17 @@ watch(
 
           <!-- <ModelViewer v-if="showModel" /> -->
           <!-- FaceTracking Component Tonen -->
+<<<<<<< HEAD
           <FaceTracking
             v-if="isFaceTrackingVisible"
             @close="toggleFaceTracking"
           />
+=======
+           <FaceTracking
+            v-if="isFaceTrackingVisible"
+            @close="toggleFaceTracking"
+          /> 
+>>>>>>> e5d8a891185c1d82f772df3f0c1152d4b23531f2
         </div>
       </div>
 
