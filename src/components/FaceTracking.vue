@@ -27,9 +27,11 @@ export default {
 
   mounted() {
     console.log("🔄 FaceTracking component gemonteerd - start setup");
+    
     this.setupCamera();
     this.setupFaceMesh();
     this.setupThreeJS();
+    
     window.addEventListener("resize", this.onResize);
   },
 
@@ -39,9 +41,7 @@ export default {
       console.log("📸 Camera setup gestart...");
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-        });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         this.video.srcObject = stream;
         console.log("✅ Camera succesvol gestart!");
       } catch (error) {
@@ -53,8 +53,7 @@ export default {
       console.log("🧠 FaceMesh setup gestart...");
 
       this.faceMesh = new FaceMesh({
-        locateFile: (file) =>
-          `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
       });
 
       this.faceMesh.setOptions({
@@ -138,18 +137,12 @@ export default {
 
     onFaceMeshResults(results) {
       console.log("🧑‍🦰 FaceMesh resultaten ontvangen...");
-      if (
-        !results.multiFaceLandmarks ||
-        results.multiFaceLandmarks.length === 0
-      ) {
+      if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
         console.warn("⚠️ Geen gezichtslandmarks gedetecteerd!");
         return;
       }
 
-      console.log(
-        "🎯 Gezichtslandmarks gevonden:",
-        results.multiFaceLandmarks[0]
-      );
+      console.log("🎯 Gezichtslandmarks gevonden:", results.multiFaceLandmarks[0]);
       this.updateModelPosition(results.multiFaceLandmarks[0]);
     },
 
