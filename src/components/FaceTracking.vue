@@ -33,6 +33,7 @@ export default {
   methods: {
     async setupCamera() {
       this.video = this.$refs.videoElement;
+      console.log("test camera setup");
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         this.video.srcObject = stream;
