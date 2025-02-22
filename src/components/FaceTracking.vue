@@ -8,7 +8,6 @@
 <script>
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { FaceMesh } from "@mediapipe/face_mesh";
 import { Camera } from "@mediapipe/camera_utils";
 
@@ -26,18 +25,15 @@ export default {
   },
 
   mounted() {
-    console.log("🔄 FaceTracking component gemonteerd");
-
-    this.setupCamera()
-      .then(() => this.setupFaceMesh())
-      .then(() => this.setupThreeJS())
-      .catch((err) => console.error("🚨 Fout bij initialisatie:", err));
-
+    console.log("🔄 Component geladen");
+    this.initCamera().then(() => {
+      this.initFaceMesh();
+      this.initThreeJS();
+    });
     window.addEventListener("resize", this.onResize);
   },
 
   beforeUnmount() {
-    console.log("🛑 Component wordt verwijderd, cleanup!");
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
     }
@@ -45,36 +41,22 @@ export default {
   },
 
   methods: {
-    async setupCamera() {
-      console.log("📸 Camera setup gestart...");
+    async initCamera() {
       this.video = this.$refs.videoElement;
-
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         this.video.srcObject = stream;
-        console.log("✅ Camera succesvol gestart!");
+        console.log("✅ Camera gestart!");
       } catch (error) {
-        console.error("🚨 Fout bij het starten van de camera:", error);
+        console.error("🚨 Camera fout:", error);
       }
     },
 
-    async setupFaceMesh() {
-      console.log("🧠 FaceMesh setup gestart...");
-
-      this.faceMesh = new FaceMesh({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
-      });
-
-      this.faceMesh.setOptions({
-        maxNumFaces: 1,
-        refineLandmarks: true,
-        minDetectionConfidence: 0.7,
-        minTrackingConfidence: 0.7,
-      });
-
+    initFaceMesh() {
+      this.faceMesh = new FaceMesh({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
+      this.faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
       this.faceMesh.onResults(this.onFaceMeshResults);
 
-      console.log("🎥 MediaPipe Camera setup gestart...");
       const camera = new Camera(this.video, {
         onFrame: async () => {
           await this.faceMesh.send({ image: this.video });
@@ -82,77 +64,43 @@ export default {
         width: 640,
         height: 480,
       });
-
       camera.start();
-      console.log("✅ FaceMesh gestart!");
     },
 
-    setupThreeJS() {
-      console.log("🔧 Three.js setup gestart...");
-
+    initThreeJS() {
       const canvas = this.$refs.canvasElement;
       this.scene = new THREE.Scene();
       this.threeCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
       this.threeCamera.position.z = 2;
 
-      this.renderer = new THREE.WebGLRenderer({ alpha: true });
+      this.renderer = new THREE.WebGLRenderer({ alpha: true, canvas });
       this.renderer.setSize(window.innerWidth, window.innerHeight);
-      canvas.replaceWith(this.renderer.domElement);
-
-      console.log("🎨 Three.js renderer aangemaakt!");
+      document.body.appendChild(this.renderer.domElement);
 
       this.loadModel();
       this.animate();
     },
 
     loadModel() {
-      console.log("📦 3D-model laden...");
-
-      const dracoLoader = new DRACOLoader();
-      dracoLoader.setDecoderPath("https://www.gstatic.com/threejs/r121/draco/");
       const loader = new GLTFLoader();
-      loader.setDRACOLoader(dracoLoader);
-
       loader.load(
         "https://res.cloudinary.com/dzempjvto/raw/upload/v1739183774/Products/222233/k4du4mi1q2uvou11dfvy.glb",
         (gltf) => {
-          console.log("✅ Model succesvol geladen!");
           this.model = gltf.scene;
           this.model.scale.set(0.1, 0.1, 0.1);
           this.scene.add(this.model);
         },
         undefined,
-        (error) => console.error("🚨 Fout bij laden 3D-model:", error)
+        (error) => console.error("🚨 Model fout:", error)
       );
     },
 
     onFaceMeshResults(results) {
-      if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
-        console.warn("⚠️ Geen gezichtslandmarks gedetecteerd!");
-        return;
+      if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
+      const nose = results.multiFaceLandmarks[0][1];
+      if (this.model) {
+        this.model.position.set((nose.x - 0.5) * 2, -(nose.y - 0.5) * 2, 0);
       }
-
-      const landmarks = results.multiFaceLandmarks[0];
-      this.updateModelPosition(landmarks);
-    },
-
-    updateModelPosition(landmarks) {
-      if (!this.model) {
-        console.warn("⚠️ Model nog niet geladen, kan geen positie updaten!");
-        return;
-      }
-
-      const nose = landmarks[1];
-      if (!nose) {
-        console.warn("⚠️ Neuslandmark niet gevonden!");
-        return;
-      }
-
-      const x = (nose.x - 0.5) * 2;
-      const y = -(nose.y - 0.5) * 2;
-      this.model.position.set(x, y, 0);
-
-      console.log(`🔄 Model verplaatst naar: X=${x}, Y=${y}`);
     },
 
     animate() {
@@ -161,7 +109,6 @@ export default {
     },
 
     onResize() {
-      console.log("📏 Vensterresolutie veranderd!");
       this.renderer.setSize(window.innerWidth, window.innerHeight);
       this.threeCamera.aspect = window.innerWidth / window.innerHeight;
       this.threeCamera.updateProjectionMatrix();
@@ -173,7 +120,6 @@ export default {
 <style>
 .ar-container {
   position: fixed;
-  z-index: 9999;
   top: 0;
   left: 0;
   width: 100vw;
