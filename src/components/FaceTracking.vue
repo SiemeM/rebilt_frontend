@@ -10,6 +10,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { FaceMesh } from "@mediapipe/face_mesh";
 import { Camera } from "@mediapipe/camera_utils";
 
@@ -127,24 +128,57 @@ export default {
       }
     },
 
+    // Load model based on file extension
     loadModel() {
       console.log("🔄 Loading 3D model...");
 
-      // Initialiseer GLTFLoader
-      const loader = new GLTFLoader();
+      const modelUrl =
+        "https://res.cloudinary.com/dzempjvto/raw/upload/v1738865945/Products/5899/q9nsjuimaaarbzhgwx03.obj";
 
-      // Initialiseer DRACOLoader
+      // Get file extension from the URL
+      const fileExtension = modelUrl.split(".").pop().toLowerCase();
+
+      // Check the extension and load the appropriate model
+      if (fileExtension === "obj") {
+        this.loadOBJModel(modelUrl); // Handle OBJ files
+      } else if (fileExtension === "glb" || fileExtension === "gltf") {
+        this.loadGLTFModel(modelUrl); // Handle GLTF/GLB files
+      } else {
+        console.error("🚨 Unsupported file type:", fileExtension);
+      }
+    },
+
+    // Load OBJ model
+    loadOBJModel(url) {
+      console.log("🔄 Loading OBJ model...");
+      const loader = new OBJLoader();
+      loader.load(
+        url,
+        (object) => {
+          console.log("🔄 OBJ model loaded successfully!");
+          this.model = object;
+          this.model.scale.set(0.5, 0.5, 0.5);
+          this.scene.add(this.model);
+        },
+        undefined,
+        (error) => {
+          console.error("🚨 Error loading OBJ model:", error);
+        }
+      );
+    },
+
+    // Load GLTF/GLB model with DRACOLoader
+    loadGLTFModel(url) {
+      console.log("🔄 Loading GLTF/GLB model...");
+      const loader = new GLTFLoader();
       const dracoLoader = new DRACOLoader();
       dracoLoader.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
-
-      // Stel DRACOLoader in voor de GLTFLoader
       loader.setDRACOLoader(dracoLoader);
 
-      // Laad het model met DRACOLoader
       loader.load(
-        "https://res.cloudinary.com/dzempjvto/raw/upload/v1739183774/Products/222233/k4du4mi1q2uvou11dfvy.glb",
+        url,
         (gltf) => {
-          console.log("🔄 Model geladen met DRACOLoader!");
+          console.log("🔄 GLTF/GLB model loaded with DRACOLoader!");
           this.model = gltf.scene;
           this.model.scale.set(0.5, 0.5, 0.5);
           this.scene.add(this.model);
@@ -152,10 +186,9 @@ export default {
         undefined,
         (error) => {
           console.error(
-            "🚨 Fout bij het laden van model met DRACOLoader:",
+            "🚨 Error loading GLTF/GLB model with DRACOLoader:",
             error
           );
-          console.log("Error details:", error);
         }
       );
     },
@@ -184,6 +217,7 @@ export default {
 
       this.renderer.render(this.scene, this.threeCamera);
     },
+
     // Mouse interaction for model rotation (Desktop)
     onMouseDown(event) {
       this.isMouseDown = true;
