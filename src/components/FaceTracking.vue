@@ -26,9 +26,7 @@ export default {
   },
 
   mounted() {
-    console.log("FaceTracking component gemonteerd");
-    this.initializeCamera();
-    console.log("🔄 Component mounted - start setup");
+    console.log("🔄 FaceTracking component gemonteerd - start setup");
     this.setupCamera();
     this.setupFaceMesh();
     this.setupThreeJS();
