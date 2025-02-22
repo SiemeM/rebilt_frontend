@@ -1117,7 +1117,7 @@ watch(
         <p>AR</p>
       </div>
 
-      <ModelViewer v-if="showModel" />
+<!-- <ModelViewer v-if="showModel" /> -->
 
       <!-- FaceTracking Component Tonen -->
       <FaceTracking v-if="isFaceTrackingVisible" @close="toggleFaceTracking" />
