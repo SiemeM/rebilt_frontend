@@ -13,14 +13,16 @@ export default {
   methods: {
     async initCamera() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
         this.$refs.videoElement.srcObject = stream;
         console.log("✅ Camera gestart!");
       } catch (error) {
         console.error("🚨 Camera fout:", error);
       }
-    }
-  }
+    },
+  },
 };
 </script>
 
