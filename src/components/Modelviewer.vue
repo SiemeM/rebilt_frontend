@@ -83,40 +83,11 @@ onMounted(() => {
   }
   animate();
 
-  // Console logs naar scherm
-  function logMessage(message) {
-    const logContainer = document.getElementById("log-container");
-    if (logContainer) {
-      logContainer.innerHTML += message + "<br>";
-    }
-  }
-  console.log = logMessage;
-  console.error = logMessage;
-  window.onerror = function (message, source, lineno, colno, error) {
-    logMessage(
-      `❌ Error: ${message} <br>📌 Bestand: ${source}:${lineno}:${colno}`
-    );
-  };
 });
 </script>
 
 <template>
   <div ref="sceneContainer" class="scene-container"></div>
-  <div
-    id="log-container"
-    style="
-      position: fixed;
-      bottom: 10px;
-      left: 10px;
-      width: 90%;
-      color: white;
-      padding: 10px;
-      font-size: 12px;
-      max-height: 400px;
-      overflow-y: auto;
-      z-index: 9999;
-    "
-  ></div>
 </template>
 
 <style scoped>
