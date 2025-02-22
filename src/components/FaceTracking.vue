@@ -33,6 +33,7 @@ export default {
     };
   },
   mounted() {
+    console.log("FaceTracking component gemonteerd");
     this.initializeCamera();
     this.setupFaceMesh();
     this.setup3DScene();
