@@ -26,13 +26,8 @@ export default {
   },
 
   mounted() {
-<<<<<<< HEAD
-    console.log("FaceTracking component gemonteerd");
-    this.initializeCamera();
-=======
     console.log("🔄 Component mounted - start setup");
     this.setupCamera();
->>>>>>> e5d8a891185c1d82f772df3f0c1152d4b23531f2
     this.setupFaceMesh();
     this.setupThreeJS();
     window.addEventListener("resize", this.onResize);
@@ -206,3 +201,5 @@ canvas {
   position: absolute;
 }
 </style>
+
+
