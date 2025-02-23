@@ -9,7 +9,8 @@
 <script>
 import { FaceMesh } from "@mediapipe/face_mesh";
 import { Camera } from "@mediapipe/camera_utils";
-import * as drawingUtils from "@mediapipe/drawing_utils";
+import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
+import { FACEMESH_TESSELATION, FACEMESH_CONTOURS } from "@mediapipe/face_mesh";
 
 export default {
   data() {
@@ -62,11 +63,7 @@ export default {
 
         this.camera = new Camera(this.video, {
           onFrame: async () => {
-            try {
-              await this.faceMesh.send({ image: this.video });
-            } catch (error) {
-              console.error("🚨 FaceMesh error:", error);
-            }
+            await this.faceMesh.send({ image: this.video });
           },
           width: 640,
           height: 480,
@@ -83,17 +80,9 @@ export default {
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
       
-      this.ctx.strokeStyle = "#00FF00";
-      this.ctx.lineWidth = 1;
-      this.ctx.fillStyle = "#FF0000";
-      landmarks.forEach(point => {
-        this.ctx.beginPath();
-        this.ctx.arc(point.x * this.canvas.width, point.y * this.canvas.height, 2, 0, 2 * Math.PI);
-        this.ctx.fill();
-      });
-      
-      drawingUtils.drawConnectors(this.ctx, landmarks, FaceMesh.FACEMESH_TESSELATION, { color: "#00FF00" });
-      drawingUtils.drawConnectors(this.ctx, landmarks, FaceMesh.FACEMESH_CONTOURS, { color: "#0000FF" });
+      drawConnectors(this.ctx, landmarks, FACEMESH_TESSELATION, { color: "#00FF00" });
+      drawConnectors(this.ctx, landmarks, FACEMESH_CONTOURS, { color: "#0000FF" });
+      drawLandmarks(this.ctx, landmarks, { color: "#FF0000", radius: 2 });
     }
   }
 };
