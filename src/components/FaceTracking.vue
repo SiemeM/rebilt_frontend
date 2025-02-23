@@ -19,75 +19,81 @@ export default {
       faceMesh: null,
       canvas: null,
       ctx: null,
-      camera: null
+      camera: null,
     };
   },
 
   mounted() {
-    console.log("🔄 Component geladen");
     this.initCamera();
   },
 
   methods: {
     async initCamera() {
-      console.log("🌍 Initializing camera...");
       this.video = this.$refs.videoElement;
       this.canvas = this.$refs.canvasElement;
       this.ctx = this.canvas.getContext("2d");
       this.canvas.width = 640;
       this.canvas.height = 480;
-      
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 640, height: 480 } });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: 640, height: 480 },
+        });
         this.video.srcObject = stream;
         this.video.onloadedmetadata = () => {
           this.video.play();
           this.initFaceMesh();
         };
-        console.log("📹 Camera initialized");
       } catch (error) {
-        console.error("🚨 Camera error:", error);
+        console.error("Camera error:", error);
       }
     },
 
     async initFaceMesh() {
-      try {
-        console.log("👁️ Initializing FaceMesh...");
-        this.faceMesh = new FaceMesh({
-          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
-        });
-        this.faceMesh.setOptions({
-          maxNumFaces: 1,
-          refineLandmarks: true,
-          minDetectionConfidence: 0.7,
-          minTrackingConfidence: 0.7,
-        });
-        this.faceMesh.onResults(this.onFaceMeshResults);
+      this.faceMesh = new FaceMesh({
+        locateFile: (file) =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+      });
 
-        this.camera = new Camera(this.video, {
-          onFrame: async () => {
-            await this.faceMesh.send({ image: this.video });
-          },
-          width: 640,
-          height: 480,
-        });
-        this.camera.start();
-      } catch (error) {
-        console.error("🚨 FaceMesh initialization error:", error);
-      }
+      this.faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.7,
+      });
+
+      this.faceMesh.onResults(this.onFaceMeshResults);
+
+      this.camera = new Camera(this.video, {
+        onFrame: async () => {
+          await this.faceMesh.send({ image: this.video });
+        },
+        width: 640,
+        height: 480,
+      });
+
+      this.camera.start();
     },
 
     onFaceMeshResults(results) {
-      if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
+      if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0)
+        return;
+
       const landmarks = results.multiFaceLandmarks[0];
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
-      
-      drawConnectors(this.ctx, landmarks, FACEMESH_TESSELATION, { color: "#00FF00", lineWidth: 1 });
-      drawConnectors(this.ctx, landmarks, FACEMESH_CONTOURS, { color: "#0000FF", lineWidth: 2 });
+
+      drawConnectors(this.ctx, landmarks, FACEMESH_TESSELATION, {
+        color: "#00FF00",
+        lineWidth: 1,
+      });
+      drawConnectors(this.ctx, landmarks, FACEMESH_CONTOURS, {
+        color: "#0000FF",
+        lineWidth: 2,
+      });
       drawLandmarks(this.ctx, landmarks, { color: "#FF0000", radius: 2 });
-    }
-  }
+    },
+  },
 };
 </script>
 
