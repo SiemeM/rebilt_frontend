@@ -7,20 +7,17 @@
 </template>
 
 <script>
-import * as THREE from "three";
 import { FaceMesh } from "@mediapipe/face_mesh";
 import { Camera } from "@mediapipe/camera_utils";
+import * as drawingUtils from "@mediapipe/drawing_utils";
 
 export default {
   data() {
     return {
       video: null,
       faceMesh: null,
-      animationFrameId: null,
-      scene: null,
-      threeCamera: null,
-      renderer: null,
-      facePoints: [],
+      canvas: null,
+      ctx: null
     };
   },
 
@@ -29,17 +26,21 @@ export default {
     this.initCamera()
       .then(() => {
         this.initFaceMesh();
-        this.initThreeJS();
       })
       .catch((error) => console.error("🚨 Fout bij initialisatie:", error));
-    window.addEventListener("resize", this.onResize);
   },
 
   methods: {
     async initCamera() {
       console.log("🌍 Initializing camera...");
       this.video = this.$refs.videoElement;
-      const constraints = { video: { facingMode: "user" } };
+      this.canvas = this.$refs.canvasElement;
+      this.ctx = this.canvas.getContext("2d");
+
+      this.canvas.width = 640;
+      this.canvas.height = 480;
+      
+      const constraints = { video: { facingMode: "user", width: 640, height: 480 } };
       try {
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         this.video.srcObject = stream;
@@ -55,13 +56,16 @@ export default {
       this.faceMesh = new FaceMesh({
         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
       });
+
       this.faceMesh.setOptions({
         maxNumFaces: 1,
         refineLandmarks: true,
         minDetectionConfidence: 0.7,
         minTrackingConfidence: 0.7,
       });
+
       this.faceMesh.onResults(this.onFaceMeshResults);
+      
       const camera = new Camera(this.video, {
         onFrame: async () => {
           await this.faceMesh.send({ image: this.video });
@@ -72,58 +76,28 @@ export default {
       camera.start();
     },
 
-    initThreeJS() {
-      console.log("🎮 Initializing Three.js...");
-      const canvas = this.$refs.canvasElement;
-      this.scene = new THREE.Scene();
-      this.threeCamera = new THREE.PerspectiveCamera(
-        75,
-        window.innerWidth / window.innerHeight,
-        0.1,
-        1000
-      );
-      this.threeCamera.position.z = 2;
-      this.renderer = new THREE.WebGLRenderer({ alpha: true, canvas });
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-      document.body.appendChild(this.renderer.domElement);
-      console.log("🎮 Three.js initialized");
-      this.createFacePoints();
-      this.animate();
-    },
-
-    createFacePoints() {
-      const geometry = new THREE.BufferGeometry();
-      const material = new THREE.PointsMaterial({ color: 0xff0000, size: 0.02 });
-      this.facePoints = new THREE.Points(geometry, material);
-      this.scene.add(this.facePoints);
-    },
-
     onFaceMeshResults(results) {
       if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
       const landmarks = results.multiFaceLandmarks[0];
-      const positions = new Float32Array(landmarks.length * 3);
 
-      landmarks.forEach((point, index) => {
-        positions[index * 3] = (point.x - 0.5) * 3;
-        positions[index * 3 + 1] = -(point.y - 0.5) * 3;
-        positions[index * 3 + 2] = -1;
-      });
-
-      this.facePoints.geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-      this.facePoints.geometry.attributes.position.needsUpdate = true;
-    },
-
-    onResize() {
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-      this.threeCamera.aspect = window.innerWidth / window.innerHeight;
-      this.threeCamera.updateProjectionMatrix();
-    },
-
-    animate() {
-      this.animationFrameId = requestAnimationFrame(this.animate);
-      this.renderer.render(this.scene, this.threeCamera);
-    },
-  },
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+      
+      this.ctx.strokeStyle = "#00FF00";
+      this.ctx.lineWidth = 1;
+      this.ctx.fillStyle = "#FF0000";
+      
+      for (let i = 0; i < landmarks.length; i++) {
+        const point = landmarks[i];
+        this.ctx.beginPath();
+        this.ctx.arc(point.x * this.canvas.width, point.y * this.canvas.height, 2, 0, 2 * Math.PI);
+        this.ctx.fill();
+      }
+      
+      drawingUtils.drawConnectors(this.ctx, landmarks, FaceMesh.FACEMESH_TESSELATION, { color: '#00FF00' });
+      drawingUtils.drawConnectors(this.ctx, landmarks, FaceMesh.FACEMESH_CONTOURS, { color: '#0000FF' });
+    }
+  }
 };
 </script>
 
