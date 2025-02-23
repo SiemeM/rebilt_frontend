@@ -23,11 +23,7 @@ export default {
 
   mounted() {
     console.log("🔄 Component geladen");
-    this.initCamera()
-      .then(() => {
-        this.initFaceMesh();
-      })
-      .catch((error) => console.error("🚨 Fout bij initialisatie:", error));
+    this.initCamera().then(() => this.initFaceMesh()).catch(error => console.error("🚨 Fout bij initialisatie:", error));
   },
 
   methods: {
@@ -36,66 +32,67 @@ export default {
       this.video = this.$refs.videoElement;
       this.canvas = this.$refs.canvasElement;
       this.ctx = this.canvas.getContext("2d");
-
       this.canvas.width = 640;
       this.canvas.height = 480;
       
-      const constraints = { video: { facingMode: "user", width: 640, height: 480 } };
       try {
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 640, height: 480 } });
         this.video.srcObject = stream;
-        this.video.play();
+        this.video.onloadedmetadata = () => this.video.play();
         console.log("📹 Camera initialized");
       } catch (error) {
         console.error("🚨 Camera error:", error);
       }
     },
 
-    initFaceMesh() {
-      console.log("👁️ Initializing FaceMesh...");
-      this.faceMesh = new FaceMesh({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
-      });
+    async initFaceMesh() {
+      try {
+        console.log("👁️ Initializing FaceMesh...");
+        this.faceMesh = new FaceMesh({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+        });
+        this.faceMesh.setOptions({
+          maxNumFaces: 1,
+          refineLandmarks: true,
+          minDetectionConfidence: 0.7,
+          minTrackingConfidence: 0.7,
+        });
+        this.faceMesh.onResults(this.onFaceMeshResults);
 
-      this.faceMesh.setOptions({
-        maxNumFaces: 1,
-        refineLandmarks: true,
-        minDetectionConfidence: 0.7,
-        minTrackingConfidence: 0.7,
-      });
-
-      this.faceMesh.onResults(this.onFaceMeshResults);
-      
-      const camera = new Camera(this.video, {
-        onFrame: async () => {
-          await this.faceMesh.send({ image: this.video });
-        },
-        width: 640,
-        height: 480,
-      });
-      camera.start();
+        const camera = new Camera(this.video, {
+          onFrame: async () => {
+            try {
+              await this.faceMesh.send({ image: this.video });
+            } catch (error) {
+              console.error("🚨 FaceMesh error:", error);
+            }
+          },
+          width: 640,
+          height: 480,
+        });
+        camera.start();
+      } catch (error) {
+        console.error("🚨 FaceMesh initialization error:", error);
+      }
     },
 
     onFaceMeshResults(results) {
       if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
       const landmarks = results.multiFaceLandmarks[0];
-
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
       
       this.ctx.strokeStyle = "#00FF00";
       this.ctx.lineWidth = 1;
       this.ctx.fillStyle = "#FF0000";
-      
-      for (let i = 0; i < landmarks.length; i++) {
-        const point = landmarks[i];
+      landmarks.forEach(point => {
         this.ctx.beginPath();
         this.ctx.arc(point.x * this.canvas.width, point.y * this.canvas.height, 2, 0, 2 * Math.PI);
         this.ctx.fill();
-      }
+      });
       
-      drawingUtils.drawConnectors(this.ctx, landmarks, FaceMesh.FACEMESH_TESSELATION, { color: '#00FF00' });
-      drawingUtils.drawConnectors(this.ctx, landmarks, FaceMesh.FACEMESH_CONTOURS, { color: '#0000FF' });
+      drawingUtils.drawConnectors(this.ctx, landmarks, FaceMesh.FACEMESH_TESSELATION, { color: "#00FF00" });
+      drawingUtils.drawConnectors(this.ctx, landmarks, FaceMesh.FACEMESH_CONTOURS, { color: "#0000FF" });
     }
   }
 };
