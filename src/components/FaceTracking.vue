@@ -8,7 +8,7 @@
 <script>
 import { onMounted, ref } from "vue";
 import * as faceMeshModule from "@mediapipe/face_mesh";
-import { Camera } from "@mediapipe/camera_utils";
+import * as cameraUtils from "@mediapipe/camera_utils";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import { FACEMESH_TESSELATION } from "@mediapipe/face_mesh";
 
@@ -47,10 +47,8 @@ export default {
     function initFaceMesh() {
       console.log("[FaceTracking] initFaceMesh() called.");
 
-      const faceMesh = new FaceMesh({
-        locateFile: (file) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
-        },
+      const faceMesh = new faceMeshModule.FaceMesh({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
       });
 
       console.log("[FaceTracking] Setting FaceMesh options...");
@@ -65,7 +63,7 @@ export default {
       faceMesh.onResults(onResults);
 
       console.log("[FaceTracking] Creating Camera instance...");
-      const camera = new Camera(videoElement.value, {
+      const camera = new cameraUtils.Camera(videoElement.value, {
         onFrame: async () => {
           console.debug("[FaceTracking] onFrame -> sending frame to FaceMesh...");
           await faceMesh.send({ image: videoElement.value });
