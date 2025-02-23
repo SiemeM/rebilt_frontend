@@ -6,132 +6,137 @@
 </template>
 
 <script>
+import { onMounted, ref } from "vue";
 import { FaceMesh } from "@mediapipe/face_mesh";
 import { Camera } from "@mediapipe/camera_utils";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import { FACEMESH_TESSELATION } from "@mediapipe/face_mesh";
 
+/**
+ * Eventuele console.debug(...) of console.log(...) staan uitgebreid
+ * in de code om precies te kunnen volgen waar iets eventueel misgaat.
+ */
 export default {
   name: "FaceTracking",
+  setup() {
+    const videoElement = ref(null);
+    const canvasElement = ref(null);
+    let ctx = null;
 
-  data() {
-    return {
-      video: null,
-      faceMesh: null,
-      canvas: null,
-      ctx: null,
-      camera: null
-    };
-  },
+    onMounted(() => {
+      console.log("[FaceTracking] Component is mounted, starting initCamera()...");
+      initCamera();
+    });
 
-  mounted() {
-    console.log("[FaceTracking] Component is mounted.");
-    this.initCamera();
-  },
-
-  methods: {
-    async initCamera() {
-      console.log("[FaceTracking] initCamera() called.");
+    async function initCamera() {
+      console.log("[FaceTracking] Requesting user camera access...");
       try {
-        console.log("[FaceTracking] Requesting user camera access...");
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "user" },
+          audio: false,
         });
+        console.log("[FaceTracking] Camera stream granted.");
 
-        this.video = this.$refs.videoElement;
-        this.video.srcObject = stream;
-        console.log("[FaceTracking] Stream obtained, setting video srcObject.");
-
-        // Wanneer de videometadata geladen is, kunnen we beginnen met FaceMesh:
-        this.video.onloadedmetadata = () => {
-          console.log("[FaceTracking] Video metadata loaded. Starting video and initializing FaceMesh...");
-          this.video.play();
-          this.initFaceMesh();
+        // Koppel stream aan video
+        videoElement.value.srcObject = stream;
+        videoElement.value.onloadedmetadata = () => {
+          console.log("[FaceTracking] Video metadata loaded, playing video & init FaceMesh...");
+          videoElement.value.play();
+          initFaceMesh();
         };
-      } catch (error) {
-        console.error("[FaceTracking] Camera error:", error);
+      } catch (err) {
+        console.error("[FaceTracking] Camera error:", err);
       }
-    },
+    }
 
-    initFaceMesh() {
+    function initFaceMesh() {
       console.log("[FaceTracking] initFaceMesh() called.");
 
-      // We gebruiken een custom locateFile, zodat de NON-SIMD wasm wordt geladen
-      // in plaats van face_mesh_solution_simd_wasm_bin.js
-      this.faceMesh = new FaceMesh({
+      const faceMesh = new FaceMesh({
+        /**
+         * We overschrijven locateFile om de NON-SIMD wasm te laden (face_mesh_solution_wasm_bin.*)
+         * i.p.v. face_mesh_solution_simd_wasm_bin.js.
+         *
+         * Let op: De bestandsnamen in @mediapipe/face_mesh@0.8.1 zijn:
+         *   - face_mesh_solution_packed_assets_loader.js
+         *   - face_mesh_solution_wasm_bin.js
+         *   - face_mesh_solution_wasm_bin.wasm
+         */
         locateFile: (file) => {
+          console.debug("[FaceTracking] FaceMesh is requesting file:", file);
+
+          // Als er om de SIMD versie gevraagd wordt:
           if (file === "face_mesh_solution_simd_wasm_bin.js") {
-            console.log("[FaceTracking] Replacing SIMD WASM with non-SIMD WASM -> face_mesh_solution_wasm_bin.js");
-            return "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh_solution_wasm_bin.js";
+            console.warn("[FaceTracking] Replacing SIMD WASM with NON-SIMD => face_mesh_solution_wasm_bin.js");
+            return "/node_modules/@mediapipe/face_mesh/face_mesh_solution_wasm_bin.js";
           }
-          console.log(`[FaceTracking] Loading other file from CDN: ${file}`);
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`;
+
+          // Anders: Laat alle andere files naar de non-SIMD folder wijzen.
+          // (Je kunt deze paths aanpassen of dynamisch genereren; het gaat erom dat
+          //  je in je bundel of je dev-server de 'node_modules' folder serveert.)
+          return `/node_modules/@mediapipe/face_mesh/${file}`;
         },
       });
 
-      // Stel opties in
       console.log("[FaceTracking] Setting FaceMesh options...");
-      this.faceMesh.setOptions({
+      faceMesh.setOptions({
         maxNumFaces: 1,
         refineLandmarks: true,
         minDetectionConfidence: 0.7,
         minTrackingConfidence: 0.7,
       });
 
-      // Koppel de onResults callback
-      console.log("[FaceTracking] Attaching faceMesh.onResults()");
-      this.faceMesh.onResults(this.onFaceMeshResults);
+      console.log("[FaceTracking] Binding onResults() callback...");
+      faceMesh.onResults(onResults);
 
-      // Maak de camera aan via Mediapipe's Camera helper
-      console.log("[FaceTracking] Creating Mediapipe Camera instance...");
-      this.camera = new Camera(this.$refs.videoElement, {
+      console.log("[FaceTracking] Creating Camera instance...");
+      const camera = new Camera(videoElement.value, {
         onFrame: async () => {
-          // Hier sturen we elke frame naar FaceMesh
-          console.log("[FaceTracking] onFrame -> sending video frame to FaceMesh...");
-          await this.faceMesh.send({ image: this.$refs.videoElement });
+          // Stuur elke frame door naar FaceMesh
+          console.debug("[FaceTracking] onFrame -> sending frame to FaceMesh...");
+          await faceMesh.send({ image: videoElement.value });
         },
         width: 640,
         height: 480,
       });
+
       console.log("[FaceTracking] Starting camera...");
-      this.camera.start();
-    },
+      camera.start();
+    }
 
-    onFaceMeshResults(results) {
-      console.log("[FaceTracking] onFaceMeshResults() triggered. Received results:", results);
+    function onResults(results) {
+      console.debug("[FaceTracking] onResults() got results:", results);
 
-      if (!this.canvas) {
-        console.log("[FaceTracking] Grabbing canvas reference...");
-        this.canvas = this.$refs.canvasElement;
-      }
-      if (!this.ctx) {
-        console.log("[FaceTracking] Creating 2D context from canvas...");
-        this.ctx = this.canvas.getContext("2d");
+      if (!ctx) {
+        console.debug("[FaceTracking] Creating 2D context...");
+        ctx = canvasElement.value.getContext("2d");
       }
 
-      // Clear het canvas
-      console.log("[FaceTracking] Clearing canvas...");
-      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      // Canvas schoonmaken
+      ctx.clearRect(0, 0, canvasElement.value.width, canvasElement.value.height);
 
-      // Teken de video-image op het canvas
-      console.log("[FaceTracking] Drawing video image on canvas...");
-      this.ctx.drawImage(results.image, 0, 0, this.canvas.width, this.canvas.height);
+      // Teken de 'image' op het canvas
+      ctx.drawImage(results.image, 0, 0, canvasElement.value.width, canvasElement.value.height);
 
-      // Teken de gezichtslandmarks
+      // Als er landmarks zijn, tekenen we ze
       if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-        console.log(`[FaceTracking] Detected faces: ${results.multiFaceLandmarks.length}. Drawing landmarks...`);
+        console.log(`[FaceTracking] Detected ${results.multiFaceLandmarks.length} face(s). Drawing landmarks...`);
         for (const landmarks of results.multiFaceLandmarks) {
-          console.log("[FaceTracking] Landmarks object:", landmarks);
-          drawConnectors(this.ctx, landmarks, FACEMESH_TESSELATION, {
+          drawConnectors(ctx, landmarks, FACEMESH_TESSELATION, {
             color: "#00FF00",
             lineWidth: 1,
           });
-          drawLandmarks(this.ctx, landmarks, { color: "#FF0000", radius: 2 });
+          drawLandmarks(ctx, landmarks, { color: "#FF0000", radius: 2 });
         }
       } else {
-        console.log("[FaceTracking] No face landmarks detected.");
+        console.debug("[FaceTracking] No face landmarks detected on this frame.");
       }
-    },
+    }
+
+    return {
+      videoElement,
+      canvasElement,
+    };
   },
 };
 </script>
@@ -144,14 +149,14 @@ export default {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: #000; /* Eventueel zodat je ziet of het canvas/video wel of niet gevuld is */
+  background: #000;
 }
 
 video {
   width: 100%;
   height: 100%;
   position: absolute;
-  transform: scaleX(-1); /* Spiegelt de camera, komt natuurlijker over voor een front-cam */
+  transform: scaleX(-1); /* Gespiegeld voor front-facing camera */
   object-fit: cover;
 }
 
@@ -159,6 +164,6 @@ canvas {
   width: 100%;
   height: 100%;
   position: absolute;
-  pointer-events: none; /* Maakt canvas 'klikdoorlatend' */
+  pointer-events: none;
 }
 </style>
