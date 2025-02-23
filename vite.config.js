@@ -4,7 +4,7 @@ import vue from "@vitejs/plugin-vue";
 export default defineConfig({
   plugins: [vue()],
   optimizeDeps: {
-    exclude: ["@mediapipe/face_mesh"]
+    exclude: ["@mediapipe/face_mesh"],
   },
   server: {
     proxy: {
