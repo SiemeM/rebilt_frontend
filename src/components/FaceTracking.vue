@@ -25,7 +25,7 @@ export default {
 
   mounted() {
     console.log("🔄 Component geladen");
-    this.initCamera().then(() => this.initFaceMesh()).catch(error => console.error("🚨 Fout bij initialisatie:", error));
+    this.initCamera();
   },
 
   methods: {
@@ -40,7 +40,10 @@ export default {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 640, height: 480 } });
         this.video.srcObject = stream;
-        this.video.onloadedmetadata = () => this.video.play();
+        this.video.onloadedmetadata = () => {
+          this.video.play();
+          this.initFaceMesh();
+        };
         console.log("📹 Camera initialized");
       } catch (error) {
         console.error("🚨 Camera error:", error);
@@ -80,8 +83,8 @@ export default {
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       this.ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
       
-      drawConnectors(this.ctx, landmarks, FACEMESH_TESSELATION, { color: "#00FF00" });
-      drawConnectors(this.ctx, landmarks, FACEMESH_CONTOURS, { color: "#0000FF" });
+      drawConnectors(this.ctx, landmarks, FACEMESH_TESSELATION, { color: "#00FF00", lineWidth: 1 });
+      drawConnectors(this.ctx, landmarks, FACEMESH_CONTOURS, { color: "#0000FF", lineWidth: 2 });
       drawLandmarks(this.ctx, landmarks, { color: "#FF0000", radius: 2 });
     }
   }
