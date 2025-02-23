@@ -17,7 +17,8 @@ export default {
       video: null,
       faceMesh: null,
       canvas: null,
-      ctx: null
+      ctx: null,
+      camera: null
     };
   },
 
@@ -59,7 +60,7 @@ export default {
         });
         this.faceMesh.onResults(this.onFaceMeshResults);
 
-        const camera = new Camera(this.video, {
+        this.camera = new Camera(this.video, {
           onFrame: async () => {
             try {
               await this.faceMesh.send({ image: this.video });
@@ -70,7 +71,7 @@ export default {
           width: 640,
           height: 480,
         });
-        camera.start();
+        this.camera.start();
       } catch (error) {
         console.error("🚨 FaceMesh initialization error:", error);
       }
