@@ -45,39 +45,38 @@ export default {
     }
 
     function initFaceMesh() {
-  console.log("[FaceTracking] initFaceMesh() called.");
+      console.log("[FaceTracking] initFaceMesh() called.");
 
-  const faceMesh = new FaceMesh({
-    locateFile: (file) => {
-      return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-    },
-  });
+      const faceMesh = new FaceMesh({
+        locateFile: (file) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`;
+        },
+      });
 
-  console.log("[FaceTracking] Setting FaceMesh options...");
-  faceMesh.setOptions({
-    maxNumFaces: 1,
-    refineLandmarks: true,
-    minDetectionConfidence: 0.7,
-    minTrackingConfidence: 0.7,
-  });
+      console.log("[FaceTracking] Setting FaceMesh options...");
+      faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.7,
+      });
 
-  console.log("[FaceTracking] Binding onResults() callback...");
-  faceMesh.onResults(onResults);
+      console.log("[FaceTracking] Binding onResults() callback...");
+      faceMesh.onResults(onResults);
 
-  console.log("[FaceTracking] Creating Camera instance...");
-  const camera = new Camera(videoElement.value, {
-    onFrame: async () => {
-      console.debug("[FaceTracking] onFrame -> sending frame to FaceMesh...");
-      await faceMesh.send({ image: videoElement.value });
-    },
-    width: 640,
-    height: 480,
-  });
+      console.log("[FaceTracking] Creating Camera instance...");
+      const camera = new Camera(videoElement.value, {
+        onFrame: async () => {
+          console.debug("[FaceTracking] onFrame -> sending frame to FaceMesh...");
+          await faceMesh.send({ image: videoElement.value });
+        },
+        width: 640,
+        height: 480,
+      });
 
-  console.log("[FaceTracking] Starting camera...");
-  camera.start();
-}
-
+      console.log("[FaceTracking] Starting camera...");
+      camera.start();
+    }
 
     function onResults(results) {
       console.debug("[FaceTracking] onResults() got results:", results);
