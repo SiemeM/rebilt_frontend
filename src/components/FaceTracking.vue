@@ -7,7 +7,7 @@
 
 <script>
 import { onMounted, ref } from "vue";
-import { FaceMesh } from "@mediapipe/face_mesh";
+import * as faceMeshModule from "@mediapipe/face_mesh";
 import { Camera } from "@mediapipe/camera_utils";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import { FACEMESH_TESSELATION } from "@mediapipe/face_mesh";
