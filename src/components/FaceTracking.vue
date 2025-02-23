@@ -10,7 +10,7 @@
 import { FaceMesh } from "@mediapipe/face_mesh";
 import { Camera } from "@mediapipe/camera_utils";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
-import { FACEMESH_TESSELATION, FACEMESH_CONTOURS } from "@mediapipe/face_mesh";
+import { FACEMESH_TESSELATION } from "@mediapipe/face_mesh";
 
 export default {
   data() {
@@ -51,8 +51,9 @@ export default {
 
     async initFaceMesh() {
       this.faceMesh = new FaceMesh({
-        locateFile: (file) =>
-          `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+        locateFile: (file) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+        },
       });
 
       this.faceMesh.setOptions({
@@ -86,10 +87,6 @@ export default {
       drawConnectors(this.ctx, landmarks, FACEMESH_TESSELATION, {
         color: "#00FF00",
         lineWidth: 1,
-      });
-      drawConnectors(this.ctx, landmarks, FACEMESH_CONTOURS, {
-        color: "#0000FF",
-        lineWidth: 2,
       });
       drawLandmarks(this.ctx, landmarks, { color: "#FF0000", radius: 2 });
     },
