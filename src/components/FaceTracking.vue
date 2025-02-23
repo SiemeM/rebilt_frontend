@@ -8,9 +8,6 @@
 
 <script>
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
-import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import { FaceMesh } from "@mediapipe/face_mesh";
 import { Camera } from "@mediapipe/camera_utils";
 
@@ -20,10 +17,10 @@ export default {
       video: null,
       faceMesh: null,
       animationFrameId: null,
-      model: null,
       scene: null,
       threeCamera: null,
       renderer: null,
+      facePoints: [],
     };
   },
 
@@ -90,35 +87,30 @@ export default {
       this.renderer.setSize(window.innerWidth, window.innerHeight);
       document.body.appendChild(this.renderer.domElement);
       console.log("🎮 Three.js initialized");
-      this.loadModel();
+      this.createFacePoints();
       this.animate();
+    },
+
+    createFacePoints() {
+      const geometry = new THREE.BufferGeometry();
+      const material = new THREE.PointsMaterial({ color: 0xff0000, size: 0.02 });
+      this.facePoints = new THREE.Points(geometry, material);
+      this.scene.add(this.facePoints);
     },
 
     onFaceMeshResults(results) {
       if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
       const landmarks = results.multiFaceLandmarks[0];
-      const nose = landmarks[1]; // Nose landmark (index 1)
-      if (this.model) {
-        const x = (nose.x - 0.5) * 3;
-        const y = -(nose.y - 0.5) * 3;
-        this.model.position.set(x, y, 0);
-        console.log("👟 Model position updated:", x, y);
-      }
-    },
+      const positions = new Float32Array(landmarks.length * 3);
 
-    loadModel() {
-      console.log("🔄 Loading 3D model...");
-      const loader = new GLTFLoader();
-      loader.load(
-        "https://res.cloudinary.com/dzempjvto/raw/upload/v1739183774/Products/222233/k4du4mi1q2uvou11dfvy.glb",
-        (gltf) => {
-          this.model = gltf.scene;
-          this.model.scale.set(0.2, 0.2, 0.2);
-          this.scene.add(this.model);
-        },
-        undefined,
-        (error) => console.error("🚨 Model load error:", error)
-      );
+      landmarks.forEach((point, index) => {
+        positions[index * 3] = (point.x - 0.5) * 3;
+        positions[index * 3 + 1] = -(point.y - 0.5) * 3;
+        positions[index * 3 + 2] = -1;
+      });
+
+      this.facePoints.geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      this.facePoints.geometry.attributes.position.needsUpdate = true;
     },
 
     onResize() {
